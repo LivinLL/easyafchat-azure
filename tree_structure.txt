@@ -5,6 +5,9 @@
     requirements.txt
     startup.txt
     runtime.txt
+    Procfile
+    .deployment
+    easyafchat_v3.code-workspace
     prod/
         .env
         database.py
@@ -67,3 +70,6 @@
             .gitignore
             requirements.txt
             admin.py
+    .github/
+        workflows/
+            main_easyafchat-v3.yml
