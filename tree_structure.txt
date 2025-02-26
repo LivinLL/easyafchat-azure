@@ -1,39 +1,26 @@
     .gitignore
+    README.md
     tree_create.py
     tree_structure.txt
-    gpt_chat_starter.txt
-    easyafchat-workspace.code-workspace
     requirements.txt
-    README.md
-    .deployment
+    startup.txt
+    runtime.txt
     prod/
         .env
-        digital_ocean_doc.txt
-        .dockerignore
-        admin.py
         database.py
         db_chk.py
         db_mgr.py
-        easyafchat.code-workspace
-        prompt_log.txt
         screenshot.py
         easyafchat.db
-        package.json
-        package-lock.json
         demo_format.html
-        prompt_01.txt
         tree_structure.txt
         chat_manual.py
         chat_handler.py
         app.py
+        prompt_log.txt
         static/
-            site.webmanifest
             css/
                 style.css
-                style_orig.css
-                style copy 01072025.css
-                style 1030pm.css
-                style copy.css
             images/
                 easyafchat_favicon_1080x1080.png
                 hero-2.png
@@ -52,13 +39,10 @@
                     easyafchat_favicon_32x32.png
                     easyafchat_favicon_512x512.png
             js/
-                chatbot-embed copy.js
-                chatbot-embed-original.js
                 chatbot-embed.js
                 script.js
         templates/
             demo.html
-            chat_test_orig.html
             chat_test.html
             chat_manual.html
             landing.html
@@ -81,7 +65,5 @@
             Procfile
             goldfish-app.yaml
             .gitignore
-    helpdocs/
-        auto-email-after-bot-interaction-summary.docx
-    .vscode/
-        settings.json
+            requirements.txt
+            admin.py
