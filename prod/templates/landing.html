@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyAF Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon/easyafchat_favicon_16x16.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon/easyafchat_favicon_32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="180x180" href="{{ url_for('static', filename='images/favicon/easyafchat_favicon_180x180.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='images/favicon/easyafchat_favicon_192x192.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='images/favicon/easyafchat_favicon_512x512.png') }}">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicon/easyafchat_favicon_180x180.png') }}">
+    <meta name="mobile-web-app-title" content="EasyAF Chat">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Web Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <meta name="theme-color" content="#ffffff">
+    
+    <!-- Additional styles for processing overlay -->
+    <style>
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+        
+        .processing-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #0d6efd;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .processing-steps {
+            text-align: left;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .processing-step {
+            margin-bottom: 8px;
+            color: #6c757d;
+        }
+        
+        .processing-step.active {
+            color: #212529;
+            font-weight: 600;
+        }
+        
+        .processing-step.completed {
+            color: #198754;
+        }
+        
+        .processing-time {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        .processing-error {
+            color: #dc3545;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <!-- Logo -->
+                <div class="logo">
+                    <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="EasyAF Logo">
+                </div>
+                <!-- Hamburger Menu -->
+                <div class="hamburger" onclick="toggleMobileMenu()">
+                    <div class="line"></div>
+                    <div class="line"></div>
+                    <div class="line"></div>
+                </div>
+                <!-- Navigation Links -->
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>A Smart AI Agent Chatbot for Your Website in 30 Seconds</h1>
+            <p>Simply enter your website URL below, and we'll create a smart AI chatbot for you instantly.</p>
+            <div class="hero-input">
+                <form id="urlForm" action="/" method="POST">
+                    <input type="text" name="url" placeholder="Enter your website URL (e.g., https://yourwebsite.com)" required>
+                    <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Create My Chatbot</button>
+                </form>
+            </div>
+            <div class="processing-overlay" id="processingOverlay" style="display: none;">
+                <div class="processing-content">
+                    <div class="spinner"></div>
+                    <h3>Creating Your AI Chatbot</h3>
+                    <p id="processingMessage">Initializing chatbot creation...</p>
+                    
+                    <div class="processing-steps">
+                        <div class="processing-step" id="step1">1. Analyzing your website content</div>
+                        <div class="processing-step" id="step2">2. Processing with AI to create knowledge base</div>
+                        <div class="processing-step" id="step3">3. Preparing vector embeddings</div>
+                        <div class="processing-step" id="step4">4. Finalizing your chatbot</div>
+                    </div>
+                    
+                    <div class="processing-time" id="processingTime">Time elapsed: 0 seconds</div>
+                    
+                    <div class="processing-error" id="processingError" style="display: none;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Rich Conversational Experiences Section -->
+        <section class="rich-conversations">
+            <div class="container">
+                <h2>Create rich conversational experiences</h2>
+                <div class="grid">
+                    <div class="card">
+                        <div class="image-placeholder"></div>
+                        <h3>Provide support wherever customers are</h3>
+                        <p>Connect across web, mobile and social so the conversation is ongoing and the customer never has to repeat themselves.</p>
+                    </div>
+                    <div class="card">
+                        <div class="image-placeholder"></div>
+                        <h3>Increase team productivity & efficiency</h3>
+                        <p>Messaging comes with a unified agent workspace that gives agents what they need to respond to customers, anywhere.</p>
+                    </div>
+                    <div class="card">
+                        <div class="image-placeholder"></div>
+                        <h3>Offer quick & personalized interactions</h3>
+                        <p>Provide 24/7 support with built-in automation for faster service as you scale and rich content for your conversations.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="how-it-works">
+            <div class="container">
+                <div class="how-it-works-content">
+                    <!-- Main Image on the Left -->
+                    <div class="main-image">
+                        <img src="{{ url_for('static', filename='images/how-it-works-main.png') }}" alt="How It Works">
+                    </div>
+                    <!-- Steps and Button on the Right -->
+                    <div class="steps-container">
+                        <h2>Here's How It Works</h2>
+                        <div class="steps">
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h3>Input your company's URL and click Create My Chatbot</h3>
+                                    <p>Enter your website URL to get started. It's quick and easy!</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h3>See a demo of your bot as your customers will</h3>
+                                    <p>Preview your chatbot in action before deploying it.</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h3>Copy the snippet of code onto your website - done!</h3>
+                                    <p>Integrate your chatbot with just a few lines of code.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="scrollToHeroInput()">Create My Chatbot</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="faq">
+            <div class="container">
+                <h2>Frequently Asked Questions</h2>
+                <div class="faq-list">
+                    <!-- FAQ 1 -->
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>What is EasyAF Chat?</span>
+                            <span class="arrow"></span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>EasyAF Chat is a smart AI chatbot that helps you provide instant support to your customers. It's easy to set up and requires no coding.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ 2 -->
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>How do I create a chatbot?</span>
+                            <span class="arrow"></span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Simply enter your website URL in the input field above and click "Create My Chatbot." Your chatbot will be ready in seconds!</p>
+                        </div>
+                    </div>
+                    <!-- FAQ 3 -->
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Can I customize the chatbot?</span>
+                            <span class="arrow"></span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>Yes, you can customize the chatbot's appearance, responses, and behavior to match your brand and needs.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ 4 -->
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>Is EasyAF Chat free?</span>
+                            <span class="arrow"></span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>We offer a free plan with basic features. For advanced features, you can upgrade to one of our paid plans.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ 5 -->
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            <span>How do I integrate the chatbot on my website?</span>
+                            <span class="arrow"></span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>After creating your chatbot, you'll receive a snippet of code. Just copy and paste it into your website's HTML, and the chatbot will appear instantly.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <ul class="footer-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <!-- Include JavaScript -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- Async Processing JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlForm = document.getElementById('urlForm');
+            const processingOverlay = document.getElementById('processingOverlay');
+            const processingMessage = document.getElementById('processingMessage');
+            const processingTime = document.getElementById('processingTime');
+            const processingError = document.getElementById('processingError');
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+            const step4 = document.getElementById('step4');
+            
+            let startTime;
+            let pollingInterval;
+            let chatbotId;
+            
+            // Update processing time
+            function updateProcessingTime() {
+                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                processingTime.textContent = `Time elapsed: ${elapsedSeconds} seconds`;
+            }
+            
+            // Update step status
+            function updateStepStatus(step, status) {
+                // Remove all existing status classes
+                step.classList.remove('active', 'completed');
+                
+                // Add the new status class
+                if (status === 'active') {
+                    step.classList.add('active');
+                } else if (status === 'completed') {
+                    step.classList.add('completed');
+                }
+            }
+            
+            // Function to execute processing
+            async function executeProcessing(chatbot_id) {
+                try {
+                    const response = await fetch(`/process-url-execute/${chatbot_id}`);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to process URL');
+                    }
+                } catch (error) {
+                    console.error('Error executing processing:', error);
+                    processingError.textContent = `Error: ${error.message}`;
+                    processingError.style.display = 'block';
+                }
+            }
+            
+            // Check processing status
+            async function checkProcessingStatus() {
+                try {
+                    const response = await fetch(`/check-processing/${chatbotId}`);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to check processing status');
+                    }
+                    
+                    const data = await response.json();
+                    updateProcessingTime();
+                    
+                    if (data.status === 'error') {
+                        processingError.textContent = `Error: ${data.message}`;
+                        processingError.style.display = 'block';
+                        clearInterval(pollingInterval);
+                        return;
+                    }
+                    
+                    if (data.status === 'processing') {
+                        // Update UI based on processing phase
+                        if (data.phase === 'content') {
+                            processingMessage.textContent = 'Analyzing website content...';
+                            updateStepStatus(step1, 'active');
+                        } else if (data.phase === 'pinecone') {
+                            processingMessage.textContent = 'Creating vector database for your chatbot...';
+                            updateStepStatus(step1, 'completed');
+                            updateStepStatus(step2, 'completed');
+                            updateStepStatus(step3, 'active');
+                        }
+                    } else if (data.status === 'complete') {
+                        // Processing complete, update UI
+                        processingMessage.textContent = 'Your chatbot is ready!';
+                        updateStepStatus(step1, 'completed');
+                        updateStepStatus(step2, 'completed');
+                        updateStepStatus(step3, 'completed');
+                        updateStepStatus(step4, 'completed');
+                        
+                        // Clear interval
+                        clearInterval(pollingInterval);
+                        
+                        // Redirect to demo page after a short delay
+                        setTimeout(() => {
+                            window.location.href = `/demo/${chatbotId}`;
+                        }, 1000);
+                    }
+                } catch (error) {
+                    console.error('Error checking status:', error);
+                    processingError.textContent = `Error: ${error.message}`;
+                    processingError.style.display = 'block';
+                }
+            }
+            
+            // Handle form submission
+            urlForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                
+                // Show processing overlay
+                processingOverlay.style.display = 'flex';
+                processingError.style.display = 'none';
+                processingMessage.textContent = 'Initializing chatbot creation...';
+                
+                // Reset step statuses
+                updateStepStatus(step1, '');
+                updateStepStatus(step2, '');
+                updateStepStatus(step3, '');
+                updateStepStatus(step4, '');
+                
+                // Start timing
+                startTime = Date.now();
+                updateProcessingTime();
+                
+                const formData = new FormData(urlForm);
+                
+                try {
+                    // Submit form data to start processing
+                    const response = await fetch('/process-url-async', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to process URL');
+                    }
+                    
+                    const data = await response.json();
+                    chatbotId = data.chatbot_id;
+
+                    // Start the processing
+                    executeProcessing(chatbotId);
+                    
+                    // Start polling for status updates
+                    pollingInterval = setInterval(checkProcessingStatus, 1000);
+                    
+                } catch (error) {
+                    console.error('Error submitting form:', error);
+                    processingError.textContent = `Error: ${error.message}`;
+                    processingError.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

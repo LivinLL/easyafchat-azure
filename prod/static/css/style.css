@@ -1,0 +1,668 @@
+/* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    background-color: #fff;
+}
+
+a {
+    text-decoration: none;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Header and Navbar */
+header {
+    background-color: #fff;
+    border-bottom: 1px solid #ddd;
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.logo img {
+    height: 40px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 2rem;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-links li a {
+    color: #333;
+    font-weight: bold;
+}
+
+.nav-links li a:hover {
+    color: #25a7e1; /* Brand color for hover */
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .nav-links {
+        display: none;
+    }
+
+    .hamburger {
+        display: block;
+        cursor: pointer;
+        position: absolute;
+        top: 1rem;
+        right: 2rem;
+    }
+
+    .hamburger .line {
+        width: 25px;
+        height: 3px;
+        background-color: #333;
+        margin: 5px 0;
+    }
+
+    .nav-container.mobile-active {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .nav-container.mobile-active .nav-links {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        background-color: #fff;
+        padding: 1rem 0;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .nav-container.mobile-active .nav-links li {
+        width: 100%;
+        text-align: left;
+        padding: 0.5rem 1rem;
+    }
+}
+
+/* Hero Section */
+.hero {
+    text-align: center;
+    margin: 0 auto;
+    max-width: 100%; /* Stretch across the viewport */
+    padding: 3rem 2rem;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/static/images/hero-2.png'); /* Dark overlay for contrast */
+    background-size: cover; /* Ensure the image covers the section */
+    background-position: center -80px; /* Adjust the position of the background image */
+    background-repeat: no-repeat; /* Prevent tiling */
+    color: #fff; /* Adjust text color for contrast */
+    position: relative; /* Allows layering of content */
+    box-sizing: border-box; /* Include padding in width calculations */
+}
+
+/* Text Styling */
+.hero h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #fff; /* White text for readability */
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7); /* Shadow for better contrast */
+}
+
+.hero p {
+    font-size: 1.2rem;
+    color: #ddd; /* Slightly lighter text */
+    margin-bottom: 2rem;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7); /* Shadow for readability */
+}
+
+/* Input and Button */
+.hero-input {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap; /* Allows wrapping for smaller screens */
+}
+
+.hero-input input {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 20px;
+    width: 60%;
+    max-width: 400px;
+    outline: none;
+    transition: border-color 0.3s ease;
+    background-color: rgba(255, 255, 255, 0.9); /* Transparent white background */
+    color: #333; /* Dark text for input */
+    box-sizing: border-box; /* Include padding in width calculations */
+}
+
+.hero-input input:focus {
+    border-color: #25a7e1; /* Brand color for focus */
+}
+
+.hero-input .btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: bold;
+    border-radius: 20px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Shadow for depth */
+}
+
+.hero-input .btn-primary {
+    background-color: #25a7e1; /* Brand color for primary button */
+    color: #fff;
+    border: none;
+}
+
+.hero-input .btn-primary:hover {
+    background-color: #1c8ec7; /* Darker shade for hover */
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .hero {
+        padding: 2rem;
+        background-position: top; /* Adjust for smaller screens */
+    }
+
+    .hero h1 {
+        font-size: 2rem; /* Adjust heading size */
+    }
+
+    .hero p {
+        font-size: 1rem; /* Adjust paragraph size */
+    }
+
+    .hero-input {
+        flex-direction: column; /* Stack inputs and buttons */
+        gap: 1rem;
+        width: 100%;
+        padding: 0 1rem;
+        box-sizing: border-box;
+    }
+
+    .hero-input input {
+        width: 100%; /* Full width for smaller screens */
+        max-width: min(700px, 90%); /* Max width of 700px or 90% of container */
+        font-size: 16px; /* Adjust font size */
+        padding: 0.75rem 1rem;
+    }
+
+    .hero-input .btn {
+        width: 100%; /* Full width for buttons */
+        max-width: min(700px, 90%);
+        font-size: 16px; /* Adjust font size */
+        padding: 0.75rem 1rem;
+    }
+}
+
+
+/* Rich Conversations Section */
+.rich-conversations {
+    padding: 4rem 2rem;
+    background-color: #f9f9f9;
+    text-align: center;
+}
+
+.rich-conversations .container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.rich-conversations h2 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    color: #0d384d; /* Brand color for headings */
+}
+
+.rich-conversations .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.rich-conversations .card {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.rich-conversations .image-placeholder {
+    width: 100%;
+    height: 150px;
+    background-color: #ddd;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.rich-conversations h3 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #0d384d; /* Brand color for headings */
+}
+
+.rich-conversations p {
+    font-size: 1rem;
+    color: #555;
+    line-height: 1.5;
+}
+
+/* Mobile Responsive Styles for Rich Conversations Section */
+@media (max-width: 768px) {
+    .rich-conversations .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rich-conversations h2 {
+        font-size: 1.75rem;
+    }
+
+    .rich-conversations h3 {
+        font-size: 1.1rem;
+    }
+
+    .rich-conversations p {
+        font-size: 0.9rem;
+    }
+}
+
+/* How It Works Section */
+.how-it-works {
+    padding: 4rem 2rem;
+    background-color: #fff;
+}
+
+.how-it-works .container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.how-it-works-content {
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+}
+
+.how-it-works .main-image {
+    flex: 1;
+}
+
+.how-it-works .main-image img {
+    width: 100%;
+    border-radius: 10px;
+}
+
+.how-it-works .steps-container {
+    flex: 1;
+}
+
+.how-it-works h2 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    color: #0d384d; /* Brand color for headings */
+}
+
+.how-it-works .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.how-it-works .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.how-it-works .step-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #25a7e1; /* Brand color for step numbers */
+    background-color: #e6f4f9; /* Light background for step numbers */
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.how-it-works .step-content h3 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #0d384d; /* Brand color for headings */
+}
+
+.how-it-works .step-content p {
+    font-size: 1rem;
+    color: #555;
+    line-height: 1.5;
+}
+
+.how-it-works .btn {
+    margin-top: 2rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: bold;
+    border-radius: 20px;
+    background-color: #25a7e1; /* Brand color for primary button */
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.how-it-works .btn:hover {
+    background-color: #1c8ec7; /* Slightly darker shade for hover */
+}
+
+/* Mobile Responsive Styles for How It Works Section */
+@media (max-width: 768px) {
+    .how-it-works-content {
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .how-it-works h2 {
+        font-size: 1.75rem;
+    }
+
+    .how-it-works .step-content h3 {
+        font-size: 1.1rem;
+    }
+
+    .how-it-works .step-content p {
+        font-size: 0.9rem;
+    }
+}
+
+/* Scrolling Gallery */
+.scrolling-gallery {
+    overflow: hidden;
+    background-color: #f4f4f4;
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.gallery-row {
+    display: flex;
+    position: relative;
+}
+
+.gallery-row img {
+    width: 450px;
+    height: 450px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-right: 15px;
+}
+
+.gallery-row img:last-child {
+    margin-right: 0;
+}
+
+.gallery-row-left {
+    animation: scroll 25s linear infinite;
+    display: flex;
+}
+
+.gallery-row-right {
+    animation: scroll 25s linear infinite reverse;
+    display: flex;
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+/* FAQ Section */
+.faq {
+    padding: 4rem 2rem;
+    background-color: #f9f9f9;
+}
+
+.faq .container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.faq h2 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    color: #0d384d; /* Brand color for headings */
+    text-align: center;
+}
+
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.faq-item {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.faq-question {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    cursor: pointer;
+    font-weight: bold;
+    color: #333;
+}
+
+.faq-question .arrow {
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #333;
+    transition: transform 0.3s ease;
+}
+
+.faq-question.active .arrow {
+    transform: rotate(180deg);
+}
+
+.faq-answer {
+    display: none;
+    padding: 1rem;
+    border-top: 1px solid #ddd;
+    color: #555;
+    line-height: 1.5;
+}
+
+/* Mobile Responsive Styles for FAQ Section */
+@media (max-width: 768px) {
+    .faq h2 {
+        font-size: 1.75rem;
+    }
+
+    .faq-question {
+        font-size: 1rem;
+    }
+}
+
+/* Footer Section */
+footer {
+    background-color: #0d384d; /* Brand color for footer background */
+    color: #fff;
+    padding: 2rem 0;
+    text-align: center;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.footer-logo img {
+    height: 40px;
+}
+
+.footer-links {
+    list-style: none;
+    display: flex;
+    gap: 2rem;
+    margin: 0;
+    padding: 0;
+}
+
+.footer-links li a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.footer-links li a:hover {
+    color: #25a7e1; /* Brand color for hover */
+}
+
+/* Mobile Responsive Styles for Footer */
+@media (max-width: 768px) {
+    .footer-links {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+/* Processing Overlay Used on Landing After URL Submitted*/
+.processing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.processing-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #25a7e1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Demo Page Styles */
+.demo-hero {
+    background-image: none;
+    background-color: #f9f9f9;
+    color: #333;
+    padding: 2rem;
+}
+
+.demo-hero h1,
+.demo-hero p {
+    color: #333;
+    text-shadow: none;
+}
+
+/* Website Preview Styles - Where the Screenshot Lives on demo.html */
+.website-preview {
+    width: fit-content;
+    margin: 1rem auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Within website-preview; headline for the screenshot area */
+.preview-header {
+    background: #f5f5f5;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.preview-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+/* Within website-preview; holds the screenshot/url from thum.io */
+.preview-content {
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.preview-content img#websiteScreenshot {
+    display: block;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    border-radius: 5px;
+}
+
+/* Demo Page Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .demo-hero {
+        padding: 1rem;
+    }
+
+    .website-preview {
+        margin: 1rem;
+    }
+
+    .chatbot-demo {
+        padding: 1rem;
+    }
+}

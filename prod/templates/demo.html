@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyAF Chat - Demo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <div class="logo">
+                    <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="EasyAF Logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero demo-hero">
+            <h1 style="margin-top: -20px;">Your AI Chatbot Demo</h1>
+            <p style="margin-top: -10px;">Here's how your chatbot will look and function on your website.</p>
+            <div class="website-preview" style="margin-top: -20px;">
+                <div class="preview-header">
+                    <h3>Website Preview for: <span id="previewUrl">{{ website_url }}</span></h3>
+                </div>
+                <div class="preview-content" id="preview-content">
+                    <!-- This is the only line that changes in the entire file -->
+                    <img src="{{ screenshot_url }}" alt="Website Preview" id="websiteScreenshot">
+                </div>
+            </div>
+        </section>
+
+
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <ul class="footer-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <script>
+        window.davesEasyChatConfig = {
+            chatbotId: '{{ chatbot_id }}',
+            mountTo: '#preview-content'
+        };
+    </script>
+    <script src="/static/js/chatbot-embed.js"></script>
+</body>
+</html>

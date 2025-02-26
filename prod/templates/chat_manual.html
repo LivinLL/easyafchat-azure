@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Knowledge Base Entry</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            margin-bottom: 30px;
+            color: #0d6efd;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 300px;
+            resize: vertical;
+        }
+        button {
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0b5ed7;
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .alert-success {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        .processing-indicator {
+            text-align: center;
+            display: none;
+            margin-top: 20px;
+        }
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #0d6efd;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+        }
+        .info-section {
+            margin-bottom: 20px;
+        }
+        .info-label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .chatbot-placeholder {
+            min-height: 400px;
+            margin-top: 40px;
+            display: none; /* Hide initially until processing is complete */
+        }
+        #processingComplete {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 6px;
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Manual Knowledge Base Entry</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if result %}
+            <div class="result-info">
+                <h2>Processing Knowledge Base</h2>
+                
+                <div class="info-section">
+                    <div class="info-label">Company Name:</div>
+                    <div>{{ result.company_name }}</div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="info-label">Chatbot ID:</div>
+                    <div>{{ result.chatbot_id }}</div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="info-label">Namespace:</div>
+                    <div>{{ result.namespace }}</div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="info-label">Text Length:</div>
+                    <div>{{ result.text_length }} characters</div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="info-label">Chunks Created:</div>
+                    <div>{{ result.chunks }}</div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="info-label">Status:</div>
+                    <div id="statusDisplay">{{ result.status }}</div>
+                </div>
+            </div>
+            
+            <!-- Processing indicator remains visible until fully processed -->
+            <div class="processing-indicator" id="processingIndicator" style="display: block;">
+                <div class="spinner"></div>
+                <p>Processing your knowledge base in Pinecone... This may take up to 15 seconds.</p>
+                <p id="processingTime"></p>
+            </div>
+            
+            <!-- Success message shown when processing is complete -->
+            <div id="processingComplete">
+                <h3>Processing Complete! Your chatbot is ready.</h3>
+            </div>
+            
+            <!-- Chatbot will be embedded here, but hidden initially -->
+            <div class="chatbot-placeholder" id="chatbotPlaceholder"></div>
+            
+            <!-- Script to poll for processing status -->
+            <script>
+                // Poll for processing status
+                const chatbotId = "{{ result.chatbot_id }}";
+                let pollingInterval;
+                let startTime = Date.now();
+                
+                function updateProcessingTime() {
+                    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                    document.getElementById('processingTime').textContent = 
+                        `Time elapsed: ${elapsedSeconds} seconds`;
+                }
+                
+                function checkProcessingStatus() {
+                    fetch(`/check-processing/${chatbotId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            updateProcessingTime();
+                            
+                            if (data.status === 'complete') {
+                                // Update UI to show complete
+                                document.getElementById('statusDisplay').textContent = 'Success';
+                                document.getElementById('processingIndicator').style.display = 'none';
+                                document.getElementById('processingComplete').style.display = 'block';
+                                document.getElementById('chatbotPlaceholder').style.display = 'block';
+                                
+                                // Clear polling interval
+                                clearInterval(pollingInterval);
+                                
+                                // Initialize chatbot embed now that processing is complete
+                                initializeChatbot();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error checking processing status:', error);
+                        });
+                }
+                
+                function initializeChatbot() {
+                    // Set up chatbot configuration
+                    window.davesEasyChatConfig = {
+                        chatbotId: chatbotId,
+                        baseUrl: window.location.origin,
+                        readyToLoad: true  // Signal to chatbot-embed.js that it's ready to load
+                    };
+                    
+                    // Load the chatbot embed script
+                    const script = document.createElement('script');
+                    script.src = "{{ url_for('static', filename='js/chatbot-embed.js') }}";
+                    document.body.appendChild(script);
+                }
+                
+                // Start polling for status
+                pollingInterval = setInterval(checkProcessingStatus, 1000);
+                updateProcessingTime();
+            </script>
+        {% else %}
+            <form method="POST" action="{{ url_for('manual_entry') }}" id="manualEntryForm">
+                <div class="form-group">
+                    <label for="company_name">Company Name:</label>
+                    <input type="text" id="company_name" name="company_name" required placeholder="Enter company name (e.g., lluniversity)">
+                </div>
+                
+                <div class="form-group">
+                    <label for="knowledge_text">Knowledge Base Text:</label>
+                    <textarea id="knowledge_text" name="knowledge_text" required placeholder="Paste the knowledge base text here..."></textarea>
+                </div>
+                
+                <button type="submit" id="submitBtn">Process Knowledge Base</button>
+            </form>
+            
+            <div class="processing-indicator" id="processingIndicator">
+                <div class="spinner"></div>
+                <p>Processing your knowledge base... This may take a few moments.</p>
+            </div>
+            
+            <script>
+                document.getElementById('manualEntryForm').addEventListener('submit', function() {
+                    document.getElementById('submitBtn').disabled = true;
+                    document.getElementById('processingIndicator').style.display = 'block';
+                });
+            </script>
+        {% endif %}
+    </div>
+</body>
+</html>
