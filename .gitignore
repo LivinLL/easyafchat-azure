@@ -21,3 +21,6 @@ __pycache__/
 
 # Prod backups
 prod/backups
+
+# Prompt Log
+prod/prompt_log.txt
