@@ -79,25 +79,21 @@ def get_embeddings(text_chunks):
         embeddings.append(response.data[0].embedding)
     return embeddings
 
-def update_pinecone_index(new_namespace, text_chunks, embeddings, old_namespace=None):
+def update_pinecone_index(namespace, text_chunks, embeddings, old_namespace=None):
     """Update Pinecone index with new vectors"""
     try:
         index = pinecone_client.Index(PINECONE_INDEX)
-        base_namespace = '-'.join(new_namespace.split('-')[:-1])
         
-        # Find and delete the latest existing namespace
+        # Check if namespace exists before trying to delete from it
         existing_stats = index.describe_index_stats()
-        related_namespaces = sorted([ns for ns in existing_stats.namespaces.keys() 
-                                   if ns.startswith(base_namespace)])
+        if namespace in existing_stats.namespaces:
+            # Delete all vectors in the current namespace if it exists
+            index.delete(delete_all=True, namespace=namespace)
         
-        if related_namespaces:
-            latest_namespace = related_namespaces[-1]
-            index.delete(delete_all=True, namespace=latest_namespace)
-        
-        # Upload to new namespace
-        vectors = [(f"{new_namespace}-{i}", embedding, {"text": chunk}) 
+        # Upload vectors to the namespace
+        vectors = [(f"{namespace}-{i}", embedding, {"text": chunk}) 
                   for i, (chunk, embedding) in enumerate(zip(text_chunks, embeddings))]
-        index.upsert(vectors=vectors, namespace=new_namespace)
+        index.upsert(vectors=vectors, namespace=namespace)
         
         return True
     except Exception as e:
@@ -138,8 +134,8 @@ def check_namespace(url):
        index = pinecone_client.Index(PINECONE_INDEX)
        stats = index.describe_index_stats()
        
-       # Clean URL to base namespace
-       domain = url.split('//')[-1].split('/')[0].split('.')[0]
+       # Clean URL to base namespace - convert to lowercase for consistency
+       domain = url.split('//')[-1].split('/')[0].split('.')[0].lower()
        base = re.sub(r'[^a-zA-Z0-9-]', '', domain.replace('.', '-'))
        
        # Find existing namespaces
@@ -149,9 +145,9 @@ def check_namespace(url):
        if not existing:
            return f"{base}-01", None
            
+       # Return the existing namespace instead of creating a new one
        current = max(existing, key=lambda x: int(x.split('-')[-1]))
-       next_num = int(current.split('-')[-1]) + 1
-       return f"{base}-{str(next_num).zfill(2)}", current
+       return current, None
    except Exception as e:
        print(f"Error checking namespace: {e}")
        return f"{base}-01", None
@@ -167,11 +163,15 @@ def get_existing_record(url):
    """Check if URL already exists in database and return its data"""
    conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
    cursor = conn.cursor()
+   
+   # Normalize URL by converting to lowercase
+   url_lower = url.lower()
+   
    cursor.execute('''
        SELECT chatbot_id, pinecone_namespace
        FROM companies 
-       WHERE company_url = ?
-   ''', (url,))
+       WHERE LOWER(company_url) = ?
+   ''', (url_lower,))
    row = cursor.fetchone()
    conn.close()
    return row
@@ -255,15 +255,14 @@ def process_url_async():
     
     if existing_record:
         chatbot_id = existing_record[0]
-        old_namespace = existing_record[1]
-        new_namespace, _ = check_namespace(website_url)
+        namespace = existing_record[1]
     else:
         chatbot_id = generate_chatbot_id()
-        new_namespace, old_namespace = check_namespace(website_url)
+        namespace, _ = check_namespace(website_url)
     
     # Initialize processing status
     processing_status[chatbot_id] = {
-        "namespace": new_namespace,
+        "namespace": namespace,
         "completed": False,
         "start_time": time.time(),
         "website_url": website_url
@@ -283,15 +282,7 @@ def process_url_execute(chatbot_id):
     
     status_info = processing_status[chatbot_id]
     website_url = status_info["website_url"]
-    new_namespace = status_info["namespace"]
-    
-    # Check if URL already exists in the database
-    existing_record = get_existing_record(website_url)
-    
-    if existing_record:
-        old_namespace = existing_record[1]
-    else:
-        _, old_namespace = check_namespace(website_url)
+    namespace = status_info["namespace"]
     
     # Scrape the website and its About page
     home_text = scrape_page(website_url)
@@ -312,18 +303,18 @@ def process_url_execute(chatbot_id):
     chunks = chunk_text(processed_content)
     embeddings = get_embeddings(chunks)
     
-    if not update_pinecone_index(new_namespace, chunks, embeddings, old_namespace):
+    if not update_pinecone_index(namespace, chunks, embeddings):
         processing_status[chatbot_id]["error"] = "Failed to update knowledge base"
         return jsonify({"error": "Failed to update knowledge base"}), 400
 
     now = datetime.now(UTC)
     data = (
         chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
-        new_namespace, now, now, home_text, about_text, processed_content
+        namespace, now, now, home_text, about_text, processed_content
     )
 
     try:
-        if existing_record:
+        if existing_record := get_existing_record(website_url):
             update_company_data(data, chatbot_id)
         else:
             insert_company_data(data)
@@ -417,11 +408,10 @@ def process_url():
     
     if existing_record:
         chatbot_id = existing_record[0]
-        old_namespace = existing_record[1]
-        new_namespace, _ = check_namespace(website_url)
+        namespace = existing_record[1]
     else:
         chatbot_id = generate_chatbot_id()
-        new_namespace, old_namespace = check_namespace(website_url)
+        namespace, _ = check_namespace(website_url)
 
     # Scrape the website and its About page
     home_text = scrape_page(website_url)
@@ -442,14 +432,14 @@ def process_url():
     chunks = chunk_text(processed_content)
     embeddings = get_embeddings(chunks)
     
-    if not update_pinecone_index(new_namespace, chunks, embeddings, old_namespace):
+    if not update_pinecone_index(namespace, chunks, embeddings):
         flash("Failed to update knowledge base")
         return redirect(url_for('home'))
 
     now = datetime.now(UTC)
     data = (
         chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
-        new_namespace, now, now, home_text, about_text, processed_content
+        namespace, now, now, home_text, about_text, processed_content
     )
 
     try:
