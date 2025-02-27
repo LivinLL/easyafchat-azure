@@ -17,6 +17,9 @@ import requests
 import uuid
 import re
 
+# Import the admin dashboard blueprint
+from admin_dashboard import admin_dashboard, init_admin_dashboard
+
 # Load environment variables from .env only in development
 # Set ENVIRONMENT to production on Azure
 if os.environ.get('ENVIRONMENT') != 'production':
@@ -41,6 +44,10 @@ pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 PINECONE_INDEX = "all-companies"
 PINECONE_HOST = "https://all-companies-6ctd3g7.svc.aped-4627-b74a.pinecone.io"
 DB_PATH = os.getenv('DB_PATH', 'easyafchat.db')
+
+# Initialize and register the admin dashboard blueprint
+init_admin_dashboard(openai_client, pinecone_client, DB_PATH, PINECONE_INDEX)
+app.register_blueprint(admin_dashboard, url_prefix='/admin-dashboard-08x7z9y2-yoursecretword')
 
 # Dictionary to track processing status
 processing_status = {}
