@@ -24,3 +24,6 @@ prod/backups
 
 # Prompt Log
 prod/prompt_log.txt
+
+# Various others
+easyafchat_v3.code-workspace
