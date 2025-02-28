@@ -4,8 +4,8 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from pinecone import Pinecone
-from datetime import datetime, UTC  # Add UTC here
-from typing import List, Dict
+from datetime import datetime, UTC
+from typing import List, Dict, Tuple, Optional
 from chat_handler import ChatPromptHandler
 from flask_cors import CORS
 import time
@@ -16,6 +16,7 @@ import trafilatura
 import requests
 import uuid
 import re
+import json
 
 # Import the admin dashboard blueprint
 from admin_dashboard import admin_dashboard, init_admin_dashboard
@@ -134,121 +135,235 @@ def check_pinecone_status(namespace, expected_count=None):
         return False
 
 def generate_chatbot_id():
-   return str(uuid.uuid4()).replace('-', '')[:20]
+    return str(uuid.uuid4()).replace('-', '')[:20]
 
 def check_namespace(url):
-   try:
-       index = pinecone_client.Index(PINECONE_INDEX)
-       stats = index.describe_index_stats()
-       
-       # Clean URL to base namespace - convert to lowercase for consistency
-       domain = url.split('//')[-1].split('/')[0].split('.')[0].lower()
-       base = re.sub(r'[^a-zA-Z0-9-]', '', domain.replace('.', '-'))
-       
-       # Find existing namespaces
-       pattern = f"^{base}-\\d+$"
-       existing = [ns for ns in stats.namespaces.keys() if re.match(pattern, ns)]
-       
-       if not existing:
-           return f"{base}-01", None
-           
-       # Return the existing namespace instead of creating a new one
-       current = max(existing, key=lambda x: int(x.split('-')[-1]))
-       return current, None
-   except Exception as e:
-       print(f"Error checking namespace: {e}")
-       return f"{base}-01", None
+    try:
+        index = pinecone_client.Index(PINECONE_INDEX)
+        stats = index.describe_index_stats()
+        
+        # Clean URL to base namespace - convert to lowercase for consistency
+        domain = url.split('//')[-1].split('/')[0].split('.')[0].lower()
+        base = re.sub(r'[^a-zA-Z0-9-]', '', domain.replace('.', '-'))
+        
+        # Find existing namespaces
+        pattern = f"^{base}-\\d+$"
+        existing = [ns for ns in stats.namespaces.keys() if re.match(pattern, ns)]
+        
+        if not existing:
+            return f"{base}-01", None
+            
+        # Return the existing namespace instead of creating a new one
+        current = max(existing, key=lambda x: int(x.split('-')[-1]))
+        return current, None
+    except Exception as e:
+        print(f"Error checking namespace: {e}")
+        return f"{base}-01", None
 
 def insert_company_data(data):
-   conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
-   cursor = conn.cursor()
-   cursor.execute('INSERT INTO companies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
-   conn.commit()
-   conn.close()
+    conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO companies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
+    conn.commit()
+    conn.close()
 
 def get_existing_record(url):
-   """Check if URL already exists in database and return its data"""
-   conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
-   cursor = conn.cursor()
-   
-   # Normalize URL by converting to lowercase
-   url_lower = url.lower()
-   
-   cursor.execute('''
-       SELECT chatbot_id, pinecone_namespace
-       FROM companies 
-       WHERE LOWER(company_url) = ?
-   ''', (url_lower,))
-   row = cursor.fetchone()
-   conn.close()
-   return row
+    """Check if URL already exists in database and return its data"""
+    conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
+    cursor = conn.cursor()
+    
+    # Normalize URL by converting to lowercase
+    url_lower = url.lower()
+    
+    cursor.execute('''
+        SELECT chatbot_id, pinecone_namespace
+        FROM companies 
+        WHERE LOWER(company_url) = ?
+    ''', (url_lower,))
+    row = cursor.fetchone()
+    conn.close()
+    return row
 
 def update_company_data(data, chatbot_id):
-   """Update existing company record"""
-   conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
-   cursor = conn.cursor()
-   cursor.execute('''
-       UPDATE companies 
-       SET company_url=?, pinecone_host_url=?, pinecone_index=?, 
-           pinecone_namespace=?, updated_at=?, home_text=?, 
-           about_text=?, processed_content=?
-       WHERE chatbot_id=?
-   ''', (data[1], data[2], data[3], data[4], data[6], 
-         data[7], data[8], data[9], chatbot_id))
-   conn.commit()
-   conn.close()
+    """Update existing company record"""
+    conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE companies 
+        SET company_url=?, pinecone_host_url=?, pinecone_index=?, 
+            pinecone_namespace=?, updated_at=?, home_text=?, 
+            about_text=?, processed_content=?
+        WHERE chatbot_id=?
+    ''', (data[1], data[2], data[3], data[4], data[6], 
+          data[7], data[8], data[9], chatbot_id))
+    conn.commit()
+    conn.close()
+
+def extract_all_text(html_content):
+    """Extract all visible text from HTML while maintaining minimal structure"""
+    if not html_content:
+        return ""
+        
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Remove script and style elements that contain no visible text
+    for element in soup(['script', 'style', 'noscript']):
+        element.decompose()
+    
+    # Get text from all remaining elements
+    text = soup.get_text(separator=' ', strip=True)
+    
+    # Clean up whitespace
+    lines = (line.strip() for line in text.splitlines())
+    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+    text = '\n'.join(chunk for chunk in chunks if chunk)
+    
+    return text
+
+def extract_meta_tags(html_content):
+    """Extract relevant meta tags from HTML"""
+    meta_info = {
+        "title": "",
+        "description": ""
+    }
+    
+    if not html_content:
+        return meta_info
+    
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Extract page title
+    title_tag = soup.find('title')
+    if title_tag:
+        meta_info["title"] = title_tag.text.strip()
+    
+    # Extract meta description
+    meta_desc = soup.find('meta', attrs={"name": "description"})
+    if meta_desc:
+        meta_info["description"] = meta_desc.get('content', '')
+    
+    return meta_info
+
+def simple_scrape_page(url):
+    """Simplified scraper that extracts all visible text from a page"""
+    try:
+        # Use requests to get the full HTML
+        response = requests.get(url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        })
+        html_content = response.text
+        
+        # Extract all visible text
+        all_text = extract_all_text(html_content)
+        
+        # Extract basic meta information
+        meta_info = extract_meta_tags(html_content)
+        
+        return {
+            "all_text": all_text,
+            "meta_info": meta_info
+        }
+    except Exception as e:
+        print(f"Error in simple scraping: {e}")
+        return {"all_text": "", "meta_info": {"title": "", "description": ""}}
 
 def scrape_page(url):
-   try:
-       downloaded = trafilatura.fetch_url(url)
-       return trafilatura.extract(downloaded) if downloaded else None
-   except Exception as e:
-       print(f"Error scraping page: {e}")
-       return None
+    """Original scrape_page function maintained for compatibility"""
+    try:
+        # Use the simplified scraper but return just the main content for backward compatibility
+        result = simple_scrape_page(url)
+        return result["all_text"]
+    except Exception as e:
+        print(f"Error scraping page: {e}")
+        return None
 
 def find_about_page(base_url):
-   try:
-       response = requests.get(base_url, timeout=10)
-       soup = BeautifulSoup(response.text, 'html.parser')
-       
-       for link in soup.find_all('a', href=True):
-           href = link['href'].lower()
-           text = link.get_text(strip=True).lower()
-           if 'about' in href or 'about' in text:
-               return urljoin(base_url.rstrip('/'), link['href'])
-       return None
-   except Exception as e:
-       print(f"Error finding About page: {e}")
-       return None
+    """Find the About page URL"""
+    try:
+        response = requests.get(base_url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        })
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Common about page indicators
+        about_keywords = ['about', 'about us', 'about-us', 'aboutus', 'our story', 'our-story', 'ourstory', 'who we are', 'company']
+        
+        # Check all links
+        for link in soup.find_all('a', href=True):
+            href = link['href'].lower()
+            text = link.get_text(strip=True).lower()
+            if any(keyword in href for keyword in about_keywords) or any(keyword in text for keyword in about_keywords):
+                return urljoin(base_url.rstrip('/'), link['href'])
+                
+        # If still not found, try common about page patterns
+        common_about_paths = ['/about', '/about-us', '/aboutus', '/about_us', '/our-story', '/company']
+        for path in common_about_paths:
+            about_url = urljoin(base_url.rstrip('/'), path)
+            try:
+                about_response = requests.head(about_url, timeout=5)
+                if about_response.status_code == 200:
+                    return about_url
+            except:
+                continue
+                
+        return None
+    except Exception as e:
+        print(f"Error finding About page: {e}")
+        return None
 
-def process_content(home_text, about_text):
-   try:
-       prompt = f"""
-       Create a knowledge base document from this website content:
+def process_simple_content(home_data, about_data):
+    """Process the scraped content with OpenAI and return both prompt and response"""
+    try:
+        # Create a comprehensive prompt with all the text data
+        prompt = f"""
+        Create a comprehensive knowledge base document from this website content. Include all relevant business information such as services, pricing, contact details, calls to action, etc:
 
-       HOME PAGE:
-       {home_text}
+        HOME PAGE TITLE:
+        {home_data['meta_info']['title']}
 
-       ABOUT PAGE:
-       {about_text}
-       """
-       response = openai_client.chat.completions.create(
-           model="gpt-4o",
-           messages=[{"role": "user", "content": prompt}]
-       )
-       return response.choices[0].message.content
-   except Exception as e:
-       print(f"Error processing with OpenAI: {e}")
-       return None
+        HOME PAGE DESCRIPTION:
+        {home_data['meta_info']['description']}
+
+        HOME PAGE CONTENT:
+        {home_data['all_text']}
+
+        """
+        
+        # Add about page content if available
+        if about_data and about_data.get('all_text'):
+            prompt += f"""
+            ABOUT PAGE TITLE:
+            {about_data['meta_info']['title']}
+
+            ABOUT PAGE DESCRIPTION:
+            {about_data['meta_info']['description']}
+
+            ABOUT PAGE CONTENT:
+            {about_data['all_text']}
+            """
+        else:
+            prompt += "\nABOUT PAGE: Not found or no content available."
+            
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        # Return both the response and the prompt
+        return response.choices[0].message.content, prompt
+    except Exception as e:
+        print(f"Error processing with OpenAI: {e}")
+        # In case of error, return None
+        return None
 
 # Flask routes
 @app.route('/chat-test')
 def chat_test():
-   return render_template('chat_test.html')
+    return render_template('chat_test.html')
 
 @app.route('/')
 def home():
-   return render_template('landing.html')
+    return render_template('landing.html')
 
 @app.route('/process-url-async', methods=['POST'])
 def process_url_async():
@@ -291,21 +406,30 @@ def process_url_execute(chatbot_id):
     website_url = status_info["website_url"]
     namespace = status_info["namespace"]
     
-    # Scrape the website and its About page
-    home_text = scrape_page(website_url)
+    # Simplified scraping of the website and its About page
+    home_data = simple_scrape_page(website_url)
     about_url = find_about_page(website_url)
-    about_text = scrape_page(about_url) if about_url else "About page not found"
-
-    if not home_text:
+    about_data = simple_scrape_page(about_url) if about_url else None
+    
+    if not home_data.get("all_text"):
         processing_status[chatbot_id]["error"] = "Failed to scrape website content"
         return jsonify({"error": "Failed to scrape website content"}), 400
 
-    # Process the scraped content with OpenAI
-    processed_content = process_content(home_text, about_text)
-    if not processed_content:
+    # Process the content with OpenAI - returns both content and prompt
+    result = process_simple_content(home_data, about_data)
+    if not result:
         processing_status[chatbot_id]["error"] = "Failed to process content"
         return jsonify({"error": "Failed to process content"}), 400
-
+        
+    # Unpack the result - processed_content is the OpenAI response, full_prompt is what was sent to OpenAI
+    processed_content, full_prompt = result
+    
+    # Store the full OpenAI prompt in home_text field
+    home_text = full_prompt
+    
+    # Store the about page text (if it was found)
+    about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
+    
     # Chunk the content and create embeddings
     chunks = chunk_text(processed_content)
     embeddings = get_embeddings(chunks)
@@ -420,21 +544,30 @@ def process_url():
         chatbot_id = generate_chatbot_id()
         namespace, _ = check_namespace(website_url)
 
-    # Scrape the website and its About page
-    home_text = scrape_page(website_url)
+    # Simplified scraping of the website and its About page
+    home_data = simple_scrape_page(website_url)
     about_url = find_about_page(website_url)
-    about_text = scrape_page(about_url) if about_url else "About page not found"
-
-    if not home_text:
+    about_data = simple_scrape_page(about_url) if about_url else None
+    
+    if not home_data.get("all_text"):
         flash("Failed to scrape website content")
         return redirect(url_for('home'))
 
-    # Process the scraped content with OpenAI
-    processed_content = process_content(home_text, about_text)
-    if not processed_content:
+    # Process the content with OpenAI - returns both content and prompt
+    result = process_simple_content(home_data, about_data)
+    if not result:
         flash("Failed to process content")
         return redirect(url_for('home'))
-
+        
+    # Unpack the result - processed_content is the OpenAI response, full_prompt is what was sent to OpenAI
+    processed_content, full_prompt = result
+    
+    # Store the full OpenAI prompt in home_text field
+    home_text = full_prompt
+    
+    # Store the about page text (if it was found)
+    about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
+    
     # Chunk the content and create embeddings
     chunks = chunk_text(processed_content)
     embeddings = get_embeddings(chunks)
@@ -514,74 +647,74 @@ def demo(session_id):
 
 @app.route('/embed-chat', methods=['POST'])
 def embed_chat():
-   try:
-       data = request.json
-       print("Received chat request:", data)  # Keep existing debug log
-       chatbot_id = data.get("chatbot_id")
-       user_message = data.get("message")
+    try:
+        data = request.json
+        print("Received chat request:", data)  # Keep existing debug log
+        chatbot_id = data.get("chatbot_id")
+        user_message = data.get("message")
 
-       if not chatbot_id or not user_message:
-           print(f"Missing fields - chatbot_id: {chatbot_id}, message: {user_message}")
-           return jsonify({"error": "Missing chatbot_id or message"}), 400
+        if not chatbot_id or not user_message:
+            print(f"Missing fields - chatbot_id: {chatbot_id}, message: {user_message}")
+            return jsonify({"error": "Missing chatbot_id or message"}), 400
 
-       # Get namespace BEFORE initializing chat handler
-       with sqlite3.connect(DB_PATH) as conn:
-           cursor = conn.cursor()
-           cursor.execute('''
-               SELECT pinecone_namespace
-               FROM companies
-               WHERE chatbot_id = ?
-           ''', (chatbot_id,))
-           row = cursor.fetchone()
+        # Get namespace BEFORE initializing chat handler
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT pinecone_namespace
+                FROM companies
+                WHERE chatbot_id = ?
+            ''', (chatbot_id,))
+            row = cursor.fetchone()
 
-       if not row:
-           print(f"Chatbot ID {chatbot_id} not found in database")
-           return jsonify({"error": "Chatbot ID not found"}), 404
+        if not row:
+            print(f"Chatbot ID {chatbot_id} not found in database")
+            return jsonify({"error": "Chatbot ID not found"}), 404
 
-       namespace = row[0]
-       
-       # Initialize chat handler with namespace if it doesn't exist
-       if chatbot_id not in chat_handlers:
-           chat_handlers[chatbot_id] = ChatPromptHandler(openai_client, pinecone_client)
-           # Ensure first message includes system prompt by forcing conversation reset
-           chat_handlers[chatbot_id].reset_conversation()
+        namespace = row[0]
+        
+        # Initialize chat handler with namespace if it doesn't exist
+        if chatbot_id not in chat_handlers:
+            chat_handlers[chatbot_id] = ChatPromptHandler(openai_client, pinecone_client)
+            # Ensure first message includes system prompt by forcing conversation reset
+            chat_handlers[chatbot_id].reset_conversation()
 
-       handler = chat_handlers[chatbot_id]
-       messages = handler.format_messages(user_message, namespace=namespace)
-       
-       response = openai_client.chat.completions.create(
-           model="gpt-4o",
-           messages=messages,
-           max_tokens=500,
-           temperature=0.7
-       )
+        handler = chat_handlers[chatbot_id]
+        messages = handler.format_messages(user_message, namespace=namespace)
+        
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7
+        )
 
-       assistant_response = response.choices[0].message.content
-       handler.add_to_history("user", user_message)
-       handler.add_to_history("assistant", assistant_response)
+        assistant_response = response.choices[0].message.content
+        handler.add_to_history("user", user_message)
+        handler.add_to_history("assistant", assistant_response)
 
-       return jsonify({"response": assistant_response})
+        return jsonify({"response": assistant_response})
 
-   except Exception as e:
-       print(f"Detailed error in embed-chat: {str(e)}")  # Enhanced error logging
-       return jsonify({"error": "Internal server error"}), 500
+    except Exception as e:
+        print(f"Detailed error in embed-chat: {str(e)}")  # Enhanced error logging
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/embed-reset-chat', methods=['POST'])
 def reset_chat():
-   try:
-       data = request.json
-       chatbot_id = data.get('chatbot_id')
-       
-       if not chatbot_id:
-           return jsonify({'error': 'Missing chatbot ID'}), 400
-           
-       if chatbot_id in chat_handlers:
-           chat_handlers[chatbot_id].reset_conversation()
-           
-       return jsonify({'status': 'success', 'message': 'Chat history reset'})
-   except Exception as e:
-       print(f"Error resetting chat: {e}")
-       return jsonify({"error": "Internal server error"}), 500
+    try:
+        data = request.json
+        chatbot_id = data.get('chatbot_id')
+        
+        if not chatbot_id:
+            return jsonify({'error': 'Missing chatbot ID'}), 400
+            
+        if chatbot_id in chat_handlers:
+            chat_handlers[chatbot_id].reset_conversation()
+            
+        return jsonify({'status': 'success', 'message': 'Chat history reset'})
+    except Exception as e:
+        print(f"Error resetting chat: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # DIGITAL OCEAN SPECIFIC - GIVES US ABILITY TO SEE WHAT'S INSIDE
 @app.route('/db-check')
@@ -603,5 +736,5 @@ def db_check():
     } for row in rows])
 
 if __name__ == '__main__':
-   port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
-   app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces
+    port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
+    app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces
