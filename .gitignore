@@ -27,3 +27,6 @@ prod/prompt_log.txt
 
 # Various others
 easyafchat_v3.code-workspace
+
+# Marketing folder
+prod/marketing

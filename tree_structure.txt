@@ -19,8 +19,9 @@
         tree_structure.txt
         chat_manual.py
         chat_handler.py
-        app.py
         prompt_log.txt
+        admin_dashboard.py
+        app.py
         static/
             css/
                 style.css
@@ -51,7 +52,6 @@
             landing.html
         backups/
             chat_handler_orig.py
-            app_bak.py
             chat_manual.py
             chat_manual.html
             chat_manual-v2.py
@@ -60,9 +60,7 @@
             chat_manual_02252025-orig.py
             chat_manual_02252025-orig.html
             chatbot-embed_02252025-orig.js
-            app_02252025-orig.py
             chat_handler_02252025-orig.py
-            app.py
             landing.html
             Dockerfile
             Procfile
@@ -70,6 +68,10 @@
             .gitignore
             requirements.txt
             admin.py
+            app.py
+            app_complex.py
+        marketing/
+            info.txt
     .github/
         workflows/
             main_easyafchat-v3.yml
