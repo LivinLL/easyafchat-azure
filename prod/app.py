@@ -790,6 +790,10 @@ def db_check():
             # Omitting text fields for brevity
         } for row in rows])
 
+@app.route('/standalone-test')
+def standalone_test():
+    return render_template('standalone_test.html')
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces

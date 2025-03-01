@@ -313,21 +313,21 @@
             </div>
         `;
 
-                // Add elements to mount point
-                mountPoint.appendChild(chatBubble);
-                mountPoint.appendChild(chatWindow);
+        // Add elements to mount point
+        mountPoint.appendChild(chatBubble);
+        mountPoint.appendChild(chatWindow);
 
-                // Handle window resize for responsive mounting
-                window.addEventListener('resize', () => {
-                    const wasIsMobile = isMobile;
-                    isMobile = window.innerWidth <= 767;
-                    
-                    // Only remount if mobile state changed AND chat is open
-                    if (wasIsMobile !== isMobile && !chatWindow.classList.contains('d-none')) {
-                        mountPoint = isMobile ? document.body : desktopMountPoint;
-                        mountPoint.appendChild(chatWindow);
-                    }
-                });
+        // Handle window resize for responsive mounting
+        window.addEventListener('resize', () => {
+            const wasIsMobile = isMobile;
+            isMobile = window.innerWidth <= 767;
+            
+            // Only remount if mobile state changed AND chat is open
+            if (wasIsMobile !== isMobile && !chatWindow.classList.contains('d-none')) {
+                mountPoint = isMobile ? document.body : desktopMountPoint;
+                mountPoint.appendChild(chatWindow);
+            }
+        });
 
         // Initialize chat functionality
         let messages = [];
@@ -365,6 +365,8 @@
             chatBubble.classList.remove('active');
         });
 
+        // Updated submit handler for animated dots
+        // Updated submit handler with better dot positioning
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const message = chatInput.value.trim();
@@ -373,6 +375,41 @@
             addMessage(message, 'user');
             chatInput.value = '';
             chatInput.style.height = 'auto';
+
+            // Create a simple animated dots display
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'daves-chat-message assistant thinking';
+            
+            // Create dots with adjusted positioning to avoid overlapping with the agent icon
+            thinkingDiv.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: flex-end; padding: 0.5rem; margin-left: 0;">
+                    <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
+                    <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
+                    <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
+                </div>
+            `;
+            
+            // Manually animate the dots with JavaScript for guaranteed compatibility
+            const dots = thinkingDiv.querySelectorAll('span');
+            let step = 0;
+            
+            const dotAnimation = setInterval(() => {
+                // Reset all dots to normal
+                dots.forEach(dot => {
+                    dot.style.opacity = '0.6';
+                    dot.style.transform = 'scale(1)';
+                });
+                
+                // Highlight current dot
+                dots[step].style.opacity = '1';
+                dots[step].style.transform = 'scale(1.5)';
+                
+                // Move to next dot
+                step = (step + 1) % 3;
+            }, 400);
+            
+            messagesContainer.appendChild(thinkingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             try {
                 const response = await fetch(`${baseUrl}/embed-chat`, {
@@ -386,11 +423,20 @@
                     })
                 });
 
+                // Clear interval and remove thinking indicator
+                clearInterval(dotAnimation);
+                messagesContainer.removeChild(thinkingDiv);
+
                 if (!response.ok) throw new Error('Failed to get response');
 
                 const data = await response.json();
                 addMessage(data.response, 'assistant');
             } catch (error) {
+                // Clear interval and remove thinking indicator
+                clearInterval(dotAnimation);
+                if (thinkingDiv.parentNode === messagesContainer) {
+                    messagesContainer.removeChild(thinkingDiv);
+                }
                 console.error('Error:', error);
                 addMessage('I apologize, but I encountered an error. Please try again.', 'assistant');
             }
