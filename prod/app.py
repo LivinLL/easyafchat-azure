@@ -10,7 +10,6 @@ from chat_handler import ChatPromptHandler
 from flask_cors import CORS
 import time
 import os
-import sqlite3
 import validators
 import trafilatura
 import requests
@@ -26,8 +25,8 @@ from admin_dashboard import admin_dashboard, init_admin_dashboard
 if os.environ.get('ENVIRONMENT') != 'production':
     load_dotenv()
 
-# Import database initialization
-from database import initialize_database
+# Import database initialization and connection functions
+from database import initialize_database, connect_to_db
 
 # Initialize the database silently
 initialize_database(verbose=False)
@@ -161,43 +160,70 @@ def check_namespace(url):
         return f"{base}-01", None
 
 def insert_company_data(data):
-    conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
-    cursor = conn.cursor()
-    cursor.execute('INSERT INTO companies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', data)
-    conn.commit()
-    conn.close()
+    """Insert new company data into database"""
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            # PostgreSQL uses %s placeholders
+            cursor.execute('''
+                INSERT INTO companies 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', data)
+        else:
+            # SQLite uses ? placeholders
+            cursor.execute('''
+                INSERT INTO companies 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', data)
 
 def get_existing_record(url):
     """Check if URL already exists in database and return its data"""
-    conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
-    cursor = conn.cursor()
-    
-    # Normalize URL by converting to lowercase
-    url_lower = url.lower()
-    
-    cursor.execute('''
-        SELECT chatbot_id, pinecone_namespace
-        FROM companies 
-        WHERE LOWER(company_url) = ?
-    ''', (url_lower,))
-    row = cursor.fetchone()
-    conn.close()
-    return row
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        # Normalize URL by converting to lowercase
+        url_lower = url.lower()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('''
+                SELECT chatbot_id, pinecone_namespace
+                FROM companies 
+                WHERE LOWER(company_url) = %s
+            ''', (url_lower,))
+        else:
+            cursor.execute('''
+                SELECT chatbot_id, pinecone_namespace
+                FROM companies 
+                WHERE LOWER(company_url) = ?
+            ''', (url_lower,))
+            
+        row = cursor.fetchone()
+        return row
 
 def update_company_data(data, chatbot_id):
     """Update existing company record"""
-    conn = sqlite3.connect(DB_PATH)  # Using DB_PATH constant
-    cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE companies 
-        SET company_url=?, pinecone_host_url=?, pinecone_index=?, 
-            pinecone_namespace=?, updated_at=?, home_text=?, 
-            about_text=?, processed_content=?
-        WHERE chatbot_id=?
-    ''', (data[1], data[2], data[3], data[4], data[6], 
-          data[7], data[8], data[9], chatbot_id))
-    conn.commit()
-    conn.close()
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('''
+                UPDATE companies 
+                SET company_url=%s, pinecone_host_url=%s, pinecone_index=%s, 
+                    pinecone_namespace=%s, updated_at=%s, home_text=%s, 
+                    about_text=%s, processed_content=%s
+                WHERE chatbot_id=%s
+            ''', (data[1], data[2], data[3], data[4], data[6], 
+                data[7], data[8], data[9], chatbot_id))
+        else:
+            cursor.execute('''
+                UPDATE companies 
+                SET company_url=?, pinecone_host_url=?, pinecone_index=?, 
+                    pinecone_namespace=?, updated_at=?, home_text=?, 
+                    about_text=?, processed_content=?
+                WHERE chatbot_id=?
+            ''', (data[1], data[2], data[3], data[4], data[6], 
+                data[7], data[8], data[9], chatbot_id))
 
 def extract_all_text(html_content):
     """Extract all visible text from HTML while maintaining minimal structure"""
@@ -617,13 +643,22 @@ def process_url():
 @app.route('/demo/<session_id>')
 def demo(session_id):
     # Fetch the company URL for the given chatbot ID
-    with sqlite3.connect(DB_PATH) as conn:
+    with connect_to_db() as conn:
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT company_url, home_text, about_text, processed_content
-            FROM companies
-            WHERE chatbot_id = ?
-        ''', (session_id,))
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('''
+                SELECT company_url, home_text, about_text, processed_content
+                FROM companies
+                WHERE chatbot_id = %s
+            ''', (session_id,))
+        else:
+            cursor.execute('''
+                SELECT company_url, home_text, about_text, processed_content
+                FROM companies
+                WHERE chatbot_id = ?
+            ''', (session_id,))
+            
         row = cursor.fetchone()
 
     if not row:
@@ -658,13 +693,22 @@ def embed_chat():
             return jsonify({"error": "Missing chatbot_id or message"}), 400
 
         # Get namespace BEFORE initializing chat handler
-        with sqlite3.connect(DB_PATH) as conn:
+        with connect_to_db() as conn:
             cursor = conn.cursor()
-            cursor.execute('''
-                SELECT pinecone_namespace
-                FROM companies
-                WHERE chatbot_id = ?
-            ''', (chatbot_id,))
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT pinecone_namespace
+                    FROM companies
+                    WHERE chatbot_id = %s
+                ''', (chatbot_id,))
+            else:
+                cursor.execute('''
+                    SELECT pinecone_namespace
+                    FROM companies
+                    WHERE chatbot_id = ?
+                ''', (chatbot_id,))
+                
             row = cursor.fetchone()
 
         if not row:
@@ -719,21 +763,26 @@ def reset_chat():
 # DIGITAL OCEAN SPECIFIC - GIVES US ABILITY TO SEE WHAT'S INSIDE
 @app.route('/db-check')
 def db_check():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM companies')
-    rows = cursor.fetchall()
-    conn.close()
-    return jsonify([{
-        'chatbot_id': row[0],
-        'company_url': row[1],
-        'pinecone_host_url': row[2],
-        'pinecone_index': row[3],
-        'pinecone_namespace': row[4],
-        'created_at': row[5],
-        'updated_at': row[6]
-        # Omitting text fields for brevity
-    } for row in rows])
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('SELECT * FROM companies')
+        else:
+            cursor.execute('SELECT * FROM companies')
+            
+        rows = cursor.fetchall()
+        
+        return jsonify([{
+            'chatbot_id': row[0],
+            'company_url': row[1],
+            'pinecone_host_url': row[2],
+            'pinecone_index': row[3],
+            'pinecone_namespace': row[4],
+            'created_at': row[5],
+            'updated_at': row[6]
+            # Omitting text fields for brevity
+        } for row in rows])
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this

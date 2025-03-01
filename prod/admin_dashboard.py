@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template_string, request, jsonify
-import sqlite3
-from datetime import datetime
 import os
+from datetime import datetime
+
+# Import connect_to_db from the database module
+from database import connect_to_db
 
 # Import shared OpenAI and Pinecone clients from the main app
 # This will be filled in when the blueprint is registered
@@ -184,11 +186,6 @@ HTML = '''
 </html>
 '''
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 def chunk_text(text, chunk_size=500):
     words = text.split()
     chunks = []
@@ -237,48 +234,87 @@ def update_pinecone_index(namespace, text_chunks, embeddings):
 
 @admin_dashboard.route('/')
 def index():
-    conn = get_db()
-    records = conn.execute('SELECT * FROM companies').fetchall()
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM companies')
+        records = cursor.fetchall()
     return render_template_string(HTML, records=records)
 
 @admin_dashboard.route('/record/<id>', methods=['GET'])
 def get_record(id):
-    conn = get_db()
-    record = conn.execute('SELECT * FROM companies WHERE chatbot_id = ?', [id]).fetchone()
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('SELECT * FROM companies WHERE chatbot_id = %s', (id,))
+        else:
+            cursor.execute('SELECT * FROM companies WHERE chatbot_id = ?', (id,))
+            
+        record = cursor.fetchone()
+        
+    # For PostgreSQL compatibility, access by index instead of by name
     return jsonify({
-        'home_text': record['home_text'],
-        'about_text': record['about_text'],
-        'processed_content': record['processed_content']
+        'home_text': record[7] if record else '',  # home_text is 8th column (index 7)
+        'about_text': record[8] if record else '',  # about_text is 9th column (index 8)
+        'processed_content': record[9] if record else ''  # processed_content is 10th column (index 9)
     })
 
 @admin_dashboard.route('/record/<id>', methods=['PUT'])
 def update_record(id):
     data = request.json
-    conn = get_db()
-    conn.execute('''
-        UPDATE companies 
-        SET home_text = ?, about_text = ?, processed_content = ?, updated_at = ?
-        WHERE chatbot_id = ?
-    ''', [
-        data['home_text'],
-        data['about_text'],
-        data['processed_content'],
-        datetime.utcnow(),
-        id
-    ])
-    conn.commit()
+    now = datetime.utcnow()
+    
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('''
+                UPDATE companies 
+                SET home_text = %s, about_text = %s, processed_content = %s, updated_at = %s
+                WHERE chatbot_id = %s
+            ''', (
+                data['home_text'],
+                data['about_text'],
+                data['processed_content'],
+                now,
+                id
+            ))
+        else:
+            cursor.execute('''
+                UPDATE companies 
+                SET home_text = ?, about_text = ?, processed_content = ?, updated_at = ?
+                WHERE chatbot_id = ?
+            ''', (
+                data['home_text'],
+                data['about_text'],
+                data['processed_content'],
+                now,
+                id
+            ))
+    
     return jsonify({'success': True})
 
 @admin_dashboard.route('/update_pinecone/<id>', methods=['POST'])
 def update_pinecone(id):
     try:
-        conn = get_db()
-        record = conn.execute('SELECT processed_content, pinecone_namespace FROM companies WHERE chatbot_id = ?', [id]).fetchone()
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('SELECT processed_content, pinecone_namespace FROM companies WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('SELECT processed_content, pinecone_namespace FROM companies WHERE chatbot_id = ?', (id,))
+                
+            record = cursor.fetchone()
+            
+            # Access by index for PostgreSQL compatibility
+            processed_content = record[0] if record else ''
+            pinecone_namespace = record[1] if record else ''
         
-        chunks = chunk_text(record['processed_content'])
+        chunks = chunk_text(processed_content)
         embeddings = get_embeddings(chunks)
         
-        success = update_pinecone_index(record['pinecone_namespace'], chunks, embeddings)
+        success = update_pinecone_index(pinecone_namespace, chunks, embeddings)
         
         return jsonify({'success': success})
     except Exception as e:
@@ -287,9 +323,14 @@ def update_pinecone(id):
 
 @admin_dashboard.route('/record/<id>', methods=['DELETE'])
 def delete_record(id):
-    conn = get_db()
-    conn.execute('DELETE FROM companies WHERE chatbot_id = ?', [id])
-    conn.commit()
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('DELETE FROM companies WHERE chatbot_id = %s', (id,))
+        else:
+            cursor.execute('DELETE FROM companies WHERE chatbot_id = ?', (id,))
+    
     return jsonify({'success': True})
 
 # This function initializes the blueprint with the OpenAI and Pinecone clients
