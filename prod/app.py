@@ -168,13 +168,13 @@ def insert_company_data(data):
             # PostgreSQL uses %s placeholders
             cursor.execute('''
                 INSERT INTO companies 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', data)
         else:
             # SQLite uses ? placeholders
             cursor.execute('''
                 INSERT INTO companies 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', data)
 
 def get_existing_record(url):
@@ -210,20 +210,20 @@ def update_company_data(data, chatbot_id):
             cursor.execute('''
                 UPDATE companies 
                 SET company_url=%s, pinecone_host_url=%s, pinecone_index=%s, 
-                    pinecone_namespace=%s, updated_at=%s, home_text=%s, 
-                    about_text=%s, processed_content=%s
+                    pinecone_namespace=%s, updated_at=%s, scraped_text=%s, 
+                    processed_content=%s
                 WHERE chatbot_id=%s
             ''', (data[1], data[2], data[3], data[4], data[6], 
-                data[7], data[8], data[9], chatbot_id))
+                data[7], data[8], chatbot_id))
         else:
             cursor.execute('''
                 UPDATE companies 
                 SET company_url=?, pinecone_host_url=?, pinecone_index=?, 
-                    pinecone_namespace=?, updated_at=?, home_text=?, 
-                    about_text=?, processed_content=?
+                    pinecone_namespace=?, updated_at=?, scraped_text=?, 
+                    processed_content=?
                 WHERE chatbot_id=?
             ''', (data[1], data[2], data[3], data[4], data[6], 
-                data[7], data[8], data[9], chatbot_id))
+                data[7], data[8], chatbot_id))
 
 def extract_all_text(html_content):
     """Extract all visible text from HTML while maintaining minimal structure"""
@@ -450,11 +450,15 @@ def process_url_execute(chatbot_id):
     # Unpack the result - processed_content is the OpenAI response, full_prompt is what was sent to OpenAI
     processed_content, full_prompt = result
     
-    # Store the full OpenAI prompt in home_text field
-    home_text = full_prompt
-    
     # Store the about page text (if it was found)
     about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
+    
+    # Combine into a single scraped_text field with clear sections
+    scraped_text = f"""OpenAI Prompt
+{full_prompt}
+
+About Scrape
+{about_text}"""
     
     # Chunk the content and create embeddings
     chunks = chunk_text(processed_content)
@@ -467,7 +471,7 @@ def process_url_execute(chatbot_id):
     now = datetime.now(UTC)
     data = (
         chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
-        namespace, now, now, home_text, about_text, processed_content
+        namespace, now, now, scraped_text, processed_content
     )
 
     try:
@@ -588,11 +592,15 @@ def process_url():
     # Unpack the result - processed_content is the OpenAI response, full_prompt is what was sent to OpenAI
     processed_content, full_prompt = result
     
-    # Store the full OpenAI prompt in home_text field
-    home_text = full_prompt
-    
     # Store the about page text (if it was found)
     about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
+    
+    # Combine into a single scraped_text field with clear sections
+    scraped_text = f"""OpenAI Prompt
+{full_prompt}
+
+About Scrape
+{about_text}"""
     
     # Chunk the content and create embeddings
     chunks = chunk_text(processed_content)
@@ -605,7 +613,7 @@ def process_url():
     now = datetime.now(UTC)
     data = (
         chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
-        namespace, now, now, home_text, about_text, processed_content
+        namespace, now, now, scraped_text, processed_content
     )
 
     try:
@@ -639,7 +647,6 @@ def process_url():
     # Redirect to the demo page with the session_id
     return redirect(url_for('demo', session_id=chatbot_id))
 
-
 @app.route('/demo/<session_id>')
 def demo(session_id):
     # Fetch the company URL for the given chatbot ID
@@ -648,13 +655,13 @@ def demo(session_id):
         
         if os.getenv('DB_TYPE', '').lower() == 'postgresql':
             cursor.execute('''
-                SELECT company_url, home_text, about_text, processed_content
+                SELECT company_url, scraped_text, processed_content
                 FROM companies
                 WHERE chatbot_id = %s
             ''', (session_id,))
         else:
             cursor.execute('''
-                SELECT company_url, home_text, about_text, processed_content
+                SELECT company_url, scraped_text, processed_content
                 FROM companies
                 WHERE chatbot_id = ?
             ''', (session_id,))
@@ -665,7 +672,7 @@ def demo(session_id):
         flash("Invalid session ID")
         return redirect(url_for('home'))
 
-    website_url, home_text, about_text, processed_content = row
+    website_url, scraped_text, processed_content = row
     
     # Generate the screenshot URL dynamically
     base_thumio_url = "https://image.thum.io/get/auth/73147-easyafchat-thumio/width/800/crop/800"
@@ -678,7 +685,6 @@ def demo(session_id):
         chatbot_id=session_id,
         screenshot_url=screenshot_url
     )
-
 
 @app.route('/embed-chat', methods=['POST'])
 def embed_chat():

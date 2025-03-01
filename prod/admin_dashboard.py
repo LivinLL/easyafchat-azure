@@ -15,7 +15,7 @@ PINECONE_INDEX = None
 # Create Blueprint
 admin_dashboard = Blueprint('admin_dashboard', __name__)
 
-# HTML Template (unchanged from db_mgr.py)
+# HTML Template (updated for new schema)
 HTML = '''
 <!DOCTYPE html>
 <html>
@@ -73,16 +73,12 @@ HTML = '''
                     <form id="recordForm">
                         <input type="hidden" id="chatbotId">
                         <div class="mb-3">
-                            <label class="form-label">Home Text</label>
-                            <textarea class="form-control" id="homeText" rows="5"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">About Text</label>
-                            <textarea class="form-control" id="aboutText" rows="5"></textarea>
+                            <label class="form-label">Scraped Text</label>
+                            <textarea class="form-control" id="scrapedText" rows="10"></textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Processed Content</label>
-                            <textarea class="form-control" id="processedContent" rows="5"></textarea>
+                            <textarea class="form-control" id="processedContent" rows="10"></textarea>
                         </div>
                     </form>
                 </div>
@@ -120,8 +116,7 @@ HTML = '''
             const response = await fetch(`/admin-dashboard-08x7z9y2-yoursecretword/record/${id}`);
             const data = await response.json();
             document.getElementById('chatbotId').value = id;
-            document.getElementById('homeText').value = data.home_text;
-            document.getElementById('aboutText').value = data.about_text;
+            document.getElementById('scrapedText').value = data.scraped_text;
             document.getElementById('processedContent').value = data.processed_content;
             modal.show();
         }
@@ -129,8 +124,7 @@ HTML = '''
         async function saveRecord() {
             const id = document.getElementById('chatbotId').value;
             const data = {
-                home_text: document.getElementById('homeText').value,
-                about_text: document.getElementById('aboutText').value,
+                scraped_text: document.getElementById('scrapedText').value,
                 processed_content: document.getElementById('processedContent').value
             };
 
@@ -254,9 +248,8 @@ def get_record(id):
         
     # For PostgreSQL compatibility, access by index instead of by name
     return jsonify({
-        'home_text': record[7] if record else '',  # home_text is 8th column (index 7)
-        'about_text': record[8] if record else '',  # about_text is 9th column (index 8)
-        'processed_content': record[9] if record else ''  # processed_content is 10th column (index 9)
+        'scraped_text': record[7] if record else '',  # scraped_text is 8th column (index 7)
+        'processed_content': record[8] if record else ''  # processed_content is 9th column (index 8)
     })
 
 @admin_dashboard.route('/record/<id>', methods=['PUT'])
@@ -270,11 +263,10 @@ def update_record(id):
         if os.getenv('DB_TYPE', '').lower() == 'postgresql':
             cursor.execute('''
                 UPDATE companies 
-                SET home_text = %s, about_text = %s, processed_content = %s, updated_at = %s
+                SET scraped_text = %s, processed_content = %s, updated_at = %s
                 WHERE chatbot_id = %s
             ''', (
-                data['home_text'],
-                data['about_text'],
+                data['scraped_text'],
                 data['processed_content'],
                 now,
                 id
@@ -282,11 +274,10 @@ def update_record(id):
         else:
             cursor.execute('''
                 UPDATE companies 
-                SET home_text = ?, about_text = ?, processed_content = ?, updated_at = ?
+                SET scraped_text = ?, processed_content = ?, updated_at = ?
                 WHERE chatbot_id = ?
             ''', (
-                data['home_text'],
-                data['about_text'],
+                data['scraped_text'],
                 data['processed_content'],
                 now,
                 id

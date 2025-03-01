@@ -87,11 +87,43 @@ def upgrade_database(verbose=False):
                 pinecone_namespace TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                home_text TEXT,
-                about_text TEXT,
+                scraped_text TEXT,
                 processed_content TEXT
             )
             """)
+            
+            # Check if the old fields exist and migrate data if needed
+            try:
+                cursor.execute(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_schema = '{DB_SCHEMA}' 
+                AND table_name = 'companies' 
+                AND column_name = 'home_text'
+                """)
+                
+                if cursor.fetchone():
+                    # Migrate data from old fields to new field
+                    cursor.execute(f"""
+                    UPDATE {DB_SCHEMA}.companies 
+                    SET scraped_text = CONCAT(
+                        'OpenAI Prompt\n', home_text, 
+                        '\n\nAbout Scrape\n', COALESCE(about_text, 'About page not found')
+                    )
+                    WHERE scraped_text IS NULL AND home_text IS NOT NULL
+                    """)
+                    
+                    # Drop old columns
+                    cursor.execute(f"""
+                    ALTER TABLE {DB_SCHEMA}.companies 
+                    DROP COLUMN IF EXISTS home_text,
+                    DROP COLUMN IF EXISTS about_text
+                    """)
+                    
+                    if verbose:
+                        print("Migrated data from home_text and about_text to scraped_text")
+            except Exception as e:
+                print(f"Error checking or migrating columns: {e}")
         else:
             # Create tables in SQLite
             cursor.execute('''
@@ -103,11 +135,58 @@ def upgrade_database(verbose=False):
                 pinecone_namespace TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                home_text TEXT,
-                about_text TEXT,
+                scraped_text TEXT,
                 processed_content TEXT
             )
             ''')
+            
+            # Check if the old fields exist and migrate data if needed
+            try:
+                cursor.execute("PRAGMA table_info(companies)")
+                columns = [column[1] for column in cursor.fetchall()]
+                
+                if 'home_text' in columns:
+                    # Create temporary table with new schema
+                    cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS companies_new (
+                        chatbot_id TEXT PRIMARY KEY,
+                        company_url TEXT NOT NULL,
+                        pinecone_host_url TEXT,
+                        pinecone_index TEXT,
+                        pinecone_namespace TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        scraped_text TEXT,
+                        processed_content TEXT
+                    )
+                    ''')
+                    
+                    # Migrate data
+                    cursor.execute('''
+                    INSERT INTO companies_new (
+                        chatbot_id, company_url, pinecone_host_url, pinecone_index,
+                        pinecone_namespace, created_at, updated_at, scraped_text, processed_content
+                    )
+                    SELECT 
+                        chatbot_id, company_url, pinecone_host_url, pinecone_index,
+                        pinecone_namespace, created_at, updated_at, 
+                        'OpenAI Prompt
+' || home_text || '
+
+About Scrape
+' || COALESCE(about_text, 'About page not found'), 
+                        processed_content
+                    FROM companies
+                    ''')
+                    
+                    # Replace old table with new one
+                    cursor.execute('DROP TABLE companies')
+                    cursor.execute('ALTER TABLE companies_new RENAME TO companies')
+                    
+                    if verbose:
+                        print("Migrated data from home_text and about_text to scraped_text")
+            except Exception as e:
+                print(f"Error checking or migrating columns: {e}")
         
         conn.commit()
         
