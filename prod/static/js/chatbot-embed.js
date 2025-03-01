@@ -89,9 +89,9 @@
                 .daves-chat-window {
                     width: 90%;
                     right: 5%;
-                    height: 85vh;
-                    max-height: 600px;
-                    bottom: 70px;
+                    height: 95vh;
+                    /* max-height: 600px; */
+                    bottom: 20px;
                 }
             }
 
@@ -164,7 +164,7 @@
             }
 
             .daves-chat-input {
-                width: 100% !important;
+                width: 85% !important;
                 padding: 0.5rem 0.75rem !important;
                 padding-right: 45px !important;
                 border: 1px solid #dee2e6 !important;
