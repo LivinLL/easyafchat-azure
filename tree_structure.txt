@@ -10,7 +10,6 @@
     easyafchat_v3.code-workspace
     prod/
         .env
-        database.py
         db_chk.py
         db_mgr.py
         screenshot.py
@@ -20,8 +19,9 @@
         chat_manual.py
         chat_handler.py
         prompt_log.txt
-        admin_dashboard.py
+        database.py
         app.py
+        admin_dashboard.py
         static/
             css/
                 style.css
@@ -68,8 +68,10 @@
             .gitignore
             requirements.txt
             admin.py
-            app.py
             app_complex.py
+            database.py
+            app.py
+            main_easyafchat-v3-backup.yml
         marketing/
             info.txt
     .github/

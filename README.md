@@ -14,16 +14,25 @@ A Flask-based web application that generates customized AI chatbots for websites
 - Website preview screenshots
 - Simple JavaScript-based integration
 
+## Development Environment
+
+- **Editor**: Visual Studio Code on Windows
+- **Terminal**: PowerShell
+- **Version Control**: GitHub
+- **CI/CD**: GitHub Actions for deployment to Azure
+
 ## Technical Stack
 
 ### Backend
 - **Framework**: Flask (Python)
-- **Database**: SQLite (company and chatbot data storage)
+- **Database**: 
+  - PostgreSQL in production (Azure)
+  - SQLite for local development
 - **Vector Database**: Pinecone (storing and querying embeddings)
 - **Web Scraping**: 
-  - Trafilatura (main content extraction)
-  - BeautifulSoup4 (finding About pages)
-- **Content Processing**: OpenAI GPT-3.5
+  - BeautifulSoup4 (content extraction and finding About pages)
+  - Requests for HTTP calls
+- **Content Processing**: OpenAI GPT-4o
 
 ### Frontend
 - **Core**: Vanilla JavaScript
@@ -32,35 +41,57 @@ A Flask-based web application that generates customized AI chatbots for websites
 
 ### External Services
 - **OpenAI API**
-  - GPT-3.5 Turbo for chat completions
+  - GPT-4o for chat completions
   - text-embedding-ada-002 for content embeddings
-- **Pinecone** for semantic search
+- **Pinecone** for vector search
 - **Thum.io** for website screenshots
+- **Azure Web App** for hosting
 
 ## Environment Variables
 
+### Local Development (SQLite)
 Required environment variables in `.env`:
 
 ```
 SECRET_KEY=your_flask_secret_key
 OPENAI_API_KEY=your_openai_api_key
 PINECONE_API_KEY=your_pinecone_api_key
-DB_PATH=path_to_sqlite_db
+DB_PATH=easyafchat.db
 PORT=8080
 ```
 
-## Installation
+### Production (Azure PostgreSQL)
+Additional environment variables required in Azure App Service:
+
+```
+ENVIRONMENT=production
+DB_TYPE=postgresql
+DB_HOST=daves-postgres-server.postgres.database.azure.com
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=your_db_username
+DB_PASSWORD=your_db_password
+DB_SCHEMA=easychat
+DB_SSL=require
+
+SECRET_KEY=[not sure what we use this for]
+OPENAI_API_KEY=their key
+PINECONE_API_KEY=their key
+```
+
+## Installation and Local Setup
 
 1. Clone the repository:
 ```bash
 git clone [repository_url]
-cd easyaf-chat
+cd easyafchat-v3
 ```
 
 2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# On Windows with PowerShell:
+.\venv\Scripts\Activate.ps1
 ```
 
 3. Install dependencies:
@@ -72,43 +103,68 @@ pip install -r requirements.txt
 
 5. Initialize the database:
 ```bash
-python -c "from database import initialize_database; initialize_database()"
+python -c "from database import initialize_database; initialize_database(verbose=True)"
 ```
 
-## Usage
+## Local Development
 
-1. Start the Flask server:
+Start the Flask server:
 ```bash
 python app.py
 ```
 
-2. Visit `http://localhost:8080` in your browser
+Visit `http://localhost:8080` in your browser to use the application.
 
-3. Enter a website URL to generate a chatbot
+## Deployment
 
-4. Copy the provided JavaScript snippet to embed the chatbot on your website:
+The application is deployed to Azure Web App using GitHub Actions workflow. The deployment process is automated through `.github/workflows/main_easyafchat-v3.yml`.
+
+### Deployment Process
+
+1. Push changes to the main branch
+2. GitHub Actions workflow is triggered
+3. Python environment is set up and dependencies are installed
+4. Application is deployed to Azure Web App
+5. Azure PostgreSQL is used as the database in production
+
+## Usage
+
+### Generating a Chatbot
+
+1. Visit your application URL
+2. Enter a website URL to generate a chatbot
+3. The application will:
+   - Scrape the website content
+   - Process it with OpenAI
+   - Create vector embeddings in Pinecone
+   - Generate a preview of your chatbot
+
+### Embedding the Chatbot on Your Website
+
+Copy the provided JavaScript snippet to embed the chatbot on your website:
+
 ```html
 <script>
 window.davesEasyChatConfig = {
     chatbotId: "YOUR_CHATBOT_ID"
 };
 </script>
-<script src="[your_domain]/static/js/chatbot-embed.js"></script>
+<script src="[your_app_url]/static/js/chatbot-embed.js"></script>
 ```
 
 ## Database Structure
 
-SQLite database (`easyafchat.db`) table structure:
+The application uses a common schema for both SQLite and PostgreSQL:
 
 ```sql
 CREATE TABLE companies (
     chatbot_id TEXT PRIMARY KEY,
-    company_url TEXT,
+    company_url TEXT NOT NULL,
     pinecone_host_url TEXT,
     pinecone_index TEXT,
     pinecone_namespace TEXT,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     home_text TEXT,
     about_text TEXT,
     processed_content TEXT
@@ -123,172 +179,95 @@ CREATE TABLE companies (
 - `GET /demo/<session_id>` - Chatbot demo page
 - `GET /chat-test` - Test chat interface
 
+### Async Processing Routes
+- `POST /process-url-async` - Start async processing
+- `GET /process-url-execute/<chatbot_id>` - Execute processing
+- `GET /check-processing/<chatbot_id>` - Check processing status
+
 ### Chat API
 - `POST /embed-chat` - Handle chat messages
 - `POST /embed-reset-chat` - Reset chat history
 
+### Admin Dashboard
+- `GET /admin-dashboard-08x7z9y2-yoursecretword/` - Admin interface
+- `GET /admin-dashboard-08x7z9y2-yoursecretword/record/<id>` - Get record
+- `PUT /admin-dashboard-08x7z9y2-yoursecretword/record/<id>` - Update record
+- `DELETE /admin-dashboard-08x7z9y2-yoursecretword/record/<id>` - Delete record
+- `POST /admin-dashboard-08x7z9y2-yoursecretword/update_pinecone/<id>` - Update Pinecone index
+
 ### Monitoring
 - `GET /db-check` - View database contents (development)
 
+## Project Structure
+
+```
+easyafchat-v3/
+├── .github/
+│   └── workflows/
+│       └── main_easyafchat-v3.yml  # GitHub Actions workflow
+├── prod/
+│   ├── static/
+│   │   ├── css/
+│   │   ├── images/
+│   │   └── js/
+│   │       ├── chatbot-embed.js    # Embeddable chatbot script
+│   │       └── script.js
+│   ├── templates/
+│   │   ├── demo.html              # Chatbot demo page
+│   │   ├── landing.html           # Main landing page
+│   │   └── chat_test.html
+│   ├── app.py                     # Main Flask application
+│   ├── admin_dashboard.py         # Admin interface
+│   ├── chat_handler.py            # Chat processing logic
+│   ├── database.py                # Database connection and schema
+│   └── backups/                   # Previous versions
+├── .env                           # Local environment variables
+├── requirements.txt               # Python dependencies
+├── Procfile                       # Process definition for some hosts
+└── README.md                      # This file
+```
+
 ## Chatbot Behavior
 
-The chatbot (d-A-v-I-d) is configured to:
-- Maintain conversation context
+The chatbot agent (d-A-v-I-d) is configured to:
+- Maintain conversation context across sessions
 - Provide concise, friendly responses
 - Format responses with markdown
-- Use semantic search to find relevant content
+- Use vector search to find relevant content based on user queries
 - Handle conversation resets
 - Adapt to mobile and desktop views
+- Provide realistic, human-like responses
 
 ## Future Improvements
 
 Potential enhancements:
-- Multi-language support
 - Custom chatbot styling options
-- Advanced analytics
-- Integration with more CMS platforms
-- Enhanced error handling
-- Rate limiting
-- User authentication
-- Custom training data upload
+- Advanced analytics and insights
+- Customer dashboard for adding to knowledgebase, updating acct settings, and getting leads generated (csv)
+- Enhanced error handling and resilience
+- Rate limiting for API protection
+- User authentication and access control
+- Enhanced admin dashboard features
 
-## Contributing
+## Troubleshooting
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+### Local Development
+- Ensure all dependencies are installed: `pip install -r requirements.txt`
+- Verify `.env` file has correct credentials
+- Check PostgreSQL connection if using it locally
+- Confirm Pinecone and OpenAI credentials are valid
+
+### Production
+- Check Azure App Service logs for runtime errors
+- Verify environment variables are correctly set in Azure
+- Test PostgreSQL connection using a tool like pgAdmin
+- Confirm Pinecone index is responsive
 
 ## License
 
 [Your chosen license]
+# END OF STANDDARD README.md
 
-## MARKETING
-
-# Pricing Tiers
-
-## BASIC: $29/month ($290/year - save $58)
-- 30-second AI chatbot setup
-- Instant email lead notifications
-- Basic dashboard access
-- Lead CSV downloads
-- Up to 500 chats/month
-- Standard chat widget styling
-- Basic support
-
-## PRO: $49/month ($490/year - save $98)
-- Everything in Basic, plus:
-- Up to 2,000 chats/month
-- Multiple email notifications
-- Custom chat widget colors/styling
-- Priority support
-- Advanced lead filtering
-- Weekly lead summary reports
-- Lead qualification scoring
-- After-hours auto-responses
-
-# Core Value Proposition
-
-## The "No Chatbot" SMB Customer Profile:
-- Has a website but it's just an "online brochure"
-- Misses leads when they're busy or after hours
-- Knows they should modernize but fears complexity
-- Worried about looking "behind the times"
-- Cost-conscious but will invest in clear ROI
-- Limited technical expertise
-- No dedicated IT staff
-
-## What They're Missing (Psychology)
-
-### Professional Image Gap
-- Visitors expect real-time interaction
-- Empty chat creates "ghost town" feeling
-- Competitors with chat appear more modern
-- Silent websites feel less trustworthy
-
-### Fear & Uncertainty
-- Fear of complex technology
-- Worry about maintenance/management
-- Concern about costs
-- Uncertainty about implementation
-- Anxiety about change
-
-### Lost Opportunity Cost
-- Missed after-hours leads
-- Delayed response times
-- Lost sales from impatient prospects
-- Reduced customer satisfaction
-- Lower website engagement
-
-## Value Metrics
-
-### Lead Value
-- Average B2B lead value: $100-$500
-- One converted lead often pays for a year+
-- Faster response increases conversion rates
-- 24/7 availability captures otherwise lost leads
-
-### Customer Service ROI
-- Reduces phone calls/emails
-- Answers common questions automatically
-- Frees staff for higher-value tasks
-- Improves response times
-- Better customer satisfaction
-
-### Competitive Edge
-- Modern, professional appearance
-- 24/7 availability
-- Instant response to inquiries
-- Data capture for follow-up
-- Better user experience
-
-## Marketing Psychology Points
-
-### Pain Points to Address
-1. "Your website works 9-5, but your customers shop 24/7"
-2. "Every unanswered question is a potential lost sale"
-3. "Your competitors are just one click away"
-
-### Value Messages
-1. "30 seconds to 24/7 customer service"
-2. "Never miss another lead"
-3. "Professional chat support without the complexity"
-4. "One new customer pays for a full year"
-
-### Fear Resolution
-1. "No technical skills needed"
-2. "Works instantly - just paste your URL"
-3. "No complex setup or maintenance"
-4. "Cancel anytime - no long-term commitment"
-
-### Trust Building
-1. "See it working on your site in 30 seconds"
-2. "Try it risk-free"
-3. "Join [X] businesses already using our chat"
-4. "Real-time demo with your content"
-
-## Key Differentiators
-
-### Simplicity
-- 30-second setup
-- No technical knowledge required
-- Instant results
-- Clear, simple pricing
-
-### Focus
-- Built specifically for SMBs
-- No enterprise bloat
-- Essential features only
-- Clear value proposition
-
-### Support
-- Personal onboarding
-- Quick response times
-- Simple documentation
-- Direct access to help
-
-# ===================================
 # ===================================
 # UNDERSTANDING GIT AZURE VSCODE RELATIONSHIP
 

@@ -123,7 +123,7 @@
     <main>
         <!-- Hero Section -->
         <section class="hero">
-            <h1>A Smart AI Agent Chatbot V22 for Your Website in 30 Seconds</h1>
+            <h1>A Smart AI Agent Chatbot V23 for Your Website in 30 Seconds</h1>
             <p>Simply enter your website URL below, and we'll create a smart AI chatbot for you instantly.</p>
             <div class="hero-input">
                 <form id="urlForm" action="/" method="POST">
@@ -291,157 +291,172 @@
     
     <!-- Async Processing JavaScript -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlForm = document.getElementById('urlForm');
-            const processingOverlay = document.getElementById('processingOverlay');
-            const processingMessage = document.getElementById('processingMessage');
-            const processingTime = document.getElementById('processingTime');
-            const processingError = document.getElementById('processingError');
-            const step1 = document.getElementById('step1');
-            const step2 = document.getElementById('step2');
-            const step3 = document.getElementById('step3');
-            const step4 = document.getElementById('step4');
-            
-            let startTime;
-            let pollingInterval;
-            let chatbotId;
-            
-            // Update processing time
-            function updateProcessingTime() {
-                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-                processingTime.textContent = `Time elapsed: ${elapsedSeconds} seconds`;
+// Async Processing JavaScript - Updated
+document.addEventListener('DOMContentLoaded', function() {
+    const urlForm = document.getElementById('urlForm');
+    const processingOverlay = document.getElementById('processingOverlay');
+    const processingMessage = document.getElementById('processingMessage');
+    const processingTime = document.getElementById('processingTime');
+    const processingError = document.getElementById('processingError');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const step4 = document.getElementById('step4');
+    
+    let startTime;
+    let pollingInterval;
+    let timerInterval;
+    let chatbotId;
+    
+    // Update processing time - this will run independently
+    function startTimer() {
+        timerInterval = setInterval(function() {
+            const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+            processingTime.textContent = `Time elapsed: ${elapsedSeconds} seconds`;
+        }, 1000);
+    }
+    
+    // Update step status
+    function updateStepStatus(step, status) {
+        // Remove all existing status classes
+        step.classList.remove('active', 'completed');
+        
+        // Add the new status class
+        if (status === 'active') {
+            step.classList.add('active');
+        } else if (status === 'completed') {
+            step.classList.add('completed');
+        }
+    }
+    
+    // Function to execute processing
+    async function executeProcessing(chatbot_id) {
+        try {
+            const response = await fetch(`/process-url-execute/${chatbot_id}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to process URL');
+            }
+        } catch (error) {
+            console.error('Error executing processing:', error);
+            processingError.textContent = `Error: ${error.message}`;
+            processingError.style.display = 'block';
+        }
+    }
+    
+    // Check processing status
+    async function checkProcessingStatus() {
+        try {
+            const response = await fetch(`/check-processing/${chatbotId}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to check processing status');
             }
             
-            // Update step status
-            function updateStepStatus(step, status) {
-                // Remove all existing status classes
-                step.classList.remove('active', 'completed');
-                
-                // Add the new status class
-                if (status === 'active') {
-                    step.classList.add('active');
-                } else if (status === 'completed') {
-                    step.classList.add('completed');
-                }
+            const data = await response.json();
+            
+            if (data.status === 'error') {
+                processingError.textContent = `Error: ${data.message}`;
+                processingError.style.display = 'block';
+                clearInterval(pollingInterval);
+                clearInterval(timerInterval);
+                return;
             }
             
-            // Function to execute processing
-            async function executeProcessing(chatbot_id) {
-                try {
-                    const response = await fetch(`/process-url-execute/${chatbot_id}`);
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Failed to process URL');
-                    }
-                } catch (error) {
-                    console.error('Error executing processing:', error);
-                    processingError.textContent = `Error: ${error.message}`;
-                    processingError.style.display = 'block';
+            if (data.status === 'processing') {
+                // Update UI based on processing phase
+                if (data.phase === 'content') {
+                    processingMessage.textContent = 'Analyzing website content...';
+                    updateStepStatus(step1, 'active');
+                    updateStepStatus(step2, '');
+                    updateStepStatus(step3, '');
+                    updateStepStatus(step4, '');
+                } else if (data.phase === 'pinecone') {
+                    processingMessage.textContent = 'Creating vector database for your chatbot...';
+                    updateStepStatus(step1, 'completed');
+                    updateStepStatus(step2, 'completed');
+                    updateStepStatus(step3, 'active');
+                    updateStepStatus(step4, '');
                 }
+            } else if (data.status === 'complete') {
+                // Processing complete, update UI
+                processingMessage.textContent = 'Your chatbot is ready!';
+                updateStepStatus(step1, 'completed');
+                updateStepStatus(step2, 'completed');
+                updateStepStatus(step3, 'completed');
+                updateStepStatus(step4, 'completed');
+                
+                // Clear intervals
+                clearInterval(pollingInterval);
+                clearInterval(timerInterval);
+                
+                // Redirect to demo page after a short delay
+                setTimeout(() => {
+                    window.location.href = `/demo/${chatbotId}`;
+                }, 1000);
             }
-            
-            // Check processing status
-            async function checkProcessingStatus() {
-                try {
-                    const response = await fetch(`/check-processing/${chatbotId}`);
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || 'Failed to check processing status');
-                    }
-                    
-                    const data = await response.json();
-                    updateProcessingTime();
-                    
-                    if (data.status === 'error') {
-                        processingError.textContent = `Error: ${data.message}`;
-                        processingError.style.display = 'block';
-                        clearInterval(pollingInterval);
-                        return;
-                    }
-                    
-                    if (data.status === 'processing') {
-                        // Update UI based on processing phase
-                        if (data.phase === 'content') {
-                            processingMessage.textContent = 'Analyzing website content...';
-                            updateStepStatus(step1, 'active');
-                        } else if (data.phase === 'pinecone') {
-                            processingMessage.textContent = 'Creating vector database for your chatbot...';
-                            updateStepStatus(step1, 'completed');
-                            updateStepStatus(step2, 'completed');
-                            updateStepStatus(step3, 'active');
-                        }
-                    } else if (data.status === 'complete') {
-                        // Processing complete, update UI
-                        processingMessage.textContent = 'Your chatbot is ready!';
-                        updateStepStatus(step1, 'completed');
-                        updateStepStatus(step2, 'completed');
-                        updateStepStatus(step3, 'completed');
-                        updateStepStatus(step4, 'completed');
-                        
-                        // Clear interval
-                        clearInterval(pollingInterval);
-                        
-                        // Redirect to demo page after a short delay
-                        setTimeout(() => {
-                            window.location.href = `/demo/${chatbotId}`;
-                        }, 1000);
-                    }
-                } catch (error) {
-                    console.error('Error checking status:', error);
-                    processingError.textContent = `Error: ${error.message}`;
-                    processingError.style.display = 'block';
-                }
-            }
-            
-            // Handle form submission
-            urlForm.addEventListener('submit', async function(event) {
-                event.preventDefault();
-                
-                // Show processing overlay
-                processingOverlay.style.display = 'flex';
-                processingError.style.display = 'none';
-                processingMessage.textContent = 'Initializing chatbot creation...';
-                
-                // Reset step statuses
-                updateStepStatus(step1, '');
-                updateStepStatus(step2, '');
-                updateStepStatus(step3, '');
-                updateStepStatus(step4, '');
-                
-                // Start timing
-                startTime = Date.now();
-                updateProcessingTime();
-                
-                const formData = new FormData(urlForm);
-                
-                try {
-                    // Submit form data to start processing
-                    const response = await fetch('/process-url-async', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Failed to process URL');
-                    }
-                    
-                    const data = await response.json();
-                    chatbotId = data.chatbot_id;
-
-                    // Start the processing
-                    executeProcessing(chatbotId);
-                    
-                    // Start polling for status updates
-                    pollingInterval = setInterval(checkProcessingStatus, 1000);
-                    
-                } catch (error) {
-                    console.error('Error submitting form:', error);
-                    processingError.textContent = `Error: ${error.message}`;
-                    processingError.style.display = 'block';
-                }
+        } catch (error) {
+            console.error('Error checking status:', error);
+            processingError.textContent = `Error: ${error.message}`;
+            processingError.style.display = 'block';
+        }
+    }
+    
+    // Handle form submission
+    urlForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        // Show processing overlay
+        processingOverlay.style.display = 'flex';
+        processingError.style.display = 'none';
+        processingMessage.textContent = 'Initializing chatbot creation...';
+        
+        // Reset step statuses and immediately set first step as active
+        updateStepStatus(step1, 'active');
+        updateStepStatus(step2, '');
+        updateStepStatus(step3, '');
+        updateStepStatus(step4, '');
+        
+        // Start timing
+        startTime = Date.now();
+        
+        // Start the timer independently of the polling
+        startTimer();
+        
+        const formData = new FormData(urlForm);
+        
+        try {
+            // Submit form data to start processing
+            const response = await fetch('/process-url-async', {
+                method: 'POST',
+                body: formData
             });
-        });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to process URL');
+            }
+            
+            const data = await response.json();
+            chatbotId = data.chatbot_id;
+
+            // Start the processing
+            executeProcessing(chatbotId);
+            
+            // Add a small delay before starting polling to ensure backend has registered
+            setTimeout(() => {
+                // Start polling for status updates
+                pollingInterval = setInterval(checkProcessingStatus, 1000);
+            }, 500);
+            
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            processingError.textContent = `Error: ${error.message}`;
+            processingError.style.display = 'block';
+            clearInterval(timerInterval);
+        }
+    });
+});
     </script>
 </body>
 </html>
