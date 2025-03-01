@@ -77,32 +77,66 @@ def upgrade_database(verbose=False):
                 sql.Identifier(DB_SCHEMA)
             ))
             
-            # Create tables in PostgreSQL
+            # First check if the companies table exists at all
             cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {DB_SCHEMA}.companies (
-                chatbot_id TEXT PRIMARY KEY,
-                company_url TEXT NOT NULL,
-                pinecone_host_url TEXT,
-                pinecone_index TEXT,
-                pinecone_namespace TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                scraped_text TEXT,
-                processed_content TEXT
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'companies'
             )
             """)
+            table_exists = cursor.fetchone()[0]
             
-            # Check if the old fields exist and migrate data if needed
-            try:
+            if not table_exists:
+                # Create the table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new companies table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.companies (
+                    chatbot_id TEXT PRIMARY KEY,
+                    company_url TEXT NOT NULL,
+                    pinecone_host_url TEXT,
+                    pinecone_index TEXT,
+                    pinecone_namespace TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    scraped_text TEXT,
+                    processed_content TEXT
+                )
+                """)
+            else:
+                # Table exists, check if scraped_text column exists
                 cursor.execute(f"""
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_schema = '{DB_SCHEMA}' 
                 AND table_name = 'companies' 
-                AND column_name = 'home_text'
+                AND column_name = 'scraped_text'
                 """)
                 
-                if cursor.fetchone():
+                if not cursor.fetchone():
+                    # scraped_text column doesn't exist, so add it
+                    if verbose:
+                        print(f"Adding scraped_text column to existing companies table")
+                    cursor.execute(f"""
+                    ALTER TABLE {DB_SCHEMA}.companies 
+                    ADD COLUMN scraped_text TEXT
+                    """)
+            
+            # Now check if the old fields exist and migrate data if needed
+            cursor.execute(f"""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = '{DB_SCHEMA}' 
+            AND table_name = 'companies' 
+            AND column_name = 'home_text'
+            """)
+            
+            if cursor.fetchone():
+                # home_text exists, so it's time to migrate and drop old columns
+                if verbose:
+                    print("Found home_text column, migrating data to scraped_text")
+                try:
                     # Migrate data from old fields to new field
                     cursor.execute(f"""
                     UPDATE {DB_SCHEMA}.companies 
@@ -122,10 +156,11 @@ def upgrade_database(verbose=False):
                     
                     if verbose:
                         print("Migrated data from home_text and about_text to scraped_text")
-            except Exception as e:
-                print(f"Error checking or migrating columns: {e}")
+                except Exception as e:
+                    print(f"Error migrating columns: {e}")
+            
         else:
-            # Create tables in SQLite
+            # SQLite handling remains the same
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS companies (
                 chatbot_id TEXT PRIMARY KEY,
