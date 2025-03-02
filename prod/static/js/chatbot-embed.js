@@ -287,6 +287,46 @@
                 overflow-x: auto !important;
                 margin: 0.5rem 0 !important;
             }
+
+            /* Initial popup with delay */
+            .daves-initial-popup {
+                position: absolute;
+                top: -10px;
+                left: -240px;
+                width: 240px;
+                padding: 10px 15px;
+                background-color: white;
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+                transform: translateY(-100%);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                z-index: 999998;
+                font-size: 14px;
+                text-align: left;
+                color: #333;
+            }
+
+            .daves-initial-popup:after {
+                content: "";
+                position: absolute;
+                bottom: -8px;
+                right: 20px;
+                width: 0;
+                height: 0;
+                border-left: 8px solid transparent;
+                border-right: 8px solid transparent;
+                border-top: 8px solid white;
+            }
+
+            @media (max-width: 767px) {
+                .daves-initial-popup {
+                    left: auto;
+                    right: 10px;
+                    width: 200px;
+                }
+            }
         `;
 
         document.head.appendChild(style);
@@ -343,172 +383,211 @@
             </div>
         `;
 
-        // Add elements to mount point
-        mountPoint.appendChild(chatBubble);
+// Add elements to mount point
+mountPoint.appendChild(chatBubble);
+mountPoint.appendChild(chatWindow);
+
+// Handle window resize for responsive mounting
+window.addEventListener('resize', () => {
+    const wasIsMobile = isMobile;
+    isMobile = window.innerWidth <= 767;
+    
+    // Only remount if mobile state changed AND chat is open
+    if (wasIsMobile !== isMobile && !chatWindow.classList.contains('d-none')) {
+        mountPoint = isMobile ? document.body : desktopMountPoint;
         mountPoint.appendChild(chatWindow);
+    }
+});
 
-        // Handle window resize for responsive mounting
-        window.addEventListener('resize', () => {
-            const wasIsMobile = isMobile;
-            isMobile = window.innerWidth <= 767;
-            
-            // Only remount if mobile state changed AND chat is open
-            if (wasIsMobile !== isMobile && !chatWindow.classList.contains('d-none')) {
-                mountPoint = isMobile ? document.body : desktopMountPoint;
-                mountPoint.appendChild(chatWindow);
+// Initialize chat functionality
+let messages = [];
+const messagesContainer = chatWindow.querySelector('#daves-chat-messages');
+const chatForm = chatWindow.querySelector('#daves-chat-form');
+const chatInput = chatForm.querySelector('textarea');
+const closeButton = chatWindow.querySelector('#daves-close-chat');
+const resetButton = chatWindow.querySelector('#daves-reset-chat');
+
+function addMessage(message, role) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `daves-chat-message ${role}`;
+    messageDiv.innerHTML = role === 'assistant' ? marked.parse(message) : message;
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    messages.push({ role, content: message });
+}
+
+// Function to show initial popup message with delay
+function showInitialPopup(delay = 2000) {
+    // Only show if enabled in config (default to true if not specified)
+    if (config.showInitialMessage === false) return;
+    
+    // Default message or custom message from config
+    const initialMessage = config.initialMessage || "Hi there! 👋 How can I help you?";
+    
+    // Create popup element
+    const popup = document.createElement('div');
+    popup.className = 'daves-initial-popup';
+    popup.innerHTML = initialMessage;
+    
+    // Add to DOM but hidden first
+    chatBubble.appendChild(popup);
+    
+    // Show with delay and animation
+    setTimeout(() => {
+        popup.style.opacity = '1';
+        
+        // Hide popup after 8 seconds (unless user clicks bubble first)
+        setTimeout(() => {
+            if (popup.parentNode === chatBubble) {
+                popup.style.opacity = '0';
+                setTimeout(() => {
+                    if (popup.parentNode === chatBubble) {
+                        chatBubble.removeChild(popup);
+                    }
+                }, 300); // Wait for fade out transition
             }
+        }, 8000);
+    }, delay);
+}
+
+// Add event listeners
+chatBubble.addEventListener('click', () => {
+    if (isMobile && chatWindow.classList.contains('d-none')) {
+        // Move window to body before showing it on mobile
+        document.body.appendChild(chatWindow);
+        mountPoint = document.body;
+    }
+    chatWindow.classList.toggle('d-none');
+    chatBubble.classList.toggle('active');
+    if (messages.length === 0) {
+        addMessage("Hi there! 👋 How can I help you?", 'assistant');
+    }
+});
+
+closeButton.addEventListener('click', () => {
+    chatWindow.classList.add('d-none');
+    chatBubble.classList.remove('active');
+});
+
+// Updated submit handler for animated dots
+// Updated submit handler with better dot positioning
+chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    addMessage(message, 'user');
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+
+    // Create a simple animated dots display
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.className = 'daves-chat-message assistant thinking';
+    
+    // Create dots with adjusted positioning to avoid overlapping with the agent icon
+    thinkingDiv.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: flex-end; padding: 0.5rem; margin-left: 0;">
+            <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
+            <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
+            <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
+        </div>
+    `;
+    
+    // Manually animate the dots with JavaScript for guaranteed compatibility
+    const dots = thinkingDiv.querySelectorAll('span');
+    let step = 0;
+    
+    const dotAnimation = setInterval(() => {
+        // Reset all dots to normal
+        dots.forEach(dot => {
+            dot.style.opacity = '0.6';
+            dot.style.transform = 'scale(1)';
+        });
+        
+        // Highlight current dot
+        dots[step].style.opacity = '1';
+        dots[step].style.transform = 'scale(1.5)';
+        
+        // Move to next dot
+        step = (step + 1) % 3;
+    }, 400);
+    
+    messagesContainer.appendChild(thinkingDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    try {
+        const response = await fetch(`${baseUrl}/embed-chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message,
+                chatbot_id: chatbotId
+            })
         });
 
-        // Initialize chat functionality
-        let messages = [];
-        const messagesContainer = chatWindow.querySelector('#daves-chat-messages');
-        const chatForm = chatWindow.querySelector('#daves-chat-form');
-        const chatInput = chatForm.querySelector('textarea');
-        const closeButton = chatWindow.querySelector('#daves-close-chat');
-        const resetButton = chatWindow.querySelector('#daves-reset-chat');
+        // Clear interval and remove thinking indicator
+        clearInterval(dotAnimation);
+        messagesContainer.removeChild(thinkingDiv);
 
-        function addMessage(message, role) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `daves-chat-message ${role}`;
-            messageDiv.innerHTML = role === 'assistant' ? marked.parse(message) : message;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            messages.push({ role, content: message });
+        if (!response.ok) throw new Error('Failed to get response');
+
+        const data = await response.json();
+        addMessage(data.response, 'assistant');
+    } catch (error) {
+        // Clear interval and remove thinking indicator
+        clearInterval(dotAnimation);
+        if (thinkingDiv.parentNode === messagesContainer) {
+            messagesContainer.removeChild(thinkingDiv);
         }
+        console.error('Error:', error);
+        addMessage('I apologize, but I encountered an error. Please try again.', 'assistant');
+    }
+});
 
-        // Add event listeners
-        chatBubble.addEventListener('click', () => {
-            if (isMobile && chatWindow.classList.contains('d-none')) {
-                // Move window to body before showing it on mobile
-                document.body.appendChild(chatWindow);
-                mountPoint = document.body;
-            }
-            chatWindow.classList.toggle('d-none');
-            chatBubble.classList.toggle('active');
-            if (messages.length === 0) {
-                addMessage("Hi there! 👋 How can I help you?", 'assistant');
-            }
+// Enter key functionality
+chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        chatForm.dispatchEvent(new Event('submit'));
+    }
+});
+
+// Auto-resize textarea
+chatInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// Reset chat functionality
+resetButton.addEventListener('click', async () => {
+    try {
+        const response = await fetch(`${baseUrl}/embed-reset-chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                chatbot_id: chatbotId
+            })
         });
 
-        closeButton.addEventListener('click', () => {
-            chatWindow.classList.add('d-none');
-            chatBubble.classList.remove('active');
-        });
+        if (!response.ok) throw new Error('Failed to reset chat');
 
-        // Updated submit handler for animated dots
-        // Updated submit handler with better dot positioning
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = chatInput.value.trim();
-            if (!message) return;
+        messages = [];
+        messagesContainer.innerHTML = '';
+        addMessage("Hi there! 👋 How can I help you?", 'assistant');
+    } catch (error) {
+        console.error('Error resetting chat:', error);
+    }
+});
 
-            addMessage(message, 'user');
-            chatInput.value = '';
-            chatInput.style.height = 'auto';
+// Call the showInitialPopup function with a delay
+setTimeout(() => {
+    showInitialPopup();
+}, 500); // Small initial delay to ensure everything is loaded
+};
 
-            // Create a simple animated dots display
-            const thinkingDiv = document.createElement('div');
-            thinkingDiv.className = 'daves-chat-message assistant thinking';
-            
-            // Create dots with adjusted positioning to avoid overlapping with the agent icon
-            thinkingDiv.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: flex-end; padding: 0.5rem; margin-left: 0;">
-                    <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
-                    <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
-                    <span style="display: inline-block; width: 8px; height: 8px; margin: 0 4px; background-color: #6c757d; border-radius: 50%;"></span>
-                </div>
-            `;
-            
-            // Manually animate the dots with JavaScript for guaranteed compatibility
-            const dots = thinkingDiv.querySelectorAll('span');
-            let step = 0;
-            
-            const dotAnimation = setInterval(() => {
-                // Reset all dots to normal
-                dots.forEach(dot => {
-                    dot.style.opacity = '0.6';
-                    dot.style.transform = 'scale(1)';
-                });
-                
-                // Highlight current dot
-                dots[step].style.opacity = '1';
-                dots[step].style.transform = 'scale(1.5)';
-                
-                // Move to next dot
-                step = (step + 1) % 3;
-            }, 400);
-            
-            messagesContainer.appendChild(thinkingDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            try {
-                const response = await fetch(`${baseUrl}/embed-chat`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message,
-                        chatbot_id: chatbotId
-                    })
-                });
-
-                // Clear interval and remove thinking indicator
-                clearInterval(dotAnimation);
-                messagesContainer.removeChild(thinkingDiv);
-
-                if (!response.ok) throw new Error('Failed to get response');
-
-                const data = await response.json();
-                addMessage(data.response, 'assistant');
-            } catch (error) {
-                // Clear interval and remove thinking indicator
-                clearInterval(dotAnimation);
-                if (thinkingDiv.parentNode === messagesContainer) {
-                    messagesContainer.removeChild(thinkingDiv);
-                }
-                console.error('Error:', error);
-                addMessage('I apologize, but I encountered an error. Please try again.', 'assistant');
-            }
-        });
-
-        // Enter key functionality
-        chatInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                chatForm.dispatchEvent(new Event('submit'));
-            }
-        });
-
-        // Auto-resize textarea
-        chatInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
-
-        // Reset chat functionality
-        resetButton.addEventListener('click', async () => {
-            try {
-                const response = await fetch(`${baseUrl}/embed-reset-chat`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        chatbot_id: chatbotId
-                    })
-                });
-
-                if (!response.ok) throw new Error('Failed to reset chat');
-
-                messages = [];
-                messagesContainer.innerHTML = '';
-                addMessage("Hi there! 👋 How can I help you?", 'assistant');
-            } catch (error) {
-                console.error('Error resetting chat:', error);
-            }
-        });
-    };
-
-    document.head.appendChild(markedScript);
+document.head.appendChild(markedScript);
 })();
