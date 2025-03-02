@@ -51,7 +51,8 @@
                 bottom: 100px;
                 right: 20px;
                 width: 400px;
-                height: 500px;
+                height: 80vh; /* Change from 500px to 90% of viewport height */
+                max-height: 800px; /* Add maximum height constraint */
                 border-radius: 12px;
                 box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
                 display: flex !important;
@@ -64,7 +65,7 @@
             }
 
             .daves-chat-window .card-header {
-                background-color: #ff0000 !important;
+                background-color: #f3f5f7 !important;
                 border-bottom: 1px solid #e9ecef !important;
                 padding: 1rem !important;
                 display: flex !important;
@@ -80,7 +81,7 @@
             }
 
             .daves-chat-window .card-footer {
-                background-color: #f8f9fa !important;
+                background-color: #f3f5f7 !important;
                 border-top: 1px solid #e9ecef !important;
                 padding: 1rem !important;
             }
@@ -92,6 +93,15 @@
                     height: 95vh;
                     max-height: 600px;
                     bottom: 20px;
+                }
+
+                .daves-chat-window #daves-close-chat {
+                    font-size: 1.5rem !important;
+                }
+
+                #daves-reset-chat svg {
+                    width: 24px !important;
+                    height: 24px !important;
                 }
             }
 
