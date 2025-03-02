@@ -45,20 +45,22 @@
 
         // Load main CSS
         const style = document.createElement('style');
+        // Check if this is the demo page
+        const isDemoPage = window.location.pathname.includes('/demo/');
         style.textContent = `
             .daves-chat-window {
                 position: ${config.mountTo ? 'absolute' : 'fixed'};
                 bottom: 100px;
                 right: 20px;
                 width: 400px;
-                height: 80vh; /* Change from 500px to 90% of viewport height */
-                max-height: 800px; /* Add maximum height constraint */
+                height: ${isDemoPage && config.mountTo ? '500px' : '80vh'}; 
+                max-height: ${isDemoPage && config.mountTo ? '500px' : '800px'};
                 border-radius: 12px;
                 box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
                 display: flex !important;
                 flex-direction: column !important;
                 transition: all 0.3s ease;
-                z-index: 999999;
+                z-index: ${isDemoPage ? '9999999' : '999999'};
                 overflow: hidden;
                 background-color: white !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
@@ -105,7 +107,7 @@
                 }
 
                 .daves-chat-window #daves-close-chat {
-                    font-size: 44px !important;
+                    font-size: 24px !important;
                 }
 
                 #daves-reset-chat svg {
@@ -205,7 +207,7 @@
 
             .send-icon-btn {
                 position: absolute !important;
-                right: 5px !important;
+                right: 0 !important;
                 top: 50% !important;
                 transform: translateY(-50%) !important;
                 padding: 6px !important;
