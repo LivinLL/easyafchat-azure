@@ -105,7 +105,7 @@
                 }
 
                 .daves-chat-window #daves-close-chat {
-                    font-size: 24px !important;
+                    font-size: 44px !important;
                 }
 
                 #daves-reset-chat svg {
