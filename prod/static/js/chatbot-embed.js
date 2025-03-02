@@ -111,8 +111,8 @@
                 }
 
                 #daves-reset-chat svg {
-                    width: 24px !important;
-                    height: 24px !important;
+                    width: 20px !important;
+                    height: 20px !important;
                 }
             }
 
@@ -203,6 +203,10 @@
                 box-shadow: none !important;
                 outline: 0 !important;
                 background-color: white !important;
+            }
+
+            .daves-chat-input::placeholder {
+                font-size: 1.1rem !important;
             }
 
             .send-icon-btn {
@@ -325,8 +329,8 @@
                 <form id="daves-chat-form">
                     <div class="input-wrapper">
                         <textarea class="daves-chat-input" 
-                                id="daves-chat-input"
-                                placeholder="Type your message..." 
+                                id="daves-chat-input" 
+                                placeholder="Your message..." 
                                 required></textarea>
                                 <button type="submit" class="daves-button send-icon-btn">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 20 20" fill="none" style="transform: rotate(0deg);">
@@ -382,7 +386,7 @@
             chatWindow.classList.toggle('d-none');
             chatBubble.classList.toggle('active');
             if (messages.length === 0) {
-                addMessage("Hi there! 👋 How can I help you today?", 'assistant');
+                addMessage("Hi there! 👋 How can I help you?", 'assistant');
             }
         });
 
@@ -499,7 +503,7 @@
 
                 messages = [];
                 messagesContainer.innerHTML = '';
-                addMessage("Hi there! 👋 How can I help you today?", 'assistant');
+                addMessage("Hi there! 👋 How can I help you?", 'assistant');
             } catch (error) {
                 console.error('Error resetting chat:', error);
             }
