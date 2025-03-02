@@ -64,7 +64,7 @@
             }
 
             .daves-chat-window .card-header {
-                background-color: #f8f9fa !important;
+                background-color: #ff0000 !important;
                 border-bottom: 1px solid #e9ecef !important;
                 padding: 1rem !important;
                 display: flex !important;
@@ -90,7 +90,7 @@
                     width: 90%;
                     right: 5%;
                     height: 95vh;
-                    /* max-height: 600px; */
+                    max-height: 600px;
                     bottom: 20px;
                 }
             }
@@ -216,6 +216,10 @@
                 color: #212529 !important;
             }
 
+            #daves-close-chat {
+                font-size: 1.2rem !important;
+            }
+
             .d-none {
                 display: none !important;
             }
@@ -303,11 +307,12 @@
                                 id="daves-chat-input"
                                 placeholder="Type your message..." 
                                 required></textarea>
-                        <button type="submit" class="daves-button send-icon-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(-45deg);">
-                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                            </svg>
-                        </button>
+                                <button type="submit" class="daves-button send-icon-btn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 20 20" fill="none" style="transform: rotate(0deg);">
+                                        <title>Paper Plane</title>
+                                        <path fill="currentColor" d="M15.44 1.68c.69-.05 1.47.08 2.13.74.66.67.8 1.45.75 2.14-.03.47-.15 1-.25 1.4l-.09.35a43.7 43.7 0 0 1-3.83 10.67A2.52 2.52 0 0 1 9.7 17l-1.65-3.03a.83.83 0 0 1 .14-1l3.1-3.1a.83.83 0 1 0-1.18-1.17l-3.1 3.1a.83.83 0 0 1-.99.14L2.98 10.3a2.52 2.52 0 0 1 .04-4.45 43.7 43.7 0 0 1 11.02-3.9c.4-.1.92-.23 1.4-.26Z"></path>
+                                    </svg>
+                                </button>
                     </div>
                 </form>
             </div>
