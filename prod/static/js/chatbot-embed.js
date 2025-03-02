@@ -73,6 +73,15 @@
                 align-items: center !important;
             }
 
+            /* Bottom align */
+            .daves-chat-window .card-header > div:last-child {
+                display: flex !important;
+                align-items: flex-end !important; /* Change from center to flex-end */
+                /* background-color: #e0f7fa !important; */ /* Light blue background */
+                padding: 5px !important;
+                border-radius: 4px !important;
+            }
+
             .daves-chat-window .card-body {
                 flex: 1 !important;
                 overflow-y: auto !important;
@@ -96,7 +105,7 @@
                 }
 
                 .daves-chat-window #daves-close-chat {
-                    font-size: 1.5rem !important;
+                    font-size: 24px !important;
                 }
 
                 #daves-reset-chat svg {
@@ -227,7 +236,7 @@
             }
 
             #daves-close-chat {
-                font-size: 1.2rem !important;
+                font-size: 16px !important;
             }
 
             .d-none {
@@ -297,7 +306,7 @@
                     </div>
                     <span>Agent d-A-v-I-d</span>
                 </div>
-                <div>
+                <div style="border: 0px solid red;">
                     <button type="button" class="daves-button" id="daves-reset-chat" title="Start Fresh">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
