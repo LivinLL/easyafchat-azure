@@ -557,6 +557,16 @@ chatInput.addEventListener('keydown', function(e) {
     }
 });
 
+// Fix for mobile input visibility when keyboard appears
+chatInput.addEventListener('focus', function() {
+    if (isMobile) {
+        setTimeout(() => {
+            window.scrollTo(0, 0);
+            chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    }
+});
+
 // Auto-resize textarea
 chatInput.addEventListener('input', function() {
     this.style.height = 'auto';
