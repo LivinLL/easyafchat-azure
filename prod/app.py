@@ -137,15 +137,48 @@ def generate_chatbot_id():
     return str(uuid.uuid4()).replace('-', '')[:20]
 
 def check_namespace(url):
+    """
+    Find an appropriate namespace based on the main domain of the URL.
+    Handles subdomains and common TLDs appropriately.
+    """
     try:
         index = pinecone_client.Index(PINECONE_INDEX)
         stats = index.describe_index_stats()
         
-        # Clean URL to base namespace - convert to lowercase for consistency
-        domain = url.split('//')[-1].split('/')[0].split('.')[0].lower()
-        base = re.sub(r'[^a-zA-Z0-9-]', '', domain.replace('.', '-'))
+        # Extract the domain from the URL
+        domain = url.split('//')[-1].split('/')[0].lower()
         
-        # Find existing namespaces
+        # Split the domain into parts
+        parts = domain.split('.')
+        
+        # Common TLDs and second-level domains we want to exclude
+        common_tlds = {'com', 'org', 'net', 'edu', 'gov', 'io', 'co', 'us', 'info', 'biz', 'app', 'dev'}
+        second_level_domains = {'co.uk', 'com.au', 'co.nz', 'co.jp', 'or.jp', 'ne.jp', 'ac.uk', 'gov.uk', 'org.uk', 'co.za'}
+        
+        # Check if we have a second-level domain
+        if len(parts) >= 3 and '.'.join(parts[-2:]) in second_level_domains:
+            # For domains like example.co.uk, use 'example'
+            main_domain = parts[-3]
+        elif len(parts) >= 2:
+            # For typical domains like example.com or subdomain.example.com
+            # Check if it's a subdomain structure
+            if len(parts) > 2 and parts[0] == 'www':
+                # Handle www.example.com -> use 'example'
+                main_domain = parts[-2]
+            elif parts[-1] in common_tlds:
+                # Handle example.com -> use 'example'
+                main_domain = parts[-2]
+            else:
+                # Fallback to second part for unknown patterns
+                main_domain = parts[1] if len(parts) > 1 else parts[0]
+        else:
+            # Fallback for unusual domains
+            main_domain = parts[0]
+        
+        # Clean the main domain to remove any invalid characters
+        base = re.sub(r'[^a-zA-Z0-9-]', '', main_domain)
+        
+        # Find existing namespaces with this base
         pattern = f"^{base}-\\d+$"
         existing = [ns for ns in stats.namespaces.keys() if re.match(pattern, ns)]
         
@@ -157,6 +190,8 @@ def check_namespace(url):
         return current, None
     except Exception as e:
         print(f"Error checking namespace: {e}")
+        # Fallback in case of error
+        base = re.sub(r'[^a-zA-Z0-9-]', '', domain.replace('.', '-'))
         return f"{base}-01", None
 
 def insert_company_data(data):
@@ -342,7 +377,7 @@ def process_simple_content(home_data, about_data):
     try:
         # Create a comprehensive prompt with all the text data
         prompt = f"""
-        Create a comprehensive knowledge base document from this website content. Include all relevant business information such as services, pricing, contact details, calls to action, etc:
+        Create a comprehensive knowledge base document from this website content. Include clear section headings for all relevant business information such as Company Overview:, Primary Products/Services:, Secondary Products/Services:, Pricing:, Contact Details:, Calls to Action:,  etc:
 
         HOME PAGE TITLE:
         {home_data['meta_info']['title']}
