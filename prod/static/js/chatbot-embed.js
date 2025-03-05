@@ -897,11 +897,26 @@ chatInput.addEventListener('keydown', function(e) {
 
 // Fix for mobile input visibility when keyboard appears
 chatInput.addEventListener('focus', function() {
+    console.log('Input field focused - attempting to scroll into view');
     if (isMobile) {
+        // First immediate scroll to ensure good positioning
+        window.scrollTo(0, 0);
+        
+        // Multiple timed scrolls to handle different device timings
         setTimeout(() => {
             window.scrollTo(0, 0);
-            chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            chatInput.scrollIntoView(false);
         }, 100);
+        
+        setTimeout(() => {
+            window.scrollTo(0, 0);
+            chatInput.scrollIntoView(false);
+        }, 300);
+        
+        setTimeout(() => {
+            window.scrollTo(0, 0);
+            chatInput.scrollIntoView(false);
+        }, 500);
     }
 });
 
