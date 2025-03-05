@@ -903,7 +903,7 @@ chatInput.addEventListener('focus', function(event) {
         if (event) event.preventDefault();
         
         // Apply a fixed transformation to lift the chat window
-        chatWindow.style.transform = 'translateY(-150px)';
+        chatWindow.style.transform = 'translateY(-200px)';
         
         // Reset position after blur
         chatInput.addEventListener('blur', function onBlur() {
@@ -911,6 +911,7 @@ chatInput.addEventListener('focus', function(event) {
             chatInput.removeEventListener('blur', onBlur);
         }, { once: true });
         
+        // Wait 0.3secs after tap to make sure keyboard is in place
         // Still do a gentle scroll to ensure input is visible
         setTimeout(() => {
             chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
