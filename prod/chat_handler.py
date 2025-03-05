@@ -1,6 +1,7 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple, Optional
 from datetime import datetime
 import json
+import uuid
 from openai import OpenAI
 from pinecone import Pinecone
 import os
@@ -29,6 +30,9 @@ class ChatPromptHandler:
         self.conversation_history = []  # Start with empty history
         self.max_history = 5  # Keep last 5 exchanges for context
         self.current_namespace = None  # Track current company namespace
+        self.thread_id = str(uuid.uuid4())  # Generate a unique thread ID for this conversation
+        self.is_first_interaction = True  # Track if this is the first user message
+        self.initial_question = None  # Store the first question for lead generation
         
         # Initialize clients if not provided
         self.openai_client = openai_client or OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -83,6 +87,11 @@ class ChatPromptHandler:
         # Check if company context has changed
         if namespace:
             self.update_company_context(namespace)
+        
+        # Track initial question if this is the first interaction
+        if self.is_first_interaction:
+            self.initial_question = user_message
+            self.is_first_interaction = False
         
         messages = []
         
@@ -141,8 +150,25 @@ class ChatPromptHandler:
             self.conversation_history = history_messages[-self.max_history * 2:]
 
     def reset_conversation(self):
-        """Reset the conversation history"""
+        """Reset the conversation history and generate a new thread ID"""
         self.conversation_history = []
+        self.thread_id = str(uuid.uuid4())
+        self.is_first_interaction = True
+        self.initial_question = None
+
+    def get_conversation_state(self) -> Dict[str, any]:
+        """
+        Get the current state of the conversation for lead tracking
+        
+        Returns:
+            Dictionary with thread_id, is_first_interaction, and initial_question
+        """
+        return {
+            "thread_id": self.thread_id,
+            "is_first_interaction": self.is_first_interaction,
+            "initial_question": self.initial_question,
+            "message_count": len(self.conversation_history) // 2  # Count of complete exchanges
+        }
 
     def get_response_format_instructions(self) -> str:
         """Get formatting instructions for the response"""

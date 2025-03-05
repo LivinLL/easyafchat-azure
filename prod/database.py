@@ -159,8 +159,71 @@ def upgrade_database(verbose=False):
                 except Exception as e:
                     print(f"Error migrating columns: {e}")
             
+            # Check if leads table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'leads'
+            )
+            """)
+            leads_table_exists = cursor.fetchone()[0]
+            
+            if not leads_table_exists:
+                # Create the leads table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new leads table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.leads (
+                    lead_id SERIAL PRIMARY KEY,
+                    chatbot_id TEXT REFERENCES companies(chatbot_id),
+                    thread_id TEXT NOT NULL,
+                    name TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    initial_question TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT DEFAULT 'new',
+                    notes TEXT
+                )
+                """)
+                
+            # Check if chatbot_config table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'chatbot_config'
+            )
+            """)
+            config_table_exists = cursor.fetchone()[0]
+            
+            if not config_table_exists:
+                # Create the chatbot_config table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new chatbot_config table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.chatbot_config (
+                    config_id SERIAL PRIMARY KEY,
+                    chatbot_id TEXT UNIQUE REFERENCES companies(chatbot_id),
+                    chat_model TEXT DEFAULT 'gpt-4o',
+                    temperature NUMERIC(3,2) DEFAULT 0.7,
+                    max_tokens INTEGER DEFAULT 500,
+                    system_prompt TEXT,
+                    chat_title TEXT,
+                    chat_subtitle TEXT,
+                    lead_form_title TEXT DEFAULT 'Want us to reach out? Need to keep this chat going? Just fill out the info below.',
+                    primary_color TEXT DEFAULT '#0084ff',
+                    accent_color TEXT DEFAULT '#ffffff',
+                    icon_image_url TEXT DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """)
+                
         else:
-            # SQLite handling remains the same
+            # SQLite handling
+            # Create companies table if not exists
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS companies (
                 chatbot_id TEXT PRIMARY KEY,
@@ -172,6 +235,42 @@ def upgrade_database(verbose=False):
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 scraped_text TEXT,
                 processed_content TEXT
+            )
+            ''')
+            
+            # Create leads table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS leads (
+                lead_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chatbot_id TEXT REFERENCES companies(chatbot_id),
+                thread_id TEXT NOT NULL,
+                name TEXT,
+                email TEXT,
+                phone TEXT,
+                initial_question TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'new',
+                notes TEXT
+            )
+            ''')
+            
+            # Create chatbot_config table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chatbot_config (
+                config_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chatbot_id TEXT UNIQUE REFERENCES companies(chatbot_id),
+                chat_model TEXT DEFAULT 'gpt-4o',
+                temperature NUMERIC(3,2) DEFAULT 0.7,
+                max_tokens INTEGER DEFAULT 500,
+                system_prompt TEXT,
+                chat_title TEXT,
+                chat_subtitle TEXT,
+                lead_form_title TEXT DEFAULT 'Want us to reach out? Need to keep this chat going? Just fill out the info below.',
+                primary_color TEXT DEFAULT '#0084ff',
+                accent_color TEXT DEFAULT '#ffffff',
+                icon_image_url TEXT DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             ''')
             

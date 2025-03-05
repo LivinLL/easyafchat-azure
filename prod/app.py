@@ -8,6 +8,7 @@ from datetime import datetime, UTC
 from typing import List, Dict, Tuple, Optional
 from chat_handler import ChatPromptHandler
 from flask_cors import CORS
+from db_leads import leads_blueprint, init_leads_blueprint
 import time
 import os
 import validators
@@ -39,6 +40,10 @@ app.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
 # Initialize clients
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+
+# Initialize and register the leads blueprint
+init_leads_blueprint(openai_client, pinecone_client)
+app.register_blueprint(leads_blueprint)
 
 # Constants
 PINECONE_INDEX = "all-companies"
@@ -728,6 +733,7 @@ def embed_chat():
         print("Received chat request:", data)  # Keep existing debug log
         chatbot_id = data.get("chatbot_id")
         user_message = data.get("message")
+        thread_id = data.get("thread_id")  # Get the thread_id from the request
 
         if not chatbot_id or not user_message:
             print(f"Missing fields - chatbot_id: {chatbot_id}, message: {user_message}")
@@ -763,6 +769,10 @@ def embed_chat():
             chat_handlers[chatbot_id] = ChatPromptHandler(openai_client, pinecone_client)
             # Ensure first message includes system prompt by forcing conversation reset
             chat_handlers[chatbot_id].reset_conversation()
+            
+            # If a thread_id was provided, set it in the handler
+            if thread_id:
+                chat_handlers[chatbot_id].thread_id = thread_id
 
         handler = chat_handlers[chatbot_id]
         messages = handler.format_messages(user_message, namespace=namespace)
@@ -778,11 +788,24 @@ def embed_chat():
         handler.add_to_history("user", user_message)
         handler.add_to_history("assistant", assistant_response)
 
-        return jsonify({"response": assistant_response})
+        # Get the current conversation state for the frontend
+        conversation_state = handler.get_conversation_state()
+        
+        # Debugging information - add this to see what's happening
+        print(f"Conversation state: {conversation_state}")
+
+        return jsonify({
+            "response": assistant_response,
+            "thread_id": conversation_state["thread_id"],
+            "is_first_interaction": conversation_state["is_first_interaction"],
+            "message_count": conversation_state["message_count"],
+            "initial_question": conversation_state.get("initial_question")
+        })
 
     except Exception as e:
         print(f"Detailed error in embed-chat: {str(e)}")  # Enhanced error logging
         return jsonify({"error": "Internal server error"}), 500
+    
 
 @app.route('/embed-reset-chat', methods=['POST'])
 def reset_chat():

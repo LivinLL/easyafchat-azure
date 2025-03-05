@@ -288,6 +288,85 @@
                 margin: 0.5rem 0 !important;
             }
 
+            /* Lead Form Styles */
+            .daves-lead-form {
+                background-color: #f8f9fa !important;
+                padding: 1rem !important;
+                border-radius: 8px !important;
+                margin: 0.5rem 0 !important;
+                border: 1px solid #dee2e6 !important;
+                max-width: 100% !important;
+            }
+
+            .daves-lead-form h3 {
+                margin-top: 0 !important;
+                margin-bottom: 0.75rem !important;
+                font-size: 1.1rem !important;
+                color: #212529 !important;
+            }
+
+            .daves-lead-form-field {
+                margin-bottom: 0.75rem !important;
+            }
+
+            .daves-lead-form-field input {
+                width: 100% !important;
+                padding: 0.5rem !important;
+                border: 1px solid #ced4da !important;
+                border-radius: 4px !important;
+                font-size: 0.9rem !important;
+            }
+
+            .daves-lead-form-field input:focus {
+                outline: none !important;
+                border-color: #80bdff !important;
+                box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+            }
+
+            .daves-lead-form-submit {
+                background-color: #0d6efd !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 4px !important;
+                padding: 0.5rem 1rem !important;
+                cursor: pointer !important;
+                font-size: 0.9rem !important;
+                font-weight: 500 !important;
+                transition: background-color 0.2s !important;
+            }
+
+            .daves-lead-form-submit:hover {
+                background-color: #0b5ed7 !important;
+            }
+
+            .daves-lead-form-submit:disabled {
+                background-color: #6c757d !important;
+                cursor: not-allowed !important;
+            }
+
+            .daves-lead-form-close {
+                background: none !important;
+                border: none !important;
+                color: #6c757d !important;
+                font-size: 0.8rem !important;
+                margin-left: 0.5rem !important;
+                cursor: pointer !important;
+                text-decoration: underline !important;
+            }
+
+            .daves-lead-form-close:hover {
+                color: #495057 !important;
+            }
+
+            .daves-lead-form-thanks {
+                padding: 1rem !important;
+                background-color: #d4edda !important;
+                color: #155724 !important;
+                border-radius: 4px !important;
+                margin: 0.5rem 0 !important;
+                text-align: center !important;
+            }
+
             /* Initial popup with delay */
             .daves-initial-popup {
                 position: absolute;
@@ -404,19 +483,188 @@ window.addEventListener('resize', () => {
 
 // Initialize chat functionality
 let messages = [];
+let threadId = null;
+let hasShownLeadForm = false;
+let hasSubmittedLead = false;
+let initialQuestion = null;
 const messagesContainer = chatWindow.querySelector('#daves-chat-messages');
 const chatForm = chatWindow.querySelector('#daves-chat-form');
 const chatInput = chatForm.querySelector('textarea');
 const closeButton = chatWindow.querySelector('#daves-close-chat');
 const resetButton = chatWindow.querySelector('#daves-reset-chat');
 
+async function fetchLeadFormConfig() {
+    try {
+        console.log('Fetching lead form config for chatbot ID:', chatbotId);
+        const response = await fetch(`${baseUrl}/config/lead-form/${chatbotId}`);
+        if (!response.ok) {
+            console.log('Lead form config not found, using default');
+            return {
+                lead_form_title: 'Want us to reach out? Need to keep this chat going? Just fill out the info below.'
+            };
+        }
+        const config = await response.json();
+        console.log('Lead form config received:', config);
+        return config;
+    } catch (error) {
+        console.error('Error fetching lead form config:', error);
+        return {
+            lead_form_title: 'Want us to reach out? Need to keep this chat going? Just fill out the info below.'
+        };
+    }
+}
+
+function createLeadForm() {
+    console.log('createLeadForm called - fetching lead form config');
+    // Fetch the lead form title from config
+    fetchLeadFormConfig().then(config => {
+        console.log('Lead form config received:', config);
+        const leadFormDiv = document.createElement('div');
+        leadFormDiv.className = 'daves-lead-form';
+        leadFormDiv.innerHTML = `
+            <h3>${config.lead_form_title}</h3>
+            <form id="daves-lead-form">
+                <div class="daves-lead-form-field">
+                    <input type="text" id="daves-lead-name" placeholder="Name" />
+                </div>
+                <div class="daves-lead-form-field">
+                    <input type="email" id="daves-lead-email" placeholder="Email" />
+                </div>
+                <div class="daves-lead-form-field">
+                    <input type="tel" id="daves-lead-phone" placeholder="Phone Number" />
+                </div>
+                <div style="display: flex; margin-top: 1rem;">
+                    <button type="button" class="daves-lead-form-submit">Submit</button>
+                    <button type="button" class="daves-lead-form-close">Skip</button>
+                </div>
+            </form>
+        `;
+        
+        // Add the lead form to the chat
+        messagesContainer.appendChild(leadFormDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        console.log('Lead form added to messages container');
+        
+        // Handle form submission
+        const leadFormSubmit = leadFormDiv.querySelector('.daves-lead-form-submit');
+        leadFormSubmit.addEventListener('click', handleLeadFormSubmit);
+        
+        // Handle skip button
+        const skipButton = leadFormDiv.querySelector('.daves-lead-form-close');
+        skipButton.addEventListener('click', () => {
+            leadFormDiv.remove();
+            hasSubmittedLead = true; // Prevent showing the form again
+            console.log('Lead form skipped');
+        });
+        
+        hasShownLeadForm = true;
+        console.log('hasShownLeadForm set to true');
+    }).catch(error => {
+        console.error('Error in fetchLeadFormConfig:', error);
+    });
+}
+
+async function handleLeadFormSubmit(e) {
+    e.preventDefault();
+    console.log('Lead form submit handler called');
+    
+    const nameInput = document.getElementById('daves-lead-name');
+    const emailInput = document.getElementById('daves-lead-email');
+    const phoneInput = document.getElementById('daves-lead-phone');
+    
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const phone = phoneInput.value.trim();
+    
+    console.log('Lead form data:', { name, email, phone });
+    
+    // At least one field should be filled
+    if (!name && !email && !phone) {
+        alert('Please fill at least one field');
+        return;
+    }
+    
+    try {
+        console.log('Submitting lead data with thread ID:', threadId);
+        const leadData = {
+            chatbot_id: chatbotId,
+            thread_id: threadId,
+            name,
+            email,
+            phone,
+            initial_question: initialQuestion
+        };
+        console.log('Sending lead form data:', leadData);
+        
+        const response = await fetch(`${baseUrl}/embed-save-lead`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(leadData)
+        });
+        
+        if (!response.ok) throw new Error('Failed to save lead');
+        
+        const result = await response.json();
+        console.log('Lead submission response:', result);
+        
+        // Replace form with thank you message
+        const leadForm = document.querySelector('.daves-lead-form');
+        const thankYouDiv = document.createElement('div');
+        thankYouDiv.className = 'daves-lead-form-thanks';
+        thankYouDiv.textContent = 'Thank you! We have received your information.';
+        
+        if (leadForm) {
+            leadForm.parentNode.replaceChild(thankYouDiv, leadForm);
+            console.log('Lead form replaced with thank you message');
+            
+            // Remove the thank you message after a few seconds
+            setTimeout(() => {
+                if (thankYouDiv.parentNode) {
+                    thankYouDiv.parentNode.removeChild(thankYouDiv);
+                    console.log('Thank you message removed');
+                }
+            }, 5000);
+        }
+        
+        hasSubmittedLead = true;
+        console.log('hasSubmittedLead set to true');
+        
+    } catch (error) {
+        console.error('Error saving lead:', error);
+        alert('Sorry, there was an error saving your information. Please try again.');
+    }
+}
+
 function addMessage(message, role) {
+    console.log(`Adding ${role} message:`, message.substring(0, 50) + (message.length > 50 ? '...' : ''));
     const messageDiv = document.createElement('div');
     messageDiv.className = `daves-chat-message ${role}`;
     messageDiv.innerHTML = role === 'assistant' ? marked.parse(message) : message;
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
     messages.push({ role, content: message });
+    
+    // If this is the first exchange (one user message and one assistant message)
+    // and we haven't shown the lead form, show it now
+    if (
+        messages.length === 3 && 
+        role === 'assistant' && 
+        !hasShownLeadForm && 
+        !hasSubmittedLead
+    ) {
+        console.log('Showing lead form after first exchange - local message count =', messages.length);
+        createLeadForm();
+    } else {
+        console.log('Lead form conditions not met:', {
+            'local messages.length': messages.length,
+            'hasShownLeadForm': hasShownLeadForm,
+            'hasSubmittedLead': hasSubmittedLead
+        });
+    }
+    
+    console.log(`Total messages in conversation: ${messages.length}`);
 }
 
 // Function to show initial popup message with delay
@@ -444,6 +692,8 @@ function showInitialPopup(delay = 2000) {
 
 // Add event listeners
 chatBubble.addEventListener('click', () => {
+    console.log('Chat bubble clicked');
+    
     // Hide the popup if it exists
     const popup = document.getElementById('daves-initial-popup');
     if (popup) {
@@ -459,11 +709,23 @@ chatBubble.addEventListener('click', () => {
         // Move window to body before showing it on mobile
         document.body.appendChild(chatWindow);
         mountPoint = document.body;
+        console.log('Chat window moved to body for mobile');
     }
-    chatWindow.classList.toggle('d-none');
-    chatBubble.classList.toggle('active');
+    
+    // Toggle visibility
+    if (chatWindow.classList.contains('d-none')) {
+        chatWindow.classList.remove('d-none');
+        chatBubble.classList.add('active');
+        console.log('Chat window opened');
+    } else {
+        chatWindow.classList.add('d-none');
+        chatBubble.classList.remove('active');
+        console.log('Chat window closed');
+    }
+    
     if (messages.length === 0) {
         addMessage("Hi there! 👋 How can I help you?", 'assistant');
+        console.log('Added initial assistant greeting');
     }
 });
 
@@ -472,12 +734,18 @@ closeButton.addEventListener('click', () => {
     chatBubble.classList.remove('active');
 });
 
-// Updated submit handler for animated dots
 // Updated submit handler with better dot positioning
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = chatInput.value.trim();
     if (!message) return;
+
+    // If this is the first user message, store it and create a thread ID
+    if (messages.length <= 1) {
+        initialQuestion = message;
+        threadId = `thread_${Date.now()}`;
+        console.log('First user message. Thread ID:', threadId, 'Initial question:', initialQuestion);
+    }
 
     addMessage(message, 'user');
     chatInput.value = '';
@@ -519,6 +787,12 @@ chatForm.addEventListener('submit', async (e) => {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     try {
+        console.log('Sending chat request:', {
+            message,
+            chatbot_id: chatbotId,
+            thread_id: threadId
+        });
+        
         const response = await fetch(`${baseUrl}/embed-chat`, {
             method: 'POST',
             headers: {
@@ -526,7 +800,8 @@ chatForm.addEventListener('submit', async (e) => {
             },
             body: JSON.stringify({
                 message,
-                chatbot_id: chatbotId
+                chatbot_id: chatbotId,
+                thread_id: threadId
             })
         });
 
@@ -537,6 +812,14 @@ chatForm.addEventListener('submit', async (e) => {
         if (!response.ok) throw new Error('Failed to get response');
 
         const data = await response.json();
+        console.log('Received chat response:', data);
+        
+        // Update thread ID if provided in the response
+        if (data.thread_id) {
+            threadId = data.thread_id;
+            console.log('Updated thread ID:', threadId);
+        }
+        
         addMessage(data.response, 'assistant');
     } catch (error) {
         // Clear interval and remove thinking indicator
@@ -576,6 +859,7 @@ chatInput.addEventListener('input', function() {
 // Reset chat functionality
 resetButton.addEventListener('click', async () => {
     try {
+        console.log('Resetting chat for chatbot ID:', chatbotId);
         const response = await fetch(`${baseUrl}/embed-reset-chat`, {
             method: 'POST',
             headers: {
@@ -587,8 +871,15 @@ resetButton.addEventListener('click', async () => {
         });
 
         if (!response.ok) throw new Error('Failed to reset chat');
+        console.log('Chat reset successful');
 
         messages = [];
+        threadId = `thread_${Date.now()}`; // Generate new thread ID
+        console.log('New thread ID generated:', threadId);
+        hasShownLeadForm = false;
+        hasSubmittedLead = false;
+        initialQuestion = null;
+        console.log('Lead form state reset');
         messagesContainer.innerHTML = '';
         addMessage("Hi there! 👋 How can I help you?", 'assistant');
     } catch (error) {
