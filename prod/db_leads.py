@@ -292,7 +292,8 @@ def get_chatbot_config(chatbot_id):
     except Exception as e:
         print(f"Error getting chatbot config: {e}")
         return {
-            'lead_form_title': 'Want us to reach out? Need to keep this chat going? Just fill out the info below.'
+            'lead_form_title': 'Want us to reach out? Need to keep this chat going? Just fill out the info below.',
+            'show_lead_form': 'Yes'
         }
 
 # Routes for the leads blueprint

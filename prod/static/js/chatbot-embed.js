@@ -516,9 +516,23 @@ async function fetchLeadFormConfig() {
 
 function createLeadForm() {
     console.log('createLeadForm called - fetching lead form config');
+    
+    // Disable the chat form while lead form is active
+    const chatForm = document.getElementById('daves-chat-form');
+    chatForm.classList.add('d-none');
+    
     // Fetch the lead form title from config
     fetchLeadFormConfig().then(config => {
         console.log('Lead form config received:', config);
+        
+        // Check if we should show the lead form at all
+        if (config.show_lead_form === 'No') {
+            console.log('Lead form disabled by configuration');
+            hasShownLeadForm = true;
+            hasSubmittedLead = true; // Prevent showing the form later
+            return; // Exit without creating form
+        }
+        
         const leadFormDiv = document.createElement('div');
         leadFormDiv.className = 'daves-lead-form';
         leadFormDiv.innerHTML = `
@@ -535,7 +549,9 @@ function createLeadForm() {
                 </div>
                 <div style="display: flex; margin-top: 1rem;">
                     <button type="button" class="daves-lead-form-submit">Submit</button>
+                    <!-- Skip button commented out but kept for future use 
                     <button type="button" class="daves-lead-form-close">Skip</button>
+                    -->
                 </div>
             </form>
         `;
@@ -549,18 +565,23 @@ function createLeadForm() {
         const leadFormSubmit = leadFormDiv.querySelector('.daves-lead-form-submit');
         leadFormSubmit.addEventListener('click', handleLeadFormSubmit);
         
-        // Handle skip button
+        // Handle skip button (commented out but kept for reference)
+        /* 
         const skipButton = leadFormDiv.querySelector('.daves-lead-form-close');
         skipButton.addEventListener('click', () => {
             leadFormDiv.remove();
             hasSubmittedLead = true; // Prevent showing the form again
+            chatForm.classList.remove('d-none'); // Re-enable chat input
             console.log('Lead form skipped');
         });
+        */
         
         hasShownLeadForm = true;
         console.log('hasShownLeadForm set to true');
     }).catch(error => {
         console.error('Error in fetchLeadFormConfig:', error);
+        // Re-enable chat form in case of error
+        chatForm.classList.remove('d-none');
     });
 }
 
@@ -578,10 +599,36 @@ async function handleLeadFormSubmit(e) {
     
     console.log('Lead form data:', { name, email, phone });
     
-    // At least one field should be filled
-    if (!name && !email && !phone) {
-        alert('Please fill at least one field');
+    // Validate name (not empty and at least 2 characters)
+    if (!name || name.length < 2) {
+        alert('Please enter a valid name (at least 2 characters)');
+        nameInput.focus();
         return;
+    }
+    
+    // Validate email (simple pattern check)
+    if (email) {
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            alert('Please enter a valid email address');
+            emailInput.focus();
+            return;
+        }
+    } else {
+        alert('Please enter your email address');
+        emailInput.focus();
+        return;
+    }
+    
+    // Validate phone (optional, but if provided must be at least 7 digits)
+    if (phone) {
+        // Remove non-digit characters to count actual digits
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length < 7) {
+            alert('Please enter a valid phone number (at least 7 digits)');
+            phoneInput.focus();
+            return;
+        }
     }
     
     try {
@@ -619,6 +666,10 @@ async function handleLeadFormSubmit(e) {
             leadForm.parentNode.replaceChild(thankYouDiv, leadForm);
             console.log('Lead form replaced with thank you message');
             
+            // Re-enable chat form after successful submission
+            const chatForm = document.getElementById('daves-chat-form');
+            chatForm.classList.remove('d-none');
+            
             // Remove the thank you message after a few seconds
             setTimeout(() => {
                 if (thankYouDiv.parentNode) {
@@ -634,6 +685,10 @@ async function handleLeadFormSubmit(e) {
     } catch (error) {
         console.error('Error saving lead:', error);
         alert('Sorry, there was an error saving your information. Please try again.');
+        
+        // Re-enable chat form even on error to prevent users from being stuck
+        const chatForm = document.getElementById('daves-chat-form');
+        chatForm.classList.remove('d-none');
     }
 }
 
