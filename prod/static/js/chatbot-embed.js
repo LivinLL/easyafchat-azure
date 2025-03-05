@@ -897,26 +897,32 @@ chatInput.addEventListener('keydown', function(e) {
 
 // Fix for mobile input visibility when keyboard appears
 chatInput.addEventListener('focus', function() {
-    console.log('Input field focused - attempting to scroll into view');
+    console.log('Input field focused - smoother scroll into view');
     if (isMobile) {
-        // First immediate scroll to ensure good positioning
-        window.scrollTo(0, 0);
+        // Prevent the underlying page from scrolling
+        event.preventDefault();
         
-        // Multiple timed scrolls to handle different device timings
-        setTimeout(() => {
-            window.scrollTo(0, 0);
-            chatInput.scrollIntoView(false);
-        }, 100);
+        // Move the chat window up slightly to make room for keyboard
+        const chatWindowRect = chatWindow.getBoundingClientRect();
+        const inputRect = chatInput.getBoundingClientRect();
         
+        // Gently position the chat window to keep input in view
+        if (inputRect.bottom > window.innerHeight - 150) {
+            // Calculate how much we need to move up (100px buffer)
+            const moveUpBy = Math.min(100, inputRect.bottom - (window.innerHeight - 150));
+            chatWindow.style.transform = `translateY(-${moveUpBy}px)`;
+            
+            // Reset position after blur
+            chatInput.addEventListener('blur', function onBlur() {
+                chatWindow.style.transform = '';
+                chatInput.removeEventListener('blur', onBlur);
+            }, { once: true });
+        }
+        
+        // Single, more gentle scroll after a short delay
         setTimeout(() => {
-            window.scrollTo(0, 0);
-            chatInput.scrollIntoView(false);
+            chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }, 300);
-        
-        setTimeout(() => {
-            window.scrollTo(0, 0);
-            chatInput.scrollIntoView(false);
-        }, 500);
     }
 });
 
