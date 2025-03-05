@@ -896,33 +896,38 @@ chatInput.addEventListener('keydown', function(e) {
 });
 
 // Fix for mobile input visibility when keyboard appears
-chatInput.addEventListener('focus', function() {
+chatInput.addEventListener('focus', function(event) { // Added 'event' parameter here
     console.log('Input field focused - smoother scroll into view');
     if (isMobile) {
         // Prevent the underlying page from scrolling
-        event.preventDefault();
+        if (event) event.preventDefault();
         
-        // Move the chat window up slightly to make room for keyboard
-        const chatWindowRect = chatWindow.getBoundingClientRect();
-        const inputRect = chatInput.getBoundingClientRect();
-        
-        // Gently position the chat window to keep input in view
-        if (inputRect.bottom > window.innerHeight - 150) {
-            // Calculate how much we need to move up (100px buffer)
-            const moveUpBy = Math.min(100, inputRect.bottom - (window.innerHeight - 150));
-            chatWindow.style.transform = `translateY(-${moveUpBy}px)`;
-            
-            // Reset position after blur
-            chatInput.addEventListener('blur', function onBlur() {
-                chatWindow.style.transform = '';
-                chatInput.removeEventListener('blur', onBlur);
-            }, { once: true });
-        }
-        
-        // Single, more gentle scroll after a short delay
+        // Force a slight delay to ensure keyboard is factored into viewport height
         setTimeout(() => {
+            // Move the chat window up slightly to make room for keyboard
+            const chatWindowRect = chatWindow.getBoundingClientRect();
+            const inputRect = chatInput.getBoundingClientRect();
+            
+            // Always lift on first focus by using a lower threshold
+            // This ensures it lifts even on the first tap
+            const threshold = window.innerHeight - 250; // More aggressive threshold
+            
+            if (inputRect.bottom > threshold) {
+                // Calculate how much we need to move up (100px buffer)
+                const moveUpBy = Math.min(150, inputRect.bottom - threshold);
+                console.log('Lifting chat window by', moveUpBy, 'pixels');
+                chatWindow.style.transform = `translateY(-${moveUpBy}px)`;
+                
+                // Reset position after blur
+                chatInput.addEventListener('blur', function onBlur() {
+                    chatWindow.style.transform = '';
+                    chatInput.removeEventListener('blur', onBlur);
+                }, { once: true });
+            }
+            
+            // Ensure input is visible
             chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }, 300);
+        }, 100); // Short delay to let keyboard open
     }
 });
 
