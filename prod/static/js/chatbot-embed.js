@@ -902,20 +902,23 @@ chatInput.addEventListener('focus', function(event) {
         // Prevent the underlying page from scrolling
         if (event) event.preventDefault();
         
-        // Apply a fixed transformation to lift the chat window
-        chatWindow.style.transform = 'translateY(-200px)';
+        // Reset any existing transform first to prevent stacking
+        chatWindow.style.transform = '';
+        
+        // Small delay to ensure the reset is processed before applying new transform
+        setTimeout(() => {
+            // Then apply a fixed transformation to lift the chat window
+            chatWindow.style.transform = 'translateY(-200px)';
+            
+            // Still do a gentle scroll to ensure input is visible
+            chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 50);
         
         // Reset position after blur
         chatInput.addEventListener('blur', function onBlur() {
             chatWindow.style.transform = '';
             chatInput.removeEventListener('blur', onBlur);
         }, { once: true });
-        
-        // Wait 0.3secs after tap to make sure keyboard is in place
-        // Still do a gentle scroll to ensure input is visible
-        setTimeout(() => {
-            chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }, 300);
     }
 });
 
