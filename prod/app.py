@@ -50,6 +50,8 @@ app.register_blueprint(leads_blueprint)
 PINECONE_INDEX = "all-companies"
 PINECONE_HOST = "https://all-companies-6ctd3g7.svc.aped-4627-b74a.pinecone.io"
 DB_PATH = os.getenv('DB_PATH', 'easyafchat.db')
+APIFLASH_KEY = os.getenv('APIFLASH_ACCESS_KEY', '')  # Add this line
+
 
 # Initialize and register the admin dashboard blueprint
 init_admin_dashboard(openai_client, pinecone_client, DB_PATH, PINECONE_INDEX)
@@ -584,14 +586,12 @@ About Scrape
     except Exception as e:
         print(f"Error creating initial document: {e}")
 
-
     # Generate APIFlash screenshot URL
     try:
         # Format the URL for APIFlash
         base_url = "https://api.apiflash.com/v1/urltoimage"
-        api_key = "9086623e49a94885bcc5884c4b938e2b"
         
-        screenshot_url = f"{base_url}?access_key={api_key}&url={website_url}&format=jpeg&width=1600&height=1066"
+        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
         print(f"Screenshot URL generated: {screenshot_url}")
     except Exception as e:
         print(f"Error generating screenshot URL: {e}, but continuing")
@@ -730,9 +730,8 @@ About Scrape
     try:
         # Format the URL for APIFlash
         base_url = "https://api.apiflash.com/v1/urltoimage"
-        api_key = "9086623e49a94885bcc5884c4b938e2b"
         
-        screenshot_url = f"{base_url}?access_key={api_key}&url={website_url}&format=jpeg&width=1600&height=1066"
+        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
         print(f"Screenshot URL generated: {screenshot_url}")
     except Exception as e:
         print(f"Error generating screenshot URL: {e}")
@@ -770,9 +769,8 @@ def demo(session_id):
     try:
         # Format the URL for APIFlash
         base_url = "https://api.apiflash.com/v1/urltoimage"
-        api_key = "9086623e49a94885bcc5884c4b938e2b"
         
-        screenshot_url = f"{base_url}?access_key={api_key}&url={website_url}&format=jpeg&width=1600&height=1066"
+        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
     except Exception as e:
         print(f"Error generating screenshot URL: {e}")
         screenshot_url = ""  # Empty URL if there's an error

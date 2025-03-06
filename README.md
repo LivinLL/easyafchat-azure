@@ -1,5 +1,9 @@
 https://claude.ai/chat/22b4be49-2276-456f-a788-a1bf0de20733
 
+# Screenshot maker added 03/06/2025 and replaced thum.io
+# Google lluniversity1999 login
+https://apiflash.com/dashboard/query_builder 
+
 # Database Schemas
 
 Proposed Structure for New Tables to our Database
