@@ -18,6 +18,7 @@ import uuid
 import re
 import json
 
+
 # Import the admin dashboard blueprint
 from admin_dashboard import admin_dashboard, init_admin_dashboard
 
@@ -529,17 +530,71 @@ About Scrape
         processing_status[chatbot_id]["error"] = f"Failed to save company data: {str(e)}"
         return jsonify({"error": "Failed to save company data"}), 400
 
-    # Prefetch the Thum.io screenshot
-    base_thumio_url = "https://image.thum.io/get/auth/73147-easyafchat-thumio/width/800/crop/1200"
-    screenshot_url = f"{base_thumio_url}/{website_url}"
-
-    # Make a GET request to force the screenshot to be generated
+    # Create an initial document record for this company's processed content
     try:
-        response = requests.get(screenshot_url, timeout=10)
-        if response.status_code != 200:
-            print("Failed to generate screenshot, but continuing")
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Check if initial document already exists for this company
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT doc_id FROM documents 
+                    WHERE chatbot_id = %s AND doc_type = 'scraped_content'
+                ''', (chatbot_id,))
+            else:
+                cursor.execute('''
+                    SELECT doc_id FROM documents 
+                    WHERE chatbot_id = ? AND doc_type = 'scraped_content'
+                ''', (chatbot_id,))
+                
+            # Only create if it doesn't exist
+            if not cursor.fetchone():
+                doc_id = str(uuid.uuid4())
+                
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        INSERT INTO documents
+                        (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', (
+                        doc_id,
+                        chatbot_id,
+                        "Scraped Content",
+                        "scraped_content",
+                        now,
+                        now,
+                        processed_content,
+                        len(chunks)  # Use the actual chunk count
+                    ))
+                else:
+                    cursor.execute('''
+                        INSERT INTO documents
+                        (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        doc_id,
+                        chatbot_id,
+                        "Scraped Content",
+                        "scraped_content",
+                        now,
+                        now,
+                        processed_content,
+                        len(chunks)  # Use the actual chunk count
+                    ))
     except Exception as e:
-        print(f"Error generating screenshot: {e}, but continuing")
+        print(f"Error creating initial document: {e}")
+
+
+    # Generate APIFlash screenshot URL
+    try:
+        # Format the URL for APIFlash
+        base_url = "https://api.apiflash.com/v1/urltoimage"
+        api_key = "9086623e49a94885bcc5884c4b938e2b"
+        
+        screenshot_url = f"{base_url}?access_key={api_key}&url={website_url}&format=jpeg&width=1600&height=1066"
+        print(f"Screenshot URL generated: {screenshot_url}")
+    except Exception as e:
+        print(f"Error generating screenshot URL: {e}, but continuing")
 
     # Processing is successfully complete, update status to "waiting for pinecone"
     processing_status[chatbot_id]["status"] = "waiting_for_pinecone"
@@ -671,26 +726,18 @@ About Scrape
         flash("Failed to save company data")
         return redirect(url_for('home'))
 
-    # Prefetch the Thum.io screenshot
-    base_thumio_url = "https://image.thum.io/get/auth/73147-easyafchat-thumio/width/800/crop/1200"
-    screenshot_url = f"{base_thumio_url}/{website_url}"
-
-    # Make a GET request to force the screenshot to be generated
+    # Generate APIFlash screenshot URL
     try:
-        response = requests.get(screenshot_url, timeout=10)
-        if response.status_code != 200:
-            flash("Failed to generate screenshot")
-            return redirect(url_for('home'))
+        # Format the URL for APIFlash
+        base_url = "https://api.apiflash.com/v1/urltoimage"
+        api_key = "9086623e49a94885bcc5884c4b938e2b"
+        
+        screenshot_url = f"{base_url}?access_key={api_key}&url={website_url}&format=jpeg&width=1600&height=1066"
+        print(f"Screenshot URL generated: {screenshot_url}")
     except Exception as e:
-        print(f"Error generating screenshot: {e}")
-        flash("Failed to generate screenshot")
+        print(f"Error generating screenshot URL: {e}")
+        flash("Failed to generate screenshot URL")
         return redirect(url_for('home'))
-
-    # Optional delay to ensure the screenshot is fully cached
-    time.sleep(2)
-
-    # Redirect to the demo page with the session_id
-    return redirect(url_for('demo', session_id=chatbot_id))
 
 @app.route('/demo/<session_id>')
 def demo(session_id):
@@ -719,9 +766,16 @@ def demo(session_id):
 
     website_url, scraped_text, processed_content = row
     
-    # Generate the screenshot URL dynamically
-    base_thumio_url = "https://image.thum.io/get/auth/73147-easyafchat-thumio/width/800/crop/800"
-    screenshot_url = f"{base_thumio_url}/{website_url}"
+    # Generate APIFlash screenshot URL dynamically
+    try:
+        # Format the URL for APIFlash
+        base_url = "https://api.apiflash.com/v1/urltoimage"
+        api_key = "9086623e49a94885bcc5884c4b938e2b"
+        
+        screenshot_url = f"{base_url}?access_key={api_key}&url={website_url}&format=jpeg&width=1600&height=1066"
+    except Exception as e:
+        print(f"Error generating screenshot URL: {e}")
+        screenshot_url = ""  # Empty URL if there's an error
 
     # Pass the screenshot URL and other data to the template
     return render_template(

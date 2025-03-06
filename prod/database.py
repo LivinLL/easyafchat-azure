@@ -221,6 +221,34 @@ def upgrade_database(verbose=False):
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """)
+            
+            # Check if documents table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'documents'
+            )
+            """)
+            documents_table_exists = cursor.fetchone()[0]
+            
+            if not documents_table_exists:
+                # Create the documents table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new documents table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.documents (
+                    doc_id TEXT PRIMARY KEY,
+                    chatbot_id TEXT NOT NULL,
+                    doc_name TEXT NOT NULL,
+                    doc_type TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    content TEXT,
+                    vectors_count INTEGER,
+                    FOREIGN KEY (chatbot_id) REFERENCES companies(chatbot_id)
+                )
+                """)
                 
         else:
             # SQLite handling
@@ -273,6 +301,21 @@ def upgrade_database(verbose=False):
                 show_lead_form TEXT DEFAULT 'Yes',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            ''')
+            
+            # Create documents table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS documents (
+                doc_id TEXT PRIMARY KEY,
+                chatbot_id TEXT NOT NULL,
+                doc_name TEXT NOT NULL,
+                doc_type TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                content TEXT,
+                vectors_count INTEGER,
+                FOREIGN KEY (chatbot_id) REFERENCES companies(chatbot_id)
             )
             ''')
             

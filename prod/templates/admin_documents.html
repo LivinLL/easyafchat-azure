@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EasyAFChat DB Manager - Document Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/datatables@1.10.18/media/css/jquery.dataTables.min.css" rel="stylesheet">
+    <style>
+        .content-preview { max-height: 100px; overflow: hidden; }
+        .modal-dialog { max-width: 80%; }
+        .status-message { position: fixed; top: 20px; right: 20px; z-index: 1050; display: none; }
+        .nav-tabs { margin-bottom: 20px; }
+        .badge { font-size: 85%; }
+        .action-buttons { white-space: nowrap; }
+        .filter-row { margin-bottom: 15px; }
+        .document-card { margin-bottom: 20px; }
+        .document-card .card-header { display: flex; justify-content: space-between; align-items: center; }
+        .progress { height: 5px; }
+        .document-preview { max-height: 200px; overflow-y: auto; background-color: #f8f9fa; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Document Management</h2>
+        <div id="statusMessage" class="alert status-message"></div>
+        
+        <!-- Filter and Upload Row -->
+        <div class="row filter-row">
+            <div class="col-md-4">
+                <select id="companyFilter" class="form-select">
+                    <option value="">All Companies</option>
+                    {% for company in companies %}
+                    <option value="{{ company.chatbot_id }}">{{ company.company_url }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-8 text-end">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                    <i class="bi bi-upload"></i> Upload Document
+                </button>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <!-- Document List -->
+        <div class="row" id="documentsContainer">
+            {% if documents %}
+                {% for doc in documents %}
+                <div class="col-md-6 document-card" data-company="{{ doc.chatbot_id }}">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">{{ doc.doc_name }}</h5>
+                            <div>
+                                <span class="badge {% if doc.doc_type == 'scraped_content' %}bg-info{% else %}bg-success{% endif %}">
+                                    {{ doc.doc_type }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Company:</strong> 
+                                {% for company in companies %}
+                                    {% if company.chatbot_id == doc.chatbot_id %}
+                                        {{ company.company_url }}
+                                    {% endif %}
+                                {% endfor %}
+                            </p>
+                            <p><strong>Added:</strong> {{ doc.created_at }}</p>
+                            <p><strong>Vectors:</strong> {{ doc.vectors_count }}</p>
+                            <div class="document-preview content-preview">
+                                {{ doc.content[:500] }}{% if doc.content|length > 500 %}...{% endif %}
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-sm btn-primary" onclick="viewDocument('{{ doc.doc_id }}')">View Content</button>
+                            <button class="btn btn-sm btn-danger float-end" onclick="deleteDocument('{{ doc.doc_id }}', '{{ doc.chatbot_id }}')">Delete</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center py-5">
+                    <h4>No documents found</h4>
+                    <p>Upload documents using the button above</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload Document</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label">Select Company</label>
+                            <select class="form-select" id="uploadCompany" name="chatbot_id" required>
+                                <option value="">-- Select Company --</option>
+                                {% for company in companies %}
+                                <option value="{{ company.chatbot_id }}">{{ company.company_url }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Document File</label>
+                            <input type="file" class="form-control" id="documentFile" name="document" accept=".docx,.doc,.txt" required>
+                            <div class="form-text">Supported formats: .docx, .doc, .txt</div>
+                        </div>
+                        <div id="uploadProgress" class="progress mb-3 d-none">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="uploadSubmit">Upload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document View Modal -->
+    <div class="modal fade" id="documentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="documentTitle">Document Content</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="documentContent" style="white-space: pre-wrap;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables@1.10.18/media/js/jquery.dataTables.min.js"></script>
+    <script>
+        // Initialize modal objects
+        const uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
+        const documentModal = new bootstrap.Modal(document.getElementById('documentModal'));
+        
+        // Function to show status messages
+        function showStatus(message, type) {
+            const status = document.getElementById('statusMessage');
+            status.className = `alert alert-${type} status-message`;
+            status.textContent = message;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Handle company filter changes
+        $('#companyFilter').change(function() {
+            const companyId = $(this).val();
+            
+            if (companyId) {
+                // Show only documents for selected company
+                $('.document-card').hide();
+                $(`.document-card[data-company="${companyId}"]`).show();
+            } else {
+                // Show all documents
+                $('.document-card').show();
+            }
+        });
+        
+        // Handle document upload
+        $('#uploadSubmit').click(function() {
+            const form = document.getElementById('uploadForm');
+            const formData = new FormData(form);
+            
+            // Validate form
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Show progress bar
+            const progressBar = document.querySelector('#uploadProgress .progress-bar');
+            $('#uploadProgress').removeClass('d-none');
+            progressBar.style.width = '10%';
+            
+            // Disable submit button
+            $(this).prop('disabled', true);
+            
+            // Submit form
+            $.ajax({
+                url: '/admin-dashboard-08x7z9y2-yoursecretword/upload-document',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                xhr: function() {
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function(e) {
+                        if (e.lengthComputable) {
+                            const percent = Math.round((e.loaded / e.total) * 100);
+                            progressBar.style.width = percent + '%';
+                        }
+                    });
+                    return xhr;
+                },
+                success: function(response) {
+                    showStatus('Document uploaded successfully', 'success');
+                    uploadModal.hide();
+                    
+                    // Reset form and progress bar
+                    form.reset();
+                    $('#uploadProgress').addClass('d-none');
+                    progressBar.style.width = '0%';
+                    
+                    // Reload page to show new document
+                    setTimeout(() => location.reload(), 1000);
+                },
+                error: function(error) {
+                    showStatus('Error uploading document', 'danger');
+                    
+                    // Reset progress bar
+                    $('#uploadProgress').addClass('d-none');
+                    progressBar.style.width = '0%';
+                },
+                complete: function() {
+                    // Re-enable submit button
+                    $('#uploadSubmit').prop('disabled', false);
+                }
+            });
+        });
+        
+        // View document content
+        function viewDocument(docId) {
+            $.ajax({
+                url: `/admin-dashboard-08x7z9y2-yoursecretword/document/${docId}`,
+                type: 'GET',
+                success: function(response) {
+                    $('#documentTitle').text(response.doc_name);
+                    $('#documentContent').text(response.content);
+                    documentModal.show();
+                },
+                error: function(error) {
+                    showStatus('Error loading document content', 'danger');
+                }
+            });
+        }
+        
+        // Delete document
+        function deleteDocument(docId, chatbotId) {
+            if (confirm('Are you sure you want to delete this document? This will also remove all associated vectors from Pinecone.')) {
+                $.ajax({
+                    url: `/admin-dashboard-08x7z9y2-yoursecretword/document/${docId}`,
+                    type: 'DELETE',
+                    data: JSON.stringify({chatbot_id: chatbotId}),
+                    contentType: 'application/json',
+                    success: function(response) {
+                        showStatus('Document deleted successfully', 'success');
+                        
+                        // Remove document card from page
+                        $(`.document-card:has(button[onclick="deleteDocument('${docId}', '${chatbotId}')"]).remove`);
+                        
+                        // Reload page
+                        setTimeout(() => location.reload(), 1000);
+                    },
+                    error: function(error) {
+                        showStatus('Error deleting document', 'danger');
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

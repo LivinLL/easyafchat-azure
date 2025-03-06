@@ -1,5 +1,199 @@
 https://claude.ai/chat/22b4be49-2276-456f-a788-a1bf0de20733
 
+# Database Schemas
+
+Proposed Structure for New Tables to our Database
+
+easyafchat-v3/
+??? .github/
+?   ??? workflows/
+?       ??? main_easyafchat-v3.yml
+??? prod/
+?   ??? static/
+?   ?   ??? css/
+?   ?   ??? images/
+?   ?   ??? js/
+?   ?       ??? chatbot-embed.js
+?   ?       ??? script.js
+?   ??? templates/
+?   ?   ??? demo.html
+?   ?   ??? landing.html
+?   ?   ??? chat_test.html
+?   ??? app.py                     # Main app (with routes)
+?   ??? admin_dashboard.py         # Admin interface
+?   ??? chat_handler.py            # Chat processing logic
+?   ??? database.py                # Core database setup 
+?   ??? db_companies.py            # Companies table operations
+?   ??? db_chat_messages.py        # Chat messages table operations
+?   ??? db_leads.py        # Stores leads collected per company
+?   ??? db_usage_metrics.py        # Usage metrics table operations
+?   ??? db_customer_plans.py       # Customer plans table operations
+?   ??? db_chatbot_config.py       # Chatbot config table operations
+?   ??? openai_service.py          # OpenAI integration
+?   ??? pinecone_service.py        # Pinecone integration
+?   ??? scraper.py                 # Web scraping functionality
+?   ??? utils.py                   # Helper utilities
+?   ??? backups/                   # Previous versions
+
+
+### Current Schema
+```sql
+CREATE TABLE companies (
+    chatbot_id TEXT PRIMARY KEY,
+    company_url TEXT NOT NULL,
+    pinecone_host_url TEXT,
+    pinecone_index TEXT,
+    pinecone_namespace TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    scraped_text TEXT,
+    processed_content TEXT
+)
+```
+
+### New Tables To Be Implemented
+
+#### 1. Leads Table (PRIORITY #1)
+```sql
+CREATE TABLE IF NOT EXISTS leads (
+    lead_id SERIAL PRIMARY KEY,
+    chatbot_id TEXT REFERENCES companies(chatbot_id),
+    thread_id TEXT NOT NULL,
+    name TEXT,
+    email TEXT,
+    phone TEXT,
+    initial_question TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'new',
+    notes TEXT
+)
+```
+**Purpose**: Capture user contact information after first chatbot interaction
+**Key Features**:
+- Associates leads with specific chatbots and conversation threads
+- Tracks initial question that prompted the lead
+- Includes status field for lead qualification tracking
+- Will support CSV export for companies
+
+#### 2. Chat Messages Table
+```sql
+CREATE TABLE IF NOT EXISTS chat_messages (
+    message_id SERIAL PRIMARY KEY,
+    chatbot_id TEXT REFERENCES companies(chatbot_id),
+    thread_id TEXT NOT NULL,
+    user_message TEXT,
+    assistant_response TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    total_tokens INTEGER,
+    user_feedback INTEGER DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
+**Purpose**: Store complete conversation history and metrics
+**Key Features**:
+- Tracks both user messages and bot responses
+- Records token usage for cost calculation
+- Includes user feedback (thumbs up/down)
+- Stores user agent and IP for analytics
+
+#### 3. Usage Metrics Table
+```sql
+CREATE TABLE IF NOT EXISTS usage_metrics (
+    metric_id SERIAL PRIMARY KEY,
+    chatbot_id TEXT REFERENCES companies(chatbot_id),
+    date DATE NOT NULL,
+    total_conversations INTEGER DEFAULT 0,
+    total_messages INTEGER DEFAULT 0,
+    prompt_tokens INTEGER DEFAULT 0,
+    completion_tokens INTEGER DEFAULT 0,
+    total_tokens INTEGER DEFAULT 0,
+    estimated_cost NUMERIC(10,5) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
+**Purpose**: Track daily usage statistics and costs
+**Key Features**:
+- Aggregates token usage daily for each chatbot
+- Calculates estimated costs based on token rates
+- Provides basis for billing and usage limitations
+
+#### 4. Customer Plans Table
+```sql
+CREATE TABLE IF NOT EXISTS customer_plans (
+    plan_id SERIAL PRIMARY KEY,
+    chatbot_id TEXT UNIQUE REFERENCES companies(chatbot_id),
+    plan_type TEXT NOT NULL, -- 'free', 'basic', 'premium', etc.
+    monthly_token_limit INTEGER,
+    is_active BOOLEAN DEFAULT TRUE,
+    start_date TIMESTAMP,
+    renewal_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
+**Purpose**: Manage subscription tiers and limits
+**Key Features**:
+- Defines plan types with usage limits
+- Tracks subscription renewal dates
+- Enables enforcement of token limits
+
+#### 5. Chatbot Config Table
+```sql
+CREATE TABLE IF NOT EXISTS chatbot_config (
+    config_id SERIAL PRIMARY KEY,
+    chatbot_id TEXT UNIQUE REFERENCES companies(chatbot_id),
+    chat_model TEXT DEFAULT 'gpt-4o',
+    temperature NUMERIC(3,2) DEFAULT 0.7,
+    max_tokens INTEGER DEFAULT 500,
+    system_prompt TEXT,
+    chat_title TEXT,
+    chat_subtitle TEXT,
+    primary_color TEXT DEFAULT '#0084ff',
+    accent_color TEXT DEFAULT '#ffffff',
+    icon_image_url TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
+**Purpose**: Store chatbot customization settings
+**Key Features**:
+- Controls appearance (colors, titles, icons)
+- Configures AI behavior (model, temperature)
+- Allows custom system prompts
+
+### Files To Be Created/Modified
+
+1. **database.py** - Add schemas for all new tables
+2. **db_leads.py** - Functions for lead management:
+   - `save_lead(chatbot_id, thread_id, name, email, phone, initial_question)`
+   - `get_leads_by_chatbot(chatbot_id)`
+   - `export_leads_to_csv(chatbot_id)`
+   - `update_lead_status(lead_id, status, notes)`
+
+3. **chat_handler.py** - Modify to:
+   - Track conversation state (first message vs. continuing)
+   - Include lead form after first response
+   - Process form submissions
+
+4. **app.py** - New routes:
+   - `/embed-save-lead` - Process lead form submissions
+   - `/leads/export/:chatbot_id` - Generate CSV export
+
+5. **chatbot-embed.js** - Frontend modifications:
+   - Inject lead form HTML after first response
+   - Handle form validation and submission
+   - Restore chat input after submission
+
+6. **admin_dashboard.py** - Add lead management tab to:
+   - View and filter leads
+   - Export leads
+   - Update lead status
+
+# ================================================================
 # EasyAF Chat - AI Chatbot Generator
 
 A Flask-based web application that generates customized AI chatbots for websites by processing their content and creating an embeddable chat interface. The chatbot learns from your website content to provide relevant responses to user queries.

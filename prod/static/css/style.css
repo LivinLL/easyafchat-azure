@@ -617,12 +617,14 @@ footer {
 /* Website Preview Styles - Where the Screenshot Lives on demo.html */
 .website-preview {
     width: fit-content;
+    max-width: 800px; /* Add this line */
     margin: 1rem auto;
     background: white;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
+
 
 /* Within website-preview; headline for the screenshot area */
 .preview-header {
