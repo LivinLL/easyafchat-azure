@@ -313,10 +313,15 @@ def extract_meta_tags(html_content):
 def simple_scrape_page(url):
     """Simplified scraper that extracts all visible text from a page"""
     try:
-        # Use requests to get the full HTML
-        response = requests.get(url, timeout=10, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        })
+        # Use requests to get the full HTML with enhanced headers
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://www.google.com/",
+            "Cache-Control": "no-cache"
+        }
+        response = requests.get(url, timeout=10, headers=headers)
         html_content = response.text
         
         # Extract all visible text
