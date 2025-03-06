@@ -533,58 +533,58 @@ About Scrape
         return jsonify({"error": "Failed to save company data"}), 400
 
 # Create an initial document record for this company's processed content
-# try:
-#     with connect_to_db() as conn:
-#         cursor = conn.cursor()
-#         
-#         # Check if initial document already exists for this company
-#         if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-#             cursor.execute('''
-#                 SELECT doc_id FROM documents 
-#                 WHERE chatbot_id = %s AND doc_type = 'scraped_content'
-#             ''', (chatbot_id,))
-#         else:
-#             cursor.execute('''
-#                 SELECT doc_id FROM documents 
-#                 WHERE chatbot_id = ? AND doc_type = 'scraped_content'
-#             ''', (chatbot_id,))
-#             
-#         # Only create if it doesn't exist
-#         if not cursor.fetchone():
-#             doc_id = str(uuid.uuid4())
-#             
-#             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-#                 cursor.execute('''
-#                     INSERT INTO documents
-#                     (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
-#                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-#                 ''', (
-#                     doc_id,
-#                     chatbot_id,
-#                     "Scraped Content",
-#                     "scraped_content",
-#                     now,
-#                     now,
-#                     processed_content,
-#                     len(chunks)  # Use the actual chunk count
-#                 ))
-#             else:
-#                 cursor.execute('''
-#                     INSERT INTO documents
-#                     (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
-#                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-#                 ''', (
-#                     doc_id,
-#                     chatbot_id,
-#                     "Scraped Content",
-#                     "scraped_content",
-#                     now,
-#                     now,
-#                     processed_content,
-#                     len(chunks)  # Use the actual chunk count
-#                 ))
-# except Exception as e:
-#     print(f"Error creating initial document: {e}")
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+
+            # Check if initial document already exists for this company
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT doc_id FROM documents 
+                    WHERE chatbot_id = %s AND doc_type = 'scraped_content'
+                ''', (chatbot_id,))
+            else:
+                cursor.execute('''
+                    SELECT doc_id FROM documents 
+                    WHERE chatbot_id = ? AND doc_type = 'scraped_content'
+                ''', (chatbot_id,))
+
+            # Only create if it doesn't exist
+            if not cursor.fetchone():
+                doc_id = str(uuid.uuid4())
+
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        INSERT INTO documents
+                        (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', (
+                        doc_id,
+                        chatbot_id,
+                        "Scraped Content",
+                        "scraped_content",
+                        now,
+                        now,
+                        processed_content,
+                        len(chunks)  # Use the actual chunk count
+                    ))
+                else:
+                    cursor.execute('''
+                        INSERT INTO documents
+                        (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        doc_id,
+                        chatbot_id,
+                        "Scraped Content",
+                        "scraped_content",
+                        now,
+                        now,
+                        processed_content,
+                        len(chunks)  # Use the actual chunk count
+                    ))
+    except Exception as e:
+        print(f"Error creating initial document: {e}")
 
     # Generate APIFlash screenshot URL
     try:
