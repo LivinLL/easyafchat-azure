@@ -634,14 +634,61 @@ def update_pinecone(id):
 
 @admin_dashboard.route('/record/<id>', methods=['DELETE'])
 def delete_record(id):
-    with connect_to_db() as conn:
-        cursor = conn.cursor()
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # First, check if this company has any documents
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                # Delete all documents for this company
+                cursor.execute('DELETE FROM documents WHERE chatbot_id = %s', (id,))
+                
+                # Delete all leads for this company
+                cursor.execute('DELETE FROM leads WHERE chatbot_id = %s', (id,))
+                
+                # Delete the chatbot config if it exists
+                cursor.execute('DELETE FROM chatbot_config WHERE chatbot_id = %s', (id,))
+                
+                # Finally delete the company record
+                cursor.execute('DELETE FROM companies WHERE chatbot_id = %s', (id,))
+            else:
+                # Delete all documents for this company
+                cursor.execute('DELETE FROM documents WHERE chatbot_id = ?', (id,))
+                
+                # Delete all leads for this company
+                cursor.execute('DELETE FROM leads WHERE chatbot_id = ?', (id,))
+                
+                # Delete the chatbot config if it exists
+                cursor.execute('DELETE FROM chatbot_config WHERE chatbot_id = ?', (id,))
+                
+                # Finally delete the company record
+                cursor.execute('DELETE FROM companies WHERE chatbot_id = ?', (id,))
         
-        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-            cursor.execute('DELETE FROM companies WHERE chatbot_id = %s', (id,))
-        else:
-            cursor.execute('DELETE FROM companies WHERE chatbot_id = ?', (id,))
-    
+        # Also delete any vectors in Pinecone
+        try:
+            with connect_to_db() as conn:
+                cursor = conn.cursor()
+                
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('SELECT pinecone_namespace FROM companies WHERE chatbot_id = %s', (id,))
+                else:
+                    cursor.execute('SELECT pinecone_namespace FROM companies WHERE chatbot_id = ?', (id,))
+                    
+                row = cursor.fetchone()
+                
+                # If we found the namespace, delete all vectors
+                if row and row[0]:
+                    namespace = row[0]
+                    index = pinecone_client.Index(PINECONE_INDEX)
+                    index.delete(delete_all=True, namespace=namespace)
+        except Exception as e:
+            print(f"Warning: Could not delete Pinecone vectors: {e}")
+            # Continue with the deletion process even if Pinecone cleanup fails
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error deleting record: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
     return jsonify({'success': True})
 
 # New routes for leads management
