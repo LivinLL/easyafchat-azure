@@ -4,7 +4,7 @@ import docx
 import io
 from datetime import datetime
 
-class DocumentHandler:
+class DocumentsHandler:
     """
     Handler for processing uploaded documents.
     Extracts text, chunks it, generates embeddings, and stores in Pinecone.

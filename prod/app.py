@@ -21,6 +21,7 @@ import json
 
 # Import the admin dashboard blueprint
 from admin_dashboard import admin_dashboard, init_admin_dashboard
+from documents_blueprint import documents_blueprint, init_documents_blueprint
 
 # Load environment variables from .env only in development
 # Set ENVIRONMENT to production on Azure
@@ -56,6 +57,10 @@ APIFLASH_KEY = os.getenv('APIFLASH_ACCESS_KEY', '')  # Add this line
 # Initialize and register the admin dashboard blueprint
 init_admin_dashboard(openai_client, pinecone_client, DB_PATH, PINECONE_INDEX)
 app.register_blueprint(admin_dashboard, url_prefix='/admin-dashboard-08x7z9y2-yoursecretword')
+
+# Initialize and register the documents blueprint
+init_documents_blueprint(openai_client, pinecone_client, PINECONE_INDEX)
+app.register_blueprint(documents_blueprint, url_prefix='/documents')
 
 # Dictionary to track processing status
 processing_status = {}
@@ -531,60 +536,6 @@ About Scrape
         print(f"Database error: {e}")
         processing_status[chatbot_id]["error"] = f"Failed to save company data: {str(e)}"
         return jsonify({"error": "Failed to save company data"}), 400
-
-# Create an initial document record for this company's processed content
-    try:
-        with connect_to_db() as conn:
-            cursor = conn.cursor()
-
-            # Check if initial document already exists for this company
-            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                cursor.execute('''
-                    SELECT doc_id FROM documents 
-                    WHERE chatbot_id = %s AND doc_type = 'scraped_content'
-                ''', (chatbot_id,))
-            else:
-                cursor.execute('''
-                    SELECT doc_id FROM documents 
-                    WHERE chatbot_id = ? AND doc_type = 'scraped_content'
-                ''', (chatbot_id,))
-
-            # Only create if it doesn't exist
-            if not cursor.fetchone():
-                doc_id = str(uuid.uuid4())
-
-                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                    cursor.execute('''
-                        INSERT INTO documents
-                        (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ''', (
-                        doc_id,
-                        chatbot_id,
-                        "Scraped Content",
-                        "scraped_content",
-                        now,
-                        now,
-                        processed_content,
-                        len(chunks)  # Use the actual chunk count
-                    ))
-                else:
-                    cursor.execute('''
-                        INSERT INTO documents
-                        (doc_id, chatbot_id, doc_name, doc_type, created_at, updated_at, content, vectors_count)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        doc_id,
-                        chatbot_id,
-                        "Scraped Content",
-                        "scraped_content",
-                        now,
-                        now,
-                        processed_content,
-                        len(chunks)  # Use the actual chunk count
-                    ))
-    except Exception as e:
-        print(f"Error creating initial document: {e}")
 
     # Generate APIFlash screenshot URL
     try:
