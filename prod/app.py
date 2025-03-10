@@ -17,6 +17,7 @@ import requests
 import uuid
 import re
 import json
+import vector_cache
 
 
 # Import the admin dashboard blueprint
@@ -461,12 +462,41 @@ def process_url_async():
         chatbot_id = generate_chatbot_id()
         namespace, _ = check_namespace(website_url)
     
+    # Generate APIFlash screenshot URL immediately
+    screenshot_url = ""
+    try:
+        base_url = "https://api.apiflash.com/v1/urltoimage"
+        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
+        print(f"Screenshot URL generated immediately: {screenshot_url}")
+        
+        # Make an HTTP request to trigger APIFlash to generate and cache the screenshot
+        # We don't need to store the response, just trigger the generation
+        try:
+            # Set a reasonable timeout to not block our process too long
+            response = requests.get(screenshot_url, timeout=2, stream=True)
+            # Just start reading the response then close it - we don't need the full image data
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:  # filter out keep-alive chunks
+                    # Just read the first chunk to trigger the request and then break
+                    break
+            response.close()
+            print(f"APIFlash screenshot generation triggered successfully")
+        except requests.exceptions.Timeout:
+            # If it times out, that's okay - the screenshot will still be generated
+            print(f"APIFlash request timed out, but screenshot generation was triggered")
+        except Exception as api_e:
+            print(f"Error making APIFlash request: {api_e}, but continuing")
+            
+    except Exception as e:
+        print(f"Error generating screenshot URL: {e}, but continuing")
+    
     # Initialize processing status
     processing_status[chatbot_id] = {
         "namespace": namespace,
         "completed": False,
         "start_time": time.time(),
-        "website_url": website_url
+        "website_url": website_url,
+        "screenshot_url": screenshot_url  # Store the URL for later use
     }
     
     # Return chatbot_id immediately so frontend can start polling
@@ -517,10 +547,15 @@ About Scrape
     chunks = chunk_text(processed_content)
     embeddings = get_embeddings(chunks)
     
-    if not update_pinecone_index(namespace, chunks, embeddings):
-        processing_status[chatbot_id]["error"] = "Failed to update knowledge base"
-        return jsonify({"error": "Failed to update knowledge base"}), 400
-
+    # Add to the in-memory cache first (60 seconds expiration by default)
+    vector_cache.add_to_cache(namespace, embeddings, chunks, expiry_seconds=60)
+    print(f"Added {len(chunks)} vectors to in-memory cache for namespace '{namespace}'")
+    
+    # Update Pinecone in background (will continue while user is redirected to demo)
+    update_pinecone_task = update_pinecone_index(namespace, chunks, embeddings)
+    if not update_pinecone_task:
+        print(f"Warning: Pinecone update might be delayed for namespace '{namespace}'")
+    
     now = datetime.now(UTC)
     data = (
         chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
@@ -537,20 +572,17 @@ About Scrape
         processing_status[chatbot_id]["error"] = f"Failed to save company data: {str(e)}"
         return jsonify({"error": "Failed to save company data"}), 400
 
-    # Generate APIFlash screenshot URL
-    try:
-        # Format the URL for APIFlash
-        base_url = "https://api.apiflash.com/v1/urltoimage"
-        
-        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
-        print(f"Screenshot URL generated: {screenshot_url}")
-    except Exception as e:
-        print(f"Error generating screenshot URL: {e}, but continuing")
-
-    # Processing is successfully complete, update status to "waiting for pinecone"
-    processing_status[chatbot_id]["status"] = "waiting_for_pinecone"
+    # Processing is complete - update status to ready
+    # No need to wait for Pinecone since we're using the cache
+    processing_status[chatbot_id]["completed"] = True
+    processing_time = time.time() - status_info["start_time"]
+    print(f"Processing completed for {chatbot_id} in {processing_time:.2f} seconds")
     
-    return jsonify({"status": "success", "chatbot_id": chatbot_id})
+    return jsonify({
+        "status": "success", 
+        "chatbot_id": chatbot_id,
+        "cache_status": vector_cache.get_cache_status(namespace)
+    })
 
 @app.route('/check-processing/<chatbot_id>', methods=['GET'])
 def check_processing(chatbot_id):
@@ -565,7 +597,8 @@ def check_processing(chatbot_id):
         return jsonify({
             "status": "complete",
             "chatbot_id": chatbot_id,
-            "website_url": status_info.get("website_url", "")
+            "website_url": status_info.get("website_url", ""),
+            "screenshot_url": status_info.get("screenshot_url", "")  # Include screenshot URL
         })
     
     # If there was an error during processing
@@ -576,34 +609,10 @@ def check_processing(chatbot_id):
         }), 400
     
     # If we're still in the initial processing phase
-    if "status" not in status_info or status_info["status"] != "waiting_for_pinecone":
-        elapsed_time = time.time() - status_info["start_time"]
-        return jsonify({
-            "status": "processing",
-            "phase": "content",
-            "elapsed_seconds": int(elapsed_time)
-        })
-    
-    # At this point, we're waiting for Pinecone to finish indexing
-    # Check Pinecone status
-    is_complete = check_pinecone_status(status_info["namespace"])
-    
-    # If complete, update status
-    if is_complete:
-        status_info["completed"] = True
-        processing_time = time.time() - status_info["start_time"]
-        print(f"Processing completed for {chatbot_id} in {processing_time:.2f} seconds")
-        return jsonify({
-            "status": "complete", 
-            "chatbot_id": chatbot_id,
-            "website_url": status_info.get("website_url", "")
-        })
-    
-    # If still processing, return in-progress status
     elapsed_time = time.time() - status_info["start_time"]
     return jsonify({
         "status": "processing",
-        "phase": "pinecone", 
+        "phase": "content",
         "elapsed_seconds": int(elapsed_time)
     })
 
@@ -716,15 +725,18 @@ def demo(session_id):
 
     website_url, scraped_text, processed_content = row
     
-    # Generate APIFlash screenshot URL dynamically
-    try:
-        # Format the URL for APIFlash
-        base_url = "https://api.apiflash.com/v1/urltoimage"
-        
-        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
-    except Exception as e:
-        print(f"Error generating screenshot URL: {e}")
-        screenshot_url = ""  # Empty URL if there's an error
+    # Check if we have a cached screenshot URL in the processing status
+    screenshot_url = ""
+    if session_id in processing_status and "screenshot_url" in processing_status[session_id]:
+        screenshot_url = processing_status[session_id]["screenshot_url"]
+    else:
+        # Generate APIFlash screenshot URL if we don't have one cached
+        try:
+            base_url = "https://api.apiflash.com/v1/urltoimage"
+            screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
+        except Exception as e:
+            print(f"Error generating screenshot URL: {e}")
+            screenshot_url = ""
 
     # Pass the screenshot URL and other data to the template
     return render_template(

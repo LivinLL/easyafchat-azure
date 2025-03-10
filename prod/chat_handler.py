@@ -5,6 +5,7 @@ import uuid
 from openai import OpenAI
 from pinecone import Pinecone
 import os
+import vector_cache
 
 class ChatPromptHandler:
     SYSTEM_PROMPT = '''### Role
@@ -44,7 +45,8 @@ class ChatPromptHandler:
 
     def get_relevant_context(self, query: str, namespace: str, num_results: int = 5) -> str:
         """
-        Search Pinecone for relevant context based on the query.
+        Search for relevant context based on the query.
+        Checks cache first, falls back to Pinecone if cache is invalid or empty.
         Returns concatenated context strings from top matches.
         """
         try:
@@ -54,7 +56,25 @@ class ChatPromptHandler:
                 model="text-embedding-ada-002"
             ).data[0].embedding
 
-            # Search Pinecone
+            # Check if we should use the cache
+            if vector_cache.is_cache_valid(namespace):
+                print(f"Using cached vectors for namespace '{namespace}'")
+                
+                # Search the cache
+                cached_results = vector_cache.get_from_cache(
+                    namespace,
+                    query_embedding,
+                    top_k=num_results
+                )
+                
+                if cached_results:
+                    # Combine the relevant chunks from cache
+                    context_chunks = [match['text'] for match in cached_results]
+                    return "\n".join(context_chunks)
+                    
+                print(f"Cache returned no results, falling back to Pinecone")
+            
+            # If cache is invalid or returned no results, use Pinecone
             index = self.pinecone_client.Index(self.PINECONE_INDEX)
             results = index.query(
                 vector=query_embedding,
