@@ -141,12 +141,19 @@
         </div>
         
         <h2>Configuration</h2>
-        <p>The chatbot is configured with LL University locan-env parameters:</p>
+        <p>The chatbot is configured with the following parameters:</p>
         <ul>
-            <li><code>chatbotId</code>: "4c0487935a8745bc86da"</li>
-            <li><code>baseUrl</code>: Azure web app URL</li>
+            <li><code>chatbotId</code>: "{{ chatbot_id }}"</li>
+            <li><code>baseUrl</code>: Azure web app URL (or localhost if testing locally)</li>
             <li>No <code>mountTo</code> parameter, so it attaches directly to the body</li>
         </ul>
+        
+        {% if website_url %}
+        <div class="card">
+            <h2>Website Info</h2>
+            <p>This chatbot was generated from: <a href="{{ website_url }}" target="_blank">{{ website_url }}</a></p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Animation Test Button Script -->
@@ -175,7 +182,7 @@
         : "http://127.0.0.1:8080";
     
     window.davesEasyChatConfig = { 
-      chatbotId: "4c0487935a8745bc86da",
+      chatbotId: "{{ chatbot_id }}",
       baseUrl: baseUrl
     }; 
     

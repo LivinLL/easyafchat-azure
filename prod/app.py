@@ -868,9 +868,46 @@ def db_check():
             # Omitting text fields for brevity
         } for row in rows])
 
+#@app.route('/standalone-test')
+#def standalone_test():
+#    return render_template('standalone_test.html')
+
 @app.route('/standalone-test')
 def standalone_test():
-    return render_template('standalone_test.html')
+    # Default route without chatbot ID - use a default test ID
+    default_chatbot_id = "4c0487935a8745bc86da"  # Keep the original default ID
+    return render_template('standalone_test.html', chatbot_id=default_chatbot_id)
+
+@app.route('/standalone-test/<session_id>')
+def standalone_test_with_id(session_id):
+    # Fetch the company URL for the given chatbot ID
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            cursor.execute('''
+                SELECT company_url
+                FROM companies
+                WHERE chatbot_id = %s
+            ''', (session_id,))
+        else:
+            cursor.execute('''
+                SELECT company_url
+                FROM companies
+                WHERE chatbot_id = ?
+            ''', (session_id,))
+            
+        row = cursor.fetchone()
+
+    if not row:
+        flash("Invalid session ID")
+        return redirect(url_for('home'))
+
+    website_url = row[0]
+    
+    # Pass the chatbot ID to the template
+    return render_template('standalone_test.html', chatbot_id=session_id, website_url=website_url)
+
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
