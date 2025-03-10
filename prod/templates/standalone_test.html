@@ -141,9 +141,9 @@
         </div>
         
         <h2>Configuration</h2>
-        <p>The chatbot is configured with HelloPayments parameters:</p>
+        <p>The chatbot is configured with LL University locan-env parameters:</p>
         <ul>
-            <li><code>chatbotId</code>: "77d6f44af081451b98ab"</li>
+            <li><code>chatbotId</code>: "4c0487935a8745bc86da"</li>
             <li><code>baseUrl</code>: Azure web app URL</li>
             <li>No <code>mountTo</code> parameter, so it attaches directly to the body</li>
         </ul>
@@ -165,10 +165,21 @@
 
     <!-- DavesEasyChat Chatbot --> 
     <script> 
+    // Check if we're in production or local environment
+    const isProduction = window.location.hostname !== "localhost" && 
+                        window.location.hostname !== "127.0.0.1";
+    
+    // Set the appropriate base URL
+    const baseUrl = isProduction 
+        ? "https://easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net"
+        : "http://127.0.0.1:8080";
+    
     window.davesEasyChatConfig = { 
-      chatbotId: "77d6f44af081451b98ab",
-      baseUrl: "https://easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net"
+      chatbotId: "4c0487935a8745bc86da",
+      baseUrl: baseUrl
     }; 
+    
+    console.log("EasyAF Chat using baseUrl:", baseUrl);
     </script> 
     <script src="/static/js/chatbot-embed.js" defer></script>
 </body>

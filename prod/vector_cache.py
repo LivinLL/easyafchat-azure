@@ -190,3 +190,155 @@ def get_cache_status(namespace: str = None) -> Dict:
         "total_vectors": total_vectors,
         "namespaces": list(vector_cache.keys())
     }
+
+# Added to allow dashboard document uploads with near immediate use of the new vectors
+def add_document_to_cache(namespace: str, doc_id: str, vectors: List[List[float]], chunks: List[str], expiry_seconds: int = 60) -> bool:
+    """
+    Add document vectors and their corresponding text chunks to the cache with expiration
+    
+    Args:
+        namespace: The company namespace
+        doc_id: The document ID
+        vectors: List of embedding vectors
+        chunks: Corresponding text chunks
+        expiry_seconds: Number of seconds until cache entry expires
+        
+    Returns:
+        bool: True if successfully added to cache
+    """
+    try:
+        if not namespace or not doc_id or not vectors or not chunks:
+            return False
+            
+        if len(vectors) != len(chunks):
+            logger.error(f"Vector length {len(vectors)} does not match chunks length {len(chunks)}")
+            return False
+            
+        # Current timestamp in seconds
+        current_time = time.time()
+        
+        # Create a unique cache key for the document
+        cache_key = f"{namespace}-doc-{doc_id}"
+        
+        # Store in cache
+        vector_cache[cache_key] = {
+            "vectors": vectors,
+            "chunks": chunks,
+            "created_at": current_time,
+            "expires_at": current_time + expiry_seconds,
+            "doc_id": doc_id,
+            "namespace": namespace
+        }
+        
+        logger.info(f"Added {len(vectors)} vectors for document {doc_id} to cache with key '{cache_key}'")
+        return True
+    except Exception as e:
+        logger.error(f"Error adding document to cache: {e}")
+        return False
+
+def get_document_from_cache(namespace: str, doc_id: str, query_vector: List[float], top_k: int = 3) -> List[Dict]:
+    """
+    Retrieve the most similar chunks from a specific document in cache
+    
+    Args:
+        namespace: The company namespace
+        doc_id: The document ID
+        query_vector: The query embedding vector
+        top_k: Number of top results to return
+        
+    Returns:
+        List of dictionaries with 'text' and 'score' fields
+    """
+    try:
+        cache_key = f"{namespace}-doc-{doc_id}"
+        
+        if not is_cache_valid(cache_key):
+            return []
+            
+        cached_data = vector_cache[cache_key]
+        cached_vectors = cached_data["vectors"]
+        cached_chunks = cached_data["chunks"]
+        
+        # Calculate similarity scores
+        similarities = calculate_similarity(query_vector, cached_vectors)
+        
+        # Get indices of top_k highest similarities
+        top_indices = np.argsort(similarities)[-top_k:][::-1]  # Descending order
+        
+        # Create results list
+        results = []
+        for idx in top_indices:
+            results.append({
+                "text": cached_chunks[idx],
+                "score": float(similarities[idx])
+            })
+            
+        return results
+    except Exception as e:
+        logger.error(f"Error retrieving document from cache: {e}")
+        return []
+
+def get_all_document_cache_keys(namespace: str) -> List[str]:
+    """
+    Get all document cache keys for a namespace
+    
+    Args:
+        namespace: The company namespace
+        
+    Returns:
+        List of document cache keys
+    """
+    return [key for key in vector_cache.keys() if key.startswith(f"{namespace}-doc-")]
+
+def get_cached_document_results(namespace: str, query_vector: List[float], top_k: int = 5) -> List[Dict]:
+    """
+    Search all document caches for a namespace and return top results
+    
+    Args:
+        namespace: The company namespace
+        query_vector: The query embedding vector
+        top_k: Number of top results to return
+        
+    Returns:
+        List of dictionaries with 'text' and 'score' fields
+    """
+    try:
+        all_results = []
+        
+        # Get all document cache keys for this namespace
+        doc_cache_keys = get_all_document_cache_keys(namespace)
+        
+        # If no document caches found, return empty list
+        if not doc_cache_keys:
+            return []
+            
+        # Collect results from all document caches
+        for cache_key in doc_cache_keys:
+            if not is_cache_valid(cache_key):
+                continue
+                
+            cached_data = vector_cache[cache_key]
+            cached_vectors = cached_data["vectors"]
+            cached_chunks = cached_data["chunks"]
+            
+            # Calculate similarity scores
+            similarities = calculate_similarity(query_vector, cached_vectors)
+            
+            # Get indices of top similarities 
+            # Get more than top_k since we'll merge and sort later
+            top_indices = np.argsort(similarities)[-top_k*2:][::-1]  # Descending order
+            
+            # Add results
+            for idx in top_indices:
+                all_results.append({
+                    "text": cached_chunks[idx],
+                    "score": float(similarities[idx])
+                })
+        
+        # Sort by score and take top_k
+        all_results.sort(key=lambda x: x["score"], reverse=True)
+        return all_results[:top_k]
+        
+    except Exception as e:
+        logger.error(f"Error retrieving cached document results: {e}")
+        return []

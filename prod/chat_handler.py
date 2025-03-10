@@ -46,7 +46,10 @@ class ChatPromptHandler:
     def get_relevant_context(self, query: str, namespace: str, num_results: int = 5) -> str:
         """
         Search for relevant context based on the query.
-        Checks cache first, falls back to Pinecone if cache is invalid or empty.
+        Uses a hybrid approach:
+        1. For regular cache: use cache first, fall back to Pinecone if expired
+        2. For document uploads: check both document cache AND Pinecone, merge results
+        
         Returns concatenated context strings from top matches.
         """
         try:
@@ -56,9 +59,57 @@ class ChatPromptHandler:
                 model="text-embedding-ada-002"
             ).data[0].embedding
 
-            # Check if we should use the cache
-            if vector_cache.is_cache_valid(namespace):
-                print(f"Using cached vectors for namespace '{namespace}'")
+            # Check for cached document vectors for this namespace
+            document_cache_keys = vector_cache.get_all_document_cache_keys(namespace)
+            has_document_cache = len(document_cache_keys) > 0
+            
+            # Check for regular cache
+            regular_cache_valid = vector_cache.is_cache_valid(namespace)
+            
+            # --- SCENARIO 1: Document Upload (Hybrid Search) ---
+            if has_document_cache:
+                print(f"Using hybrid search for namespace '{namespace}' with document cache")
+                
+                # Step 1: Get results from document cache
+                cached_doc_results = vector_cache.get_cached_document_results(
+                    namespace, 
+                    query_embedding,
+                    top_k=num_results
+                )
+                
+                # Step 2: Get results from Pinecone
+                index = self.pinecone_client.Index(self.PINECONE_INDEX)
+                pinecone_results = index.query(
+                    vector=query_embedding,
+                    namespace=namespace,
+                    top_k=num_results,
+                    include_metadata=True
+                )
+                
+                # Convert Pinecone results to same format as cache results
+                pinecone_formatted = [
+                    {"text": match.metadata['text'], "score": match.score} 
+                    for match in pinecone_results.matches
+                ]
+                
+                # Step 3: Merge results - add all results and sort by score
+                all_results = cached_doc_results + pinecone_formatted
+                all_results.sort(key=lambda x: x["score"], reverse=True)
+                
+                # Step 4: Take top results
+                merged_results = all_results[:num_results]
+                
+                # Combine the relevant chunks from merged results
+                if merged_results:
+                    context_chunks = [match['text'] for match in merged_results]
+                    return "\n".join(context_chunks)
+                    
+                # Fallback if no results from hybrid search
+                print(f"Hybrid search returned no results, using Pinecone only")
+            
+            # --- SCENARIO 2: Regular Cache ---
+            elif regular_cache_valid:
+                print(f"Using regular cached vectors for namespace '{namespace}'")
                 
                 # Search the cache
                 cached_results = vector_cache.get_from_cache(
@@ -74,7 +125,8 @@ class ChatPromptHandler:
                     
                 print(f"Cache returned no results, falling back to Pinecone")
             
-            # If cache is invalid or returned no results, use Pinecone
+            # --- SCENARIO 3: Fallback to Pinecone ---
+            # If no cache or cache returned no results, use Pinecone
             index = self.pinecone_client.Index(self.PINECONE_INDEX)
             results = index.query(
                 vector=query_embedding,
@@ -83,7 +135,7 @@ class ChatPromptHandler:
                 include_metadata=True
             )
 
-            # Combine the relevant chunks
+            # Combine the relevant chunks from Pinecone
             context_chunks = [match.metadata['text'] for match in results.matches]
             return "\n".join(context_chunks)
         except Exception as e:

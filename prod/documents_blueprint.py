@@ -2,6 +2,7 @@ from flask import Blueprint, render_template_string, request, jsonify
 import os
 from datetime import datetime
 import uuid
+import vector_cache
 
 # Import connect_to_db from the database module
 from database import connect_to_db

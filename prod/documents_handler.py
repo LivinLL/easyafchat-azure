@@ -27,7 +27,7 @@ class DocumentsHandler:
             doc_type (str): Type of document (default: "uploaded_doc")
             
         Returns:
-            dict: Processing results including doc_id, vectors_count
+            dict: Processing results including doc_id, vectors_count, chunks, and vectors
         """
         doc_id = str(uuid.uuid4())
         
@@ -65,7 +65,10 @@ class DocumentsHandler:
             "content": extracted_text,
             "vectors_count": vectors_count,
             "created_at": datetime.now(),
-            "updated_at": datetime.now()
+            "updated_at": datetime.now(),
+            # Add these fields for caching
+            "chunks": chunks,
+            "vectors": embeddings
         }
     
     def extract_text_from_docx(self, file_data):
