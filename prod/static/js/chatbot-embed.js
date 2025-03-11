@@ -558,7 +558,7 @@ function createLeadForm() {
         
         // Add the lead form to the chat
         messagesContainer.appendChild(leadFormDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        // messagesContainer.scrollTop = messagesContainer.scrollHeight;
         console.log('Lead form added to messages container');
         
         // Handle form submission
@@ -789,7 +789,7 @@ closeButton.addEventListener('click', () => {
     chatBubble.classList.remove('active');
 });
 
-// Updated submit handler with better dot positioning
+// Fixed chat submit handler with proper user message anchoring
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = chatInput.value.trim();
@@ -802,9 +802,18 @@ chatForm.addEventListener('submit', async (e) => {
         console.log('First user message. Thread ID:', threadId, 'Initial question:', initialQuestion);
     }
 
+    // Clear any previous markers to avoid conflicts
+    const previousMarkers = messagesContainer.querySelectorAll('[data-current-question="true"]');
+    previousMarkers.forEach(el => el.removeAttribute('data-current-question'));
+    
     addMessage(message, 'user');
     chatInput.value = '';
     chatInput.style.height = 'auto';
+
+    // Find and mark the latest user message with a specific attribute
+    const userMessages = messagesContainer.querySelectorAll('.daves-chat-message.user');
+    const lastUserMessage = userMessages[userMessages.length - 1];
+    lastUserMessage.setAttribute('data-current-question', 'true');
 
     // Create a simple animated dots display
     const thinkingDiv = document.createElement('div');
@@ -875,7 +884,95 @@ chatForm.addEventListener('submit', async (e) => {
             console.log('Updated thread ID:', threadId);
         }
         
-        addMessage(data.response, 'assistant');
+        // Create assistant message container
+        const assistantMessageDiv = document.createElement('div');
+        assistantMessageDiv.className = 'daves-chat-message assistant';
+        messagesContainer.appendChild(assistantMessageDiv);
+        
+        // Calculate a fixed top padding to position the container
+        const cardBodyPadding = 16; // Standard padding value in the card-body
+        
+        // Function to ensure the user message is fixed at top
+        function ensureUserMessageAtTop() {
+            // Find the marked user message (latest question)
+            const currentUserMessage = messagesContainer.querySelector('.daves-chat-message.user[data-current-question="true"]');
+            
+            if (currentUserMessage) {
+                // Calculate top offset (accounting for card-body padding)
+                const desiredTop = cardBodyPadding;
+                
+                // Get current position
+                const rect = currentUserMessage.getBoundingClientRect();
+                const containerRect = messagesContainer.getBoundingClientRect();
+                
+                // Calculate the difference from desired position
+                const currentTopOffset = rect.top - containerRect.top;
+                
+                // Calculate how much we need to scroll to position message at top with padding
+                const scrollAdjustment = currentTopOffset - desiredTop;
+                
+                // Apply the scroll adjustment
+                messagesContainer.scrollTop += scrollAdjustment;
+            }
+        }
+        
+        // Get the full response text
+        const fullText = data.response;
+        
+        // Add to messages array right away (we'll still display it gradually)
+        messages.push({ role: 'assistant', content: fullText });
+        
+        // Simulate typing with a smoother approach
+        let displayedText = '';
+        let charIndex = 0;
+        let typingStarted = false;
+        
+        // Create a reference for our interval so we can clear it later
+        let typeInterval = null;
+        
+        const typeNextChunk = () => {
+            if (charIndex < fullText.length) {
+                // Add a small chunk of text at a time for better performance
+                const chunkSize = Math.min(4, fullText.length - charIndex);
+                const nextChunk = fullText.substring(charIndex, charIndex + chunkSize);
+                displayedText += nextChunk;
+                charIndex += chunkSize;
+                
+                // Handle markdown rendering
+                assistantMessageDiv.innerHTML = marked.parse(displayedText);
+                
+                // Once we've displayed some text and the assistant message is visible,
+                // start positioning the user message at the top
+                if (!typingStarted && charIndex > 20) {
+                    typingStarted = true;
+                    // Enable the consistent positioning check
+                    typeInterval = setInterval(ensureUserMessageAtTop, 100);
+                }
+                
+                // Schedule the next chunk with slight randomization for natural feel
+                setTimeout(typeNextChunk, Math.random() * 20 + 15);
+            } else {
+                // Finished typing
+                
+                // Clear the positioning interval when typing is complete
+                if (typeInterval) {
+                    clearInterval(typeInterval);
+                }
+                
+                // Final position adjustment to ensure user message is at top
+                ensureUserMessageAtTop();
+                
+                // Check if we should show lead form
+                if (messages.length === 3 && !hasShownLeadForm && !hasSubmittedLead) {
+                    console.log('Showing lead form after first exchange - local message count =', messages.length);
+                    createLeadForm();
+                }
+            }
+        };
+        
+        // Start the typing simulation
+        typeNextChunk();
+        
     } catch (error) {
         // Clear interval and remove thinking indicator
         clearInterval(dotAnimation);
@@ -887,7 +984,7 @@ chatForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Enter key functionality
+// Restore Enter key functionality
 chatInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
