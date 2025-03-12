@@ -17,11 +17,15 @@
         demo_format.html
         tree_structure.txt
         chat_manual.py
-        chat_handler.py
         prompt_log.txt
-        database.py
-        app.py
         admin_dashboard.py
+        chat_handler.py
+        database.py
+        db_leads.py
+        app.py
+        documents_handler.py
+        documents_blueprint.py
+        vector_cache.py
         static/
             css/
                 style.css
@@ -43,35 +47,25 @@
                     easyafchat_favicon_32x32.png
                     easyafchat_favicon_512x512.png
             js/
-                chatbot-embed.js
                 script.js
+                chatbot-embed.js
         templates/
             demo.html
             chat_test.html
             chat_manual.html
             landing.html
+            admin_documents.html
+            standalone_test.html
         backups/
-            chat_handler_orig.py
-            chat_manual.py
-            chat_manual.html
-            chat_manual-v2.py
+            Procfile
+            requirements.txt
+            main_easyafchat-v3-backup.yml
+            app-screenshotone-version.py
+            documents_blueprint.py
+            admin_dashboard.py
+            app.py
             chat_handler.py
             chatbot-embed.js
-            chat_manual_02252025-orig.py
-            chat_manual_02252025-orig.html
-            chatbot-embed_02252025-orig.js
-            chat_handler_02252025-orig.py
-            landing.html
-            Dockerfile
-            Procfile
-            goldfish-app.yaml
-            .gitignore
-            requirements.txt
-            admin.py
-            app_complex.py
-            database.py
-            app.py
-            main_easyafchat-v3-backup.yml
         marketing/
             info.txt
     .github/

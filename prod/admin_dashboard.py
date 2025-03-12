@@ -54,10 +54,13 @@ HTML = '''
                 <button class="nav-link" id="leads-tab" data-bs-toggle="tab" data-bs-target="#leads" type="button">Leads</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">Users</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <a class="nav-link" href="/documents">Documents</a>
             </li>
         </ul>
-        
+
         <!-- Tab content -->
         <div class="tab-content">
             <!-- Companies Tab -->
@@ -136,6 +139,26 @@ HTML = '''
                     </thead>
                     <tbody>
                         <!-- Leads will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Users Tab -->
+            <div class="tab-pane fade" id="users" role="tabpanel">
+                <table id="usersTable" class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Email</th>
+                            <th>First Name</th>
+                            <th>Last Name</th>
+                            <th>Company</th>
+                            <th>Created At</th>
+                            <th>Last Login</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Users will be loaded dynamically -->
                     </tbody>
                 </table>
             </div>
@@ -239,9 +262,9 @@ HTML = '''
     <script src="https://cdn.jsdelivr.net/npm/datatables@1.10.18/media/js/jquery.dataTables.min.js"></script>
     <script>
         // Initialize DataTables and modals
-        let companiesTable, leadsTable;
+        let companiesTable, leadsTable, usersTable;
         let companyUrlMap = {};
-        
+
         $(document).ready(function() {
             // Initialize DataTables
             companiesTable = $('#companiesTable').DataTable({
@@ -251,6 +274,14 @@ HTML = '''
             leadsTable = $('#leadsTable').DataTable({
                 order: [[5, 'desc']]
             });
+            
+            // Initialize Users DataTable
+            usersTable = $('#usersTable').DataTable({
+                order: [[5, 'desc']]
+            });
+            
+            // Load users data
+            loadUsers();
             
             // Create company-url mapping
             {% for record in records %}
@@ -279,6 +310,9 @@ HTML = '''
             $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
                 if (e.target.id === 'leads-tab') {
                     loadLeads();
+                }
+                if (e.target.id === 'users-tab') {
+                    loadUsers();
                 }
             });
         });
@@ -361,7 +395,7 @@ HTML = '''
                 }
             }
         }
-        
+
         // Leads functions
         async function loadLeads() {
             try {
@@ -422,7 +456,49 @@ HTML = '''
                 showStatus('Error loading leads', 'danger');
             }
         }
-        
+
+        // Load users data
+        async function loadUsers() {
+            try {
+                const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/users');
+                const data = await response.json();
+                
+                // Clear table
+                usersTable.clear();
+                
+                // Add data
+                data.users.forEach(user => {
+                    // Format dates
+                    let createdAt = user.created_at;
+                    if (createdAt && createdAt.indexOf('T') > 0) {
+                        createdAt = createdAt.replace('T', ' ').substring(0, 19);
+                    }
+                    
+                    let lastLogin = user.last_login;
+                    if (lastLogin && lastLogin.indexOf('T') > 0) {
+                        lastLogin = lastLogin.replace('T', ' ').substring(0, 19);
+                    }
+                    
+                    // Add row
+                    usersTable.row.add([
+                        user.user_id,
+                        user.email,
+                        user.first_name || '-',
+                        user.last_name || '-',
+                        user.company_name || '-',
+                        createdAt,
+                        lastLogin || '-'
+                    ]);
+                });
+                
+                usersTable.draw();
+                showStatus(`Loaded ${data.users.length} users`, 'info');
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showStatus('Error loading users', 'danger');
+            }
+        }
+
         async function viewLead(id) {
             try {
                 const response = await fetch(`/admin-dashboard-08x7z9y2-yoursecretword/lead/${id}`);
@@ -444,7 +520,7 @@ HTML = '''
                 showStatus('Error loading lead', 'danger');
             }
         }
-        
+
         async function saveLead() {
             const id = document.getElementById('leadId').value;
             const data = {
@@ -471,7 +547,7 @@ HTML = '''
                 showStatus('Error updating lead', 'danger');
             }
         }
-        
+
         async function exportLeads() {
             try {
                 // Get filter values
@@ -877,7 +953,31 @@ def export_leads():
     except Exception as e:
         print(f"Error exporting leads: {e}")
         return jsonify({'error': str(e)}), 500
-
+    
+@admin_dashboard.route('/users', methods=['GET'])
+def get_users():
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT * FROM users ORDER BY created_at DESC')
+            users_data = cursor.fetchall()
+            
+            # Get column names for result mapping
+            columns = [desc[0] for desc in cursor.description]
+            
+            # Convert to list of dictionaries
+            users = []
+            for user in users_data:
+                user_dict = dict(zip(columns, user))
+                users.append(user_dict)
+            
+            return jsonify({'users': users})
+            
+    except Exception as e:
+        print(f"Error fetching users: {e}")
+        return jsonify({'error': str(e)}), 500
+    
 # This function initializes the blueprint with the OpenAI and Pinecone clients
 def init_admin_dashboard(app_openai_client, app_pinecone_client, app_db_path, app_pinecone_index):
     global openai_client, pinecone_client, DB_PATH, PINECONE_INDEX, document_handler

@@ -159,6 +159,53 @@ def upgrade_database(verbose=False):
                 except Exception as e:
                     print(f"Error migrating columns: {e}")
             
+            # Check if users table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'users'
+            )
+            """)
+            users_table_exists = cursor.fetchone()[0]
+            
+            if not users_table_exists:
+                # Create the users table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new users table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.users (
+                    user_id SERIAL PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT,
+                    is_google_account BOOLEAN DEFAULT FALSE,
+                    google_id TEXT,
+                    first_name TEXT,
+                    last_name TEXT,
+                    company_name TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_login TIMESTAMP
+                )
+                """)
+            
+            # Check if user_id column exists in companies table
+            cursor.execute(f"""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = '{DB_SCHEMA}' 
+            AND table_name = 'companies' 
+            AND column_name = 'user_id'
+            """)
+            
+            if not cursor.fetchone():
+                # Add user_id column to companies table if it doesn't exist
+                if verbose:
+                    print(f"Adding user_id column to companies table")
+                cursor.execute(f"""
+                ALTER TABLE {DB_SCHEMA}.companies 
+                ADD COLUMN user_id INTEGER REFERENCES {DB_SCHEMA}.users(user_id)
+                """)
+            
             # Check if leads table exists
             cursor.execute(f"""
             SELECT EXISTS (
@@ -267,6 +314,32 @@ def upgrade_database(verbose=False):
             )
             ''')
             
+            # Create users table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT,
+                is_google_account INTEGER DEFAULT 0,
+                google_id TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                company_name TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_login DATETIME
+            )
+            ''')
+            
+            # Check if user_id column exists in companies table
+            cursor.execute("PRAGMA table_info(companies)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'user_id' not in columns:
+                # Add user_id column to companies table
+                cursor.execute('''
+                ALTER TABLE companies ADD COLUMN user_id INTEGER REFERENCES users(user_id)
+                ''')
+            
             # Create leads table if not exists
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS leads (
@@ -336,7 +409,8 @@ def upgrade_database(verbose=False):
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         scraped_text TEXT,
-                        processed_content TEXT
+                        processed_content TEXT,
+                        user_id INTEGER REFERENCES users(user_id)
                     )
                     ''')
                     
