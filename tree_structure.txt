@@ -10,7 +10,6 @@
     requirements.txt
     prod/
         .env
-        db_chk.py
         db_mgr.py
         screenshot.py
         easyafchat.db
@@ -30,6 +29,8 @@
         clean_db_companies_table.py
         clean_db_users_table.py
         nuclear_reset_test.py
+        db_chk.py
+        db_chk_results.txt
         static/
             css/
                 style.css
@@ -86,8 +87,10 @@
             utils.py
             routes.py
         flask_session/
+            b490fc6ca3292e938b406ed0b04c217e
+            712530d4ab168484b79684eca7680489
+            7e0987edc0ba66889b59e52a170f7280
             2029240f6d1128be89ddc32729463129
-            ea07557f03324df4404fb58d875be8cc
     .github/
         workflows/
             main_easyafchat-v3.yml

@@ -59,6 +59,9 @@ HTML = '''
             <li class="nav-item" role="presentation">
                 <a class="nav-link" href="/documents">Documents</a>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="db-management-tab" data-bs-toggle="tab" data-bs-target="#db-management" type="button">DB Management</button>
+            </li>
             <li class="nav-item ms-auto">
                 <button class="nav-link btn btn-warning" id="clearSessionBtn" type="button">
                     <i class="bi bi-x-circle"></i> Clear All Sessions
@@ -172,6 +175,106 @@ HTML = '''
                         <!-- Users will be loaded dynamically -->
                     </tbody>
                 </table>
+            </div>
+
+            <!-- DB Management Tab -->
+            <div class="tab-pane fade" id="db-management" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Database Management Tools</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <strong>Current Database:</strong> {{ db_info.type }} {% if db_info.type == "PostgreSQL" %}({{ db_info.host }}/{{ db_info.name }}){% else %}({{ db_info.name }}){% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-warning">
+                                        <h5 class="mb-0">Companies Table Management</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>This will clear all user associations from companies (set user_id to NULL).</p>
+                                        <p><strong>Use case:</strong> When you need to "unclaim" all chatbots from users.</p>
+                                        <button id="clearCompanyUsersBtn" class="btn btn-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> Clear All User IDs from Companies
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-danger">
+                                        <h5 class="mb-0">Users Table Management</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>This will <strong>DROP and RECREATE</strong> the users table with the correct schema.</p>
+                                        <p><strong>Warning:</strong> This will delete all user accounts! Only use when fixing database schema issues.</p>
+                                        <button id="cleanUsersTableBtn" class="btn btn-danger">
+                                            <i class="bi bi-exclamation-octagon"></i> Rebuild Users Table (DANGER!)
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mt-3">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">Operation Results</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="dbOperationResults" class="alert d-none">
+                                    <!-- Results will be displayed here -->
+                                </div>
+                                <div id="chatbotsContainer" class="mt-3 d-none">
+                                    <h6>Affected Chatbots:</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Chatbot ID</th>
+                                                    <th>URL</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="chatbotsList">
+                                                <!-- Chatbots will be listed here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">Database Structure Inspector</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>This will generate a detailed report of your database structure, including tables, schemas, foreign keys, and sample data.</p>
+                            <button id="inspectDatabaseBtn" class="btn btn-info">
+                                <i class="bi bi-database-check"></i> Inspect Database Structure
+                            </button>
+                            
+                            <div id="databaseReportContainer" class="mt-3 d-none">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Database Inspection Report</h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <pre id="databaseReport" class="p-3 bg-light" style="max-height: 600px; overflow-y: auto; font-size: 12px; font-family: monospace; white-space: pre-wrap;"></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             </div>
         </div>
     </div>
@@ -636,6 +739,137 @@ HTML = '''
                 }
             }
         });
+
+        // DB Management tab functionality
+        document.getElementById('clearCompanyUsersBtn').addEventListener('click', async function() {
+            if (confirm('This will clear all user associations from companies. Users will need to reclaim their chatbots. Continue?')) {
+                try {
+                    const resultsDiv = document.getElementById('dbOperationResults');
+                    const chatbotsContainer = document.getElementById('chatbotsContainer');
+                    const chatbotsList = document.getElementById('chatbotsList');
+                    
+                    resultsDiv.className = 'alert alert-info';
+                    resultsDiv.innerHTML = 'Processing request...';
+                    resultsDiv.classList.remove('d-none');
+                    chatbotsContainer.classList.add('d-none');
+                    
+                    const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/clear-company-users', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        resultsDiv.className = 'alert alert-success';
+                        resultsDiv.innerHTML = `<strong>Success!</strong> ${result.message}`;
+                        
+                        // Display affected chatbots if available
+                        if (result.chatbots && result.chatbots.length > 0) {
+                            chatbotsList.innerHTML = '';
+                            result.chatbots.forEach(chatbot => {
+                                chatbotsList.innerHTML += `
+                                    <tr>
+                                        <td>${chatbot.id}</td>
+                                        <td>${chatbot.url}</td>
+                                    </tr>
+                                `;
+                            });
+                            chatbotsContainer.classList.remove('d-none');
+                        }
+                    } else {
+                        resultsDiv.className = 'alert alert-danger';
+                        resultsDiv.innerHTML = `<strong>Error!</strong> ${result.message}`;
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    const resultsDiv = document.getElementById('dbOperationResults');
+                    resultsDiv.className = 'alert alert-danger';
+                    resultsDiv.innerHTML = `<strong>Error!</strong> Failed to execute operation: ${error.message}`;
+                    resultsDiv.classList.remove('d-none');
+                }
+            }
+        });
+
+        document.getElementById('cleanUsersTableBtn').addEventListener('click', async function() {
+            if (confirm('WARNING! This will DELETE ALL USER ACCOUNTS and recreate the users table! This cannot be undone. Are you ABSOLUTELY sure?')) {
+                if (confirm('FINAL WARNING: All user data will be lost. Type "CONFIRM" in the next prompt to proceed.')) {
+                    const confirmation = prompt('Type "CONFIRM" to proceed with deleting all users:');
+                    
+                    if (confirmation === 'CONFIRM') {
+                        try {
+                            const resultsDiv = document.getElementById('dbOperationResults');
+                            
+                            resultsDiv.className = 'alert alert-info';
+                            resultsDiv.innerHTML = 'Rebuilding users table... This may take a moment.';
+                            resultsDiv.classList.remove('d-none');
+                            
+                            const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/clean-users-table', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'}
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                resultsDiv.className = 'alert alert-success';
+                                resultsDiv.innerHTML = `<strong>Success!</strong> ${result.message}`;
+                            } else {
+                                resultsDiv.className = 'alert alert-danger';
+                                resultsDiv.innerHTML = `<strong>Error!</strong> ${result.message}`;
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            const resultsDiv = document.getElementById('dbOperationResults');
+                            resultsDiv.className = 'alert alert-danger';
+                            resultsDiv.innerHTML = `<strong>Error!</strong> Failed to execute operation: ${error.message}`;
+                            resultsDiv.classList.remove('d-none');
+                        }
+                    } else {
+                        alert('Operation cancelled.');
+                    }
+                }
+            }
+        });
+
+        document.getElementById('inspectDatabaseBtn').addEventListener('click', async function() {
+            try {
+                const reportContainer = document.getElementById('databaseReportContainer');
+                const reportElement = document.getElementById('databaseReport');
+                const inspectBtn = document.getElementById('inspectDatabaseBtn');
+                
+                // Show loading state
+                inspectBtn.disabled = true;
+                inspectBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Inspecting Database...';
+                reportElement.textContent = 'Generating report, please wait...';
+                reportContainer.classList.remove('d-none');
+                
+                const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/inspect-database', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    reportElement.textContent = result.report;
+                } else {
+                    reportElement.textContent = `Error generating report: ${result.message}`;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const reportContainer = document.getElementById('databaseReportContainer');
+                const reportElement = document.getElementById('databaseReport');
+                
+                reportContainer.classList.remove('d-none');
+                reportElement.textContent = `Error: Failed to inspect database: ${error.message}`;
+            } finally {
+                // Reset button state
+                const inspectBtn = document.getElementById('inspectDatabaseBtn');
+                inspectBtn.disabled = false;
+                inspectBtn.innerHTML = '<i class="bi bi-database-check"></i> Inspect Database Structure';
+            }
+        });
     </script>
 </body>
 </html>
@@ -687,13 +921,370 @@ def update_pinecone_index(namespace, text_chunks, embeddings):
         print(f"Error updating Pinecone: {e}")
         return False
 
+def clear_user_id_from_companies():
+    """Clear all user_id values in the companies table."""
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # First check how many records will be affected
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute("SELECT COUNT(*) FROM companies WHERE user_id IS NOT NULL")
+            else:
+                cursor.execute("SELECT COUNT(*) FROM companies WHERE user_id IS NOT NULL")
+                
+            count = cursor.fetchone()[0]
+            
+            # Now update all records
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute("UPDATE companies SET user_id = NULL")
+            else:
+                cursor.execute("UPDATE companies SET user_id = NULL")
+                
+            # Also get all chatbots for log
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute("SELECT chatbot_id, company_url FROM companies")
+            else:
+                cursor.execute("SELECT chatbot_id, company_url FROM companies")
+                
+            chatbots = cursor.fetchall()
+            
+            return {
+                'success': True,
+                'message': f"Cleared user_id from {count} companies",
+                'chatbots': [{'id': c[0], 'url': c[1]} for c in chatbots]
+            }
+    
+    except Exception as e:
+        print(f"Error clearing user IDs: {e}")
+        return {
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }
+
+def clean_users_table():
+    """Clean up the users table and recreate it with the correct schema."""
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                # PostgreSQL cleanup
+                try:
+                    # Drop users table if it exists
+                    cursor.execute("DROP TABLE IF EXISTS users CASCADE")
+                    
+                    # Create users table with all required columns
+                    cursor.execute("""
+                    CREATE TABLE users (
+                        user_id TEXT PRIMARY KEY,
+                        email TEXT UNIQUE NOT NULL,
+                        password_hash TEXT,
+                        is_google_account BOOLEAN DEFAULT FALSE,
+                        google_id TEXT UNIQUE,
+                        name TEXT,
+                        company_name TEXT,
+                        reset_token TEXT,
+                        reset_token_created_at TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """)
+                    
+                    # Update foreign key constraint in companies table
+                    cursor.execute("""
+                    ALTER TABLE companies 
+                    DROP CONSTRAINT IF EXISTS companies_user_id_fkey,
+                    ADD CONSTRAINT companies_user_id_fkey 
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
+                    """)
+                    
+                    return {
+                        'success': True,
+                        'message': "PostgreSQL users table recreated successfully"
+                    }
+                
+                except Exception as e:
+                    print(f"PostgreSQL Error: {e}")
+                    conn.rollback()
+                    return {
+                        'success': False,
+                        'message': f"PostgreSQL Error: {str(e)}"
+                    }
+            
+            else:
+                # SQLite cleanup
+                try:
+                    # Check if users_old table exists and drop it
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users_old'")
+                    if cursor.fetchone():
+                        cursor.execute("DROP TABLE users_old")
+                    
+                    # Check if users table exists and drop it
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+                    if cursor.fetchone():
+                        cursor.execute("DROP TABLE users")
+                    
+                    # Create new users table with correct schema
+                    cursor.execute('''
+                    CREATE TABLE users (
+                        user_id TEXT PRIMARY KEY,
+                        email TEXT UNIQUE NOT NULL,
+                        password_hash TEXT,
+                        is_google_account INTEGER DEFAULT 0,
+                        google_id TEXT UNIQUE,
+                        name TEXT,
+                        company_name TEXT,
+                        reset_token TEXT,
+                        reset_token_created_at DATETIME,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                    ''')
+                    
+                    # Check if temporary tables exist and drop them
+                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users_temp'")
+                    if cursor.fetchone():
+                        cursor.execute("DROP TABLE users_temp")
+                    
+                    return {
+                        'success': True,
+                        'message': "SQLite users table recreated successfully"
+                    }
+                
+                except Exception as e:
+                    print(f"SQLite Error: {e}")
+                    conn.rollback()
+                    return {
+                        'success': False,
+                        'message': f"SQLite Error: {str(e)}"
+                    }
+    
+    except Exception as e:
+        print(f"Error cleaning users table: {e}")
+        return {
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }
+
+def inspect_database():
+    """Inspect all tables in the database and generate a report."""
+    output_lines = []
+    
+    # Helper function to add lines to output
+    def add_line(message=""):
+        output_lines.append(message)
+    
+    # Get database type and connection info
+    add_line("=" * 80)
+    add_line(f"DATABASE INSPECTION REPORT - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    add_line("=" * 80)
+    
+    db_type = "PostgreSQL" if os.getenv('DB_TYPE', '').lower() == 'postgresql' else "SQLite"
+    add_line(f"Database Type: {db_type}")
+    
+    if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+        add_line(f"Host: {os.getenv('DB_HOST', '')}")
+        add_line(f"Database: {os.getenv('DB_NAME', '')}")
+        add_line(f"Schema: {os.getenv('DB_SCHEMA', '')}")
+    else:
+        add_line(f"Database File: {os.getenv('DB_PATH', 'easyafchat.db')}")
+    add_line("")
+    
+    # Get all tables
+    tables = []
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            # PostgreSQL query to get tables
+            cursor.execute(f"""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = '{os.getenv('DB_SCHEMA', 'easychat')}'
+                AND table_type = 'BASE TABLE'
+                ORDER BY table_name
+            """)
+            tables = [row[0] for row in cursor.fetchall()]
+        else:
+            # SQLite query to get tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+            tables = [row[0] for row in cursor.fetchall()]
+    
+    add_line(f"Found {len(tables)} tables: {', '.join(tables)}")
+    add_line("")
+    
+    # Examine each table
+    for table_name in tables:
+        add_line("-" * 80)
+        add_line(f"TABLE: {table_name}")
+        add_line("-" * 80)
+        
+        # Get schema
+        columns = []
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                # PostgreSQL query to get column information
+                cursor.execute(f"""
+                    SELECT column_name, data_type, is_nullable 
+                    FROM information_schema.columns 
+                    WHERE table_schema = '{os.getenv('DB_SCHEMA', 'easychat')}' 
+                    AND table_name = %s
+                    ORDER BY ordinal_position
+                """, (table_name,))
+                
+                columns = []
+                for row in cursor.fetchall():
+                    columns.append({
+                        'name': row[0],
+                        'type': row[1],
+                        'nullable': row[2]
+                    })
+            else:
+                # SQLite query to get column information
+                cursor.execute(f"PRAGMA table_info({table_name})")
+                
+                columns = []
+                for row in cursor.fetchall():
+                    columns.append({
+                        'name': row[1],
+                        'type': row[2],
+                        'nullable': "YES" if row[3] == 0 else "NO"
+                    })
+        
+        add_line("SCHEMA:")
+        for col in columns:
+            nullable = "NULL" if col['nullable'] == "YES" else "NOT NULL"
+            add_line(f"  {col['name']} ({col['type']}) {nullable}")
+        add_line("")
+        
+        # Get foreign keys
+        foreign_keys = []
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                # PostgreSQL query to get foreign keys
+                cursor.execute(f"""
+                    SELECT
+                        kcu.column_name, 
+                        ccu.table_name AS foreign_table_name,
+                        ccu.column_name AS foreign_column_name
+                    FROM 
+                        information_schema.table_constraints AS tc 
+                        JOIN information_schema.key_column_usage AS kcu
+                          ON tc.constraint_name = kcu.constraint_name
+                          AND tc.table_schema = kcu.table_schema
+                        JOIN information_schema.constraint_column_usage AS ccu 
+                          ON ccu.constraint_name = tc.constraint_name
+                          AND ccu.table_schema = tc.table_schema
+                    WHERE tc.constraint_type = 'FOREIGN KEY' 
+                    AND tc.table_schema = '{os.getenv('DB_SCHEMA', 'easychat')}'
+                    AND tc.table_name = %s
+                """, (table_name,))
+                
+                for row in cursor.fetchall():
+                    foreign_keys.append({
+                        'column_name': row[0],
+                        'foreign_table_name': row[1],
+                        'foreign_column_name': row[2]
+                    })
+            else:
+                # SQLite query to get foreign keys
+                cursor.execute(f"PRAGMA foreign_key_list({table_name})")
+                
+                # Format to match PostgreSQL output
+                for row in cursor.fetchall():
+                    foreign_keys.append({
+                        'column_name': row[3],
+                        'foreign_table_name': row[2],
+                        'foreign_column_name': row[4]
+                    })
+                    
+        if foreign_keys:
+            add_line("FOREIGN KEYS:")
+            for fk in foreign_keys:
+                add_line(f"  {fk['column_name']} -> {fk['foreign_table_name']}.{fk['foreign_column_name']}")
+            add_line("")
+        
+        # Count records
+        record_count = 0
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                query = f'SELECT COUNT(*) FROM "{table_name}"'
+                cursor.execute(query)
+            else:
+                cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                
+            record_count = cursor.fetchone()[0]
+            
+        add_line(f"RECORD COUNT: {record_count}")
+        add_line("")
+        
+        # Get sample records
+        if record_count > 0:
+            add_line("SAMPLE RECORDS (up to 5):")
+            
+            with connect_to_db() as conn:
+                cursor = conn.cursor()
+                
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute(f'SELECT * FROM "{table_name}" LIMIT 5')
+                else:
+                    cursor.execute(f"SELECT * FROM {table_name} LIMIT 5")
+                    
+                records = cursor.fetchall()
+                
+                # Get column names
+                column_names = [desc[0] for desc in cursor.description]
+                
+                # Print column headers
+                header = " | ".join(column_names)
+                add_line(f"  {header}")
+                add_line(f"  {'-' * len(header)}")
+                
+                # Print records
+                for record in records:
+                    formatted_row = []
+                    for i, value in enumerate(record):
+                        # Handle text fields - truncate if too long
+                        if isinstance(value, str) and len(value) > 50:
+                            formatted_row.append(f"{value[:47]}...")
+                        else:
+                            formatted_row.append(str(value))
+                    add_line("  " + " | ".join(formatted_row))
+            add_line("")
+        
+        add_line("")
+    
+    add_line("=" * 80)
+    add_line("End of report")
+    add_line("=" * 80)
+    
+    return "\n".join(output_lines)
+
 @admin_dashboard.route('/')
 def index():
     with connect_to_db() as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM companies')
         records = cursor.fetchall()
-    return render_template_string(HTML, records=records)
+    
+    # Add db_info for the DB Management tab
+    db_type = "PostgreSQL" if os.getenv('DB_TYPE', '').lower() == 'postgresql' else "SQLite"
+    
+    return render_template_string(HTML, 
+                                 records=records,
+                                 active_tab="companies",
+                                 db_info={
+                                     'type': db_type,
+                                     'host': os.getenv('DB_HOST', 'local'),
+                                     'name': os.getenv('DB_NAME', 'easyafchat.db')
+                                 })
 
 @admin_dashboard.route('/record/<id>', methods=['GET'])
 def get_record(id):
@@ -1080,6 +1671,53 @@ def clear_sessions():
     except Exception as e:
         print(f"Error clearing sessions: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_dashboard.route('/db-management', methods=['GET'])
+def db_management():
+    """Display the database management interface."""
+    with connect_to_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM companies')
+        records = cursor.fetchall()
+        
+    db_type = "PostgreSQL" if os.getenv('DB_TYPE', '').lower() == 'postgresql' else "SQLite"
+    
+    return render_template_string(HTML, 
+                                 records=records, 
+                                 active_tab="db_management",
+                                 db_info={
+                                     'type': db_type,
+                                     'host': os.getenv('DB_HOST', 'local'),
+                                     'name': os.getenv('DB_NAME', 'easyafchat.db')
+                                 })
+
+@admin_dashboard.route('/clear-company-users', methods=['POST'])
+def clear_company_users():
+    """Clear all user_id references in the companies table."""
+    result = clear_user_id_from_companies()
+    return jsonify(result)
+
+@admin_dashboard.route('/clean-users-table', methods=['POST'])
+def rebuild_users_table():
+    """Rebuild the users table with the correct schema."""
+    result = clean_users_table()
+    return jsonify(result)
+
+@admin_dashboard.route('/inspect-database', methods=['POST'])
+def run_database_inspection():
+    """Run the database inspection and return the report."""
+    try:
+        report = inspect_database()
+        return jsonify({
+            'success': True,
+            'report': report
+        })
+    except Exception as e:
+        print(f"Error inspecting database: {e}")
+        return jsonify({
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }), 500
 
 # This function initializes the blueprint with the OpenAI and Pinecone clients
 def init_admin_dashboard(app_openai_client, app_pinecone_client, app_db_path, app_pinecone_index):
