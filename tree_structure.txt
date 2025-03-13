@@ -2,12 +2,12 @@
     README.md
     tree_create.py
     tree_structure.txt
-    requirements.txt
     startup.txt
     runtime.txt
     Procfile
     .deployment
     easyafchat_v3.code-workspace
+    requirements.txt
     prod/
         .env
         db_chk.py
@@ -20,12 +20,16 @@
         prompt_log.txt
         admin_dashboard.py
         chat_handler.py
-        database.py
         db_leads.py
-        app.py
         documents_handler.py
         documents_blueprint.py
         vector_cache.py
+        database.py
+        app.py
+        clean_db_users_table_azure.py
+        clean_db_companies_table.py
+        clean_db_users_table.py
+        nuclear_reset_test.py
         static/
             css/
                 style.css
@@ -50,12 +54,17 @@
                 script.js
                 chatbot-embed.js
         templates/
-            demo.html
             chat_test.html
             chat_manual.html
             landing.html
             admin_documents.html
             standalone_test.html
+            demo.html
+            dashboard.html
+            auth/
+                reset_password.html
+                signin.html
+                signup.html
         backups/
             Procfile
             requirements.txt
@@ -63,11 +72,22 @@
             app-screenshotone-version.py
             documents_blueprint.py
             admin_dashboard.py
-            app.py
             chat_handler.py
             chatbot-embed.js
+            03-11-2025-overview.txt
+            google_client_secret_1081215761675-vuqqiig0hnndrh6lqgdj1olgjq11q471.apps.googleusercontent.com.json
+            app_has_thum.py
+            app.py
         marketing/
             info.txt
+        auth/
+            models.py
+            __init__.py
+            utils.py
+            routes.py
+        flask_session/
+            2029240f6d1128be89ddc32729463129
+            ea07557f03324df4404fb58d875be8cc
     .github/
         workflows/
             main_easyafchat-v3.yml

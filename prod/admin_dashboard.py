@@ -59,6 +59,11 @@ HTML = '''
             <li class="nav-item" role="presentation">
                 <a class="nav-link" href="/documents">Documents</a>
             </li>
+            <li class="nav-item ms-auto">
+                <button class="nav-link btn btn-warning" id="clearSessionBtn" type="button">
+                    <i class="bi bi-x-circle"></i> Clear All Sessions
+                </button>
+            </li>
         </ul>
 
         <!-- Tab content -->
@@ -73,6 +78,7 @@ HTML = '''
                             <th>Namespace</th>
                             <th>Created At</th>
                             <th>Actions</th>
+                            <th>Nuclear Option</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -86,6 +92,11 @@ HTML = '''
                                 <button class="btn btn-sm btn-primary" onclick="viewRecord('{{ record[0] }}')">View/Edit</button>
                                 <button class="btn btn-sm btn-success" onclick="updatePinecone('{{ record[0] }}', '{{ record[4] }}')">Update Pinecone</button>
                                 <button class="btn btn-sm btn-danger" onclick="deleteRecord('{{ record[0] }}')">Delete</button>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" style="background-color: #dc3545; border-color: #dc3545;" onclick="nuclearReset('{{ record[0] }}', '{{ record[1] }}')">
+                                    ☢️ Nuclear Reset
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -571,6 +582,60 @@ HTML = '''
                 showStatus('Error exporting leads', 'danger');
             }
         }
+
+        async function nuclearReset(id, url) {
+            if (confirm(`⚠️ DANGER! This will completely remove chatbot "${url}" from ALL systems.\n\nThis includes removing:\n- The chatbot and all its data\n- All documents associated with it\n- All leads generated from it\n- The user account if they only own this chatbot\n- All vectors from Pinecone\n\nThis action CANNOT be undone. Are you ABSOLUTELY sure?`)) {
+                // Double confirm
+                if (confirm("Last chance: Click OK to permanently DELETE this chatbot from all systems.")) {
+                    try {
+                        showStatus('Nuclear reset in progress...', 'warning');
+                        
+                        const response = await fetch(`/admin-dashboard-08x7z9y2-yoursecretword/nuclear-reset/${id}`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'}
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            showStatus('Nuclear reset completed successfully! All traces of the chatbot have been removed.', 'success');
+                            // Reload the page after a delay
+                            setTimeout(() => location.reload(), 2000);
+                        } else {
+                            showStatus(`Error during nuclear reset: ${result.error}`, 'danger');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        showStatus('Failed to perform nuclear reset', 'danger');
+                    }
+                }
+            }
+        }
+
+        // Clear all sessions
+        document.getElementById('clearSessionBtn').addEventListener('click', async function() {
+            if (confirm('This will clear ALL active sessions for ALL users. Users will need to log in again. Continue?')) {
+                try {
+                    showStatus('Clearing all sessions...', 'warning');
+                    
+                    const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/clear-sessions', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showStatus('All sessions cleared successfully!', 'success');
+                    } else {
+                        showStatus(`Error clearing sessions: ${result.error}`, 'danger');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showStatus('Failed to clear sessions', 'danger');
+                }
+            }
+        });
     </script>
 </body>
 </html>
@@ -977,7 +1042,45 @@ def get_users():
     except Exception as e:
         print(f"Error fetching users: {e}")
         return jsonify({'error': str(e)}), 500
-    
+
+@admin_dashboard.route('/clear-sessions', methods=['POST'])
+def clear_sessions():
+    """
+    Clear all sessions by removing the flask_session directory contents.
+    """
+    try:
+        import shutil
+        import glob
+        from flask import session
+        
+        # Clear the current session
+        session.clear()
+        
+        # Path to flask_session directory
+        session_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'flask_session')
+        
+        if os.path.exists(session_dir):
+            # Get all files in the directory
+            session_files = glob.glob(os.path.join(session_dir, '*'))
+            
+            # Delete each session file
+            for file_path in session_files:
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print(f"Error deleting {file_path}: {e}")
+            
+            return jsonify({'success': True, 'message': f'Cleared {len(session_files)} session files'})
+        else:
+            return jsonify({'success': True, 'message': 'No session directory found'})
+            
+    except Exception as e:
+        print(f"Error clearing sessions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # This function initializes the blueprint with the OpenAI and Pinecone clients
 def init_admin_dashboard(app_openai_client, app_pinecone_client, app_db_path, app_pinecone_index):
     global openai_client, pinecone_client, DB_PATH, PINECONE_INDEX, document_handler
@@ -992,3 +1095,128 @@ def init_admin_dashboard(app_openai_client, app_pinecone_client, app_db_path, ap
         pinecone_client=pinecone_client,
         pinecone_index=PINECONE_INDEX
     )
+
+# Add this function to admin_dashboard.py
+
+@admin_dashboard.route('/nuclear-reset/<id>', methods=['POST'])
+def nuclear_reset(id):
+    """
+    Complete nuclear reset of a chatbot - removes all traces from all tables.
+    """
+    try:
+        # Store company info for potential re-use
+        company_url = None
+        namespace = None
+        
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # First get the company info before deleting
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('SELECT company_url, pinecone_namespace FROM companies WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('SELECT company_url, pinecone_namespace FROM companies WHERE chatbot_id = ?', (id,))
+                
+            company_info = cursor.fetchone()
+            if company_info:
+                company_url = company_info[0]
+                namespace = company_info[1]
+                
+            # START TRANSACTION - important for consistency
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('BEGIN')
+            
+            # 1. Delete all documents for this chatbot
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM documents WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('DELETE FROM documents WHERE chatbot_id = ?', (id,))
+                
+            # 2. Delete all leads for this chatbot
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM leads WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('DELETE FROM leads WHERE chatbot_id = ?', (id,))
+                
+            # 3. Delete any chatbot configurations
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM chatbot_config WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('DELETE FROM chatbot_config WHERE chatbot_id = ?', (id,))
+            
+            # 4. Find any users who ONLY have this chatbot
+            # (if you want to keep users who have multiple chatbots, you can skip this part)
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                # Find user_id for this chatbot
+                cursor.execute('SELECT user_id FROM companies WHERE chatbot_id = %s', (id,))
+                user_row = cursor.fetchone()
+                
+                if user_row and user_row[0]:  # If there's a user associated
+                    user_id = user_row[0]
+                    
+                    # Check if this user has other chatbots
+                    cursor.execute('SELECT COUNT(*) FROM companies WHERE user_id = %s AND chatbot_id != %s', 
+                                 (user_id, id))
+                    other_chatbots = cursor.fetchone()[0]
+                    
+                    if other_chatbots == 0:
+                        # User only has this chatbot, so delete the user
+                        cursor.execute('DELETE FROM users WHERE user_id = %s', (user_id,))
+            else:
+                # Do the same for SQLite
+                cursor.execute('SELECT user_id FROM companies WHERE chatbot_id = ?', (id,))
+                user_row = cursor.fetchone()
+                
+                if user_row and user_row[0]:  # If there's a user associated
+                    user_id = user_row[0]
+                    
+                    # Check if this user has other chatbots
+                    cursor.execute('SELECT COUNT(*) FROM companies WHERE user_id = ? AND chatbot_id != ?', 
+                                 (user_id, id))
+                    other_chatbots = cursor.fetchone()[0]
+                    
+                    if other_chatbots == 0:
+                        # User only has this chatbot, so delete the user
+                        cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+            
+            # 5. Finally delete the company record
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM companies WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('DELETE FROM companies WHERE chatbot_id = ?', (id,))
+            
+            # COMMIT TRANSACTION
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('COMMIT')
+        
+        # Also delete any vectors in Pinecone
+        if namespace:
+            try:
+                index = pinecone_client.Index(PINECONE_INDEX)
+                index.delete(delete_all=True, namespace=namespace)
+                print(f"Deleted all vectors for namespace: {namespace}")
+            except Exception as e:
+                print(f"Warning: Could not delete Pinecone vectors: {e}")
+                # Continue with the deletion process even if Pinecone cleanup fails
+        
+        # Return the response
+        result = {
+            'success': True, 
+            'message': 'Chatbot completely removed from all systems',
+            'company_url': company_url  # Return the URL in case the frontend wants to use it
+        }
+        return jsonify(result)
+    
+    except Exception as e:
+        print(f"Error in nuclear reset: {e}")
+        # Try to rollback if possible
+        try:
+            if conn and os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('ROLLBACK')
+        except:
+            pass
+            
+        return jsonify({
+            'success': False, 
+            'error': str(e)
+        }), 500

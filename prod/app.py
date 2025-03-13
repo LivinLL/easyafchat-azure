@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g
 from dotenv import load_dotenv
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -18,7 +18,11 @@ import uuid
 import re
 import json
 import vector_cache
-
+from flask_session import Session
+from auth import auth_bp
+import sqlite3
+import psycopg2
+from psycopg2 import sql
 
 # Import the admin dashboard blueprint
 from admin_dashboard import admin_dashboard, init_admin_dashboard
@@ -29,14 +33,29 @@ from documents_blueprint import documents_blueprint, init_documents_blueprint
 if os.environ.get('ENVIRONMENT') != 'production':
     load_dotenv()
 
+# Check for Google OAuth credentials
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+    print("WARNING: Google OAuth credentials not set. Google sign-in will not work.")
+    print("Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.")
+
 # Import database initialization and connection functions
 from database import initialize_database, connect_to_db
 
-# Initialize the database silently
-initialize_database(verbose=False)
+# Initialize the database
+initialize_database(verbose=True)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Configure server-side session
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = os.path.join(os.getcwd(), "flask_session")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-for-session")
+Session(app)
+
 CORS(app)  # Add this line
 app.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
 
@@ -63,11 +82,69 @@ app.register_blueprint(admin_dashboard, url_prefix='/admin-dashboard-08x7z9y2-yo
 init_documents_blueprint(openai_client, pinecone_client, PINECONE_INDEX)
 app.register_blueprint(documents_blueprint, url_prefix='/documents')
 
+# Database connection variables
+DB_TYPE = os.getenv('DB_TYPE', 'sqlite')
+DB_HOST = os.getenv('DB_HOST', '')
+DB_PORT = os.getenv('DB_PORT', '5432')
+DB_NAME = os.getenv('DB_NAME', 'postgres')
+DB_USER = os.getenv('DB_USER', '')
+DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+DB_SCHEMA = os.getenv('DB_SCHEMA', 'easychat')
+DB_SSL = os.getenv('DB_SSL', '')
+SQLITE_DB_NAME = "easyafchat.db"
+
+# Register the authorization blueprint
+app.register_blueprint(auth_bp, url_prefix='/auth')
+
 # Dictionary to track processing status
 processing_status = {}
 
 # Initialize chat handlers dictionary
 chat_handlers = {}
+
+# Add this to app.py after initializing the app but before the routes
+@app.before_request
+def check_user_session():
+    """Check user session and make user info available to templates"""
+    if 'user_id' in session:
+        g.user = {
+            'user_id': session['user_id'],
+            'email': session.get('email'),
+            'name': session.get('name')
+        }
+    else:
+        g.user = None
+        
+@app.context_processor
+def inject_user():
+    """Make user info available to all templates"""
+    return dict(user=g.user)
+
+# Function to get database connection for routes
+def get_db_connection():
+    """Get a database connection based on environment settings"""
+    if DB_TYPE.lower() == 'postgresql':
+        # PostgreSQL connection (for production)
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            sslmode=DB_SSL if DB_SSL else None
+        )
+        
+        # Set the schema search path
+        with conn.cursor() as cursor:
+            cursor.execute(sql.SQL("SET search_path TO {}").format(
+                sql.Identifier(DB_SCHEMA)
+            ))
+    else:
+        # SQLite connection (for development)
+        conn = sqlite3.connect(SQLITE_DB_NAME)
+        
+    return conn
+
 
 def chunk_text(text, chunk_size=500):
     """Split text into smaller chunks for processing"""
@@ -217,14 +294,18 @@ def insert_company_data(data):
             # PostgreSQL uses %s placeholders
             cursor.execute('''
                 INSERT INTO companies 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', data)
+                (chatbot_id, company_url, pinecone_host_url, pinecone_index, pinecone_namespace, 
+                created_at, updated_at, scraped_text, processed_content, user_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', data + (None,))  # Add None for user_id
         else:
             # SQLite uses ? placeholders
             cursor.execute('''
                 INSERT INTO companies 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', data)
+                (chatbot_id, company_url, pinecone_host_url, pinecone_index, pinecone_namespace, 
+                created_at, updated_at, scraped_text, processed_content, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', data + (None,))  # Add None for user_id
 
 def get_existing_record(url):
     """Check if URL already exists in database and return its data"""
@@ -700,51 +781,58 @@ About Scrape
 
 @app.route('/demo/<session_id>')
 def demo(session_id):
-    # Fetch the company URL for the given chatbot ID
-    with connect_to_db() as conn:
+    conn = get_db_connection()
+    try:
         cursor = conn.cursor()
         
-        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-            cursor.execute('''
-                SELECT company_url, scraped_text, processed_content
-                FROM companies
-                WHERE chatbot_id = %s
-            ''', (session_id,))
+        # Get company info
+        if DB_TYPE.lower() == 'postgresql':
+            cursor.execute(f"SELECT * FROM {DB_SCHEMA}.companies WHERE chatbot_id = %s", (session_id,))
         else:
-            cursor.execute('''
-                SELECT company_url, scraped_text, processed_content
-                FROM companies
-                WHERE chatbot_id = ?
-            ''', (session_id,))
+            cursor.execute("SELECT * FROM companies WHERE chatbot_id = ?", (session_id,))
             
-        row = cursor.fetchone()
-
-    if not row:
-        flash("Invalid session ID")
+        result = cursor.fetchone()
+        
+        if not result:
+            flash('Chatbot not found', 'error')
+            return redirect(url_for('home'))
+        
+        # Convert to dictionary for easier access
+        columns = [desc[0] for desc in cursor.description]
+        chatbot_dict = dict(zip(columns, result))
+        
+        # Check if the chatbot is claimed and by who
+        is_claimed = chatbot_dict.get('user_id') is not None
+        owner_id = chatbot_dict.get('user_id')
+        
+        # Get the website URL
+        website_url = chatbot_dict.get('company_url')
+        
+        # Check if we have a cached screenshot URL in the processing status
+        screenshot_url = ""
+        if session_id in processing_status and "screenshot_url" in processing_status[session_id]:
+            screenshot_url = processing_status[session_id]["screenshot_url"]
+        else:
+            # Generate APIFlash screenshot URL if we don't have one cached
+            try:
+                base_url = "https://api.apiflash.com/v1/urltoimage"
+                screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
+            except Exception as e:
+                print(f"Error generating screenshot URL: {e}")
+                screenshot_url = ""
+        
+        return render_template('demo.html', 
+                               chatbot_id=session_id, 
+                               website_url=website_url, 
+                               screenshot_url=screenshot_url,
+                               is_claimed=is_claimed,
+                               owner_id=owner_id)
+    except Exception as e:
+        app.logger.error(f"Error in demo route: {e}")
+        flash(f"An error occurred: {e}", "error")
         return redirect(url_for('home'))
-
-    website_url, scraped_text, processed_content = row
-    
-    # Check if we have a cached screenshot URL in the processing status
-    screenshot_url = ""
-    if session_id in processing_status and "screenshot_url" in processing_status[session_id]:
-        screenshot_url = processing_status[session_id]["screenshot_url"]
-    else:
-        # Generate APIFlash screenshot URL if we don't have one cached
-        try:
-            base_url = "https://api.apiflash.com/v1/urltoimage"
-            screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
-        except Exception as e:
-            print(f"Error generating screenshot URL: {e}")
-            screenshot_url = ""
-
-    # Pass the screenshot URL and other data to the template
-    return render_template(
-        'demo.html',
-        website_url=website_url,
-        chatbot_id=session_id,
-        screenshot_url=screenshot_url
-    )
+    finally:
+        conn.close()
 
 @app.route('/embed-chat', methods=['POST'])
 def embed_chat():
@@ -907,6 +995,100 @@ def standalone_test_with_id(session_id):
     
     # Pass the chatbot ID to the template
     return render_template('standalone_test.html', chatbot_id=session_id, website_url=website_url)
+
+# user dashboard
+@app.route('/dashboard')
+def dashboard():
+    if 'user_id' not in session:
+        flash('Please log in to access your dashboard', 'error')
+        return redirect(url_for('auth.signin'))
+    
+    try:
+        print(f"Dashboard access - user_id: {session.get('user_id')}")
+        
+        # Get user's chatbots
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            
+            # First verify the user exists
+            if os.environ.get('DB_TYPE') == 'postgresql':
+                cursor.execute("SELECT * FROM users WHERE user_id = %s", (session['user_id'],))
+            else:
+                cursor.execute("SELECT * FROM users WHERE user_id = ?", (session['user_id'],))
+                
+            user = cursor.fetchone()
+            if not user:
+                print(f"User not found in database: {session['user_id']}")
+                flash('User account not found', 'error')
+                return redirect(url_for('home'))
+                
+            # Get user's chatbots
+            if os.environ.get('DB_TYPE') == 'postgresql':
+                cursor.execute(
+                    "SELECT * FROM companies WHERE user_id = %s ORDER BY created_at DESC",
+                    (session['user_id'],)
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM companies WHERE user_id = ? ORDER BY created_at DESC",
+                    (session['user_id'],)
+                )
+                
+            chatbots = cursor.fetchall()
+            print(f"Found {len(chatbots)} chatbots for user")
+            
+            # Convert to list of dicts for easier access in template
+            chatbot_list = []
+            for chatbot in chatbots:
+                columns = [desc[0] for desc in cursor.description]
+                chatbot_dict = dict(zip(columns, chatbot))
+                
+                # Convert string timestamps to datetime objects for use with strftime in template
+                if 'created_at' in chatbot_dict and chatbot_dict['created_at']:
+                    try:
+                        # Handle different timestamp formats
+                        if isinstance(chatbot_dict['created_at'], str):
+                            # Try common formats
+                            formats_to_try = [
+                                '%Y-%m-%d %H:%M:%S',  # 2023-01-01 12:34:56
+                                '%Y-%m-%dT%H:%M:%S',  # 2023-01-01T12:34:56
+                                '%Y-%m-%d %H:%M:%S.%f'  # 2023-01-01 12:34:56.789
+                            ]
+                            
+                            for fmt in formats_to_try:
+                                try:
+                                    chatbot_dict['created_at'] = datetime.strptime(
+                                        chatbot_dict['created_at'].split('.')[0],  # Remove microseconds if present
+                                        fmt
+                                    )
+                                    break
+                                except ValueError:
+                                    continue
+                    except Exception as e:
+                        print(f"Error converting timestamp: {e}")
+                        # If conversion fails, keep as string
+                
+                chatbot_list.append(chatbot_dict)
+            
+            return render_template('dashboard.html', 
+                               chatbots=chatbot_list, 
+                               user_name=session.get('name', ''),
+                               user_email=session.get('email', ''))
+        
+        except (sqlite3.Error, psycopg2.Error) as e:
+            print(f"Database error in dashboard: {str(e)}")
+            flash(f'Error loading dashboard: {e}', 'error')
+            return redirect(url_for('home'))
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        import traceback
+        print(f"Unexpected error in dashboard: {str(e)}")
+        print(traceback.format_exc())
+        flash('An unexpected error occurred', 'error')
+        return redirect(url_for('home'))
 
 
 if __name__ == '__main__':

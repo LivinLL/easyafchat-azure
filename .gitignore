@@ -30,3 +30,9 @@ easyafchat_v3.code-workspace
 
 # Marketing folder
 prod/marketing
+
+# Flask session data
+flask_session/
+
+# Database check results
+db_chk_results.txt

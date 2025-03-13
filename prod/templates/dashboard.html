@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Dashboard - EasyAFChat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        .welcome-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .welcome-section h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .welcome-section p {
+            font-size: 18px;
+            color: #666;
+        }
+        .chatbot-list {
+            margin-top: 30px;
+        }
+        .chatbot-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chatbot-card h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .chatbot-card p {
+            margin-bottom: 15px;
+            color: #666;
+        }
+        .chatbot-card .created-date {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 15px;
+        }
+        .chatbot-actions {
+            margin-top: auto;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #0084ff;
+            color: white;
+            border: none;
+        }
+        .btn-secondary {
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-primary:hover {
+            background-color: #0073e6;
+        }
+        .btn-secondary:hover {
+            background-color: #e9ecef;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .empty-state h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .empty-state p {
+            margin-bottom: 25px;
+            color: #666;
+        }
+        .create-new {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .create-new a {
+            display: inline-block;
+            background-color: #0084ff;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 30px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        .create-new a:hover {
+            background-color: #0073e6;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="nav-container">
+                <div class="logo">
+                    <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="EasyAF Logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="dashboard-container">
+            <div class="welcome-section">
+                <h1>Welcome, {{ user_name }}!</h1>
+                <p>Manage your AI chatbots from this dashboard.</p>
+            </div>
+            
+            <div class="chatbot-list">
+                <h2>Your Chatbots</h2>
+                
+                {% if chatbots|length > 0 %}
+                    <div class="grid-container">
+                    {% for chatbot in chatbots %}
+                        <div class="chatbot-card">
+                            <h3>{{ chatbot.company_url }}</h3>
+                            <div class="created-date">Created on {{ chatbot.created_at.strftime('%B %d, %Y') if chatbot.created_at else 'Unknown date' }}</div>
+                            <p>Chatbot ID: {{ chatbot.chatbot_id }}</p>
+                            
+                            <div class="chatbot-actions">
+                                <a href="{{ url_for('demo', session_id=chatbot.chatbot_id) }}" class="btn btn-primary">View Demo</a>
+                                <a href="#" class="btn btn-secondary" onclick="copyEmbedCode('{{ chatbot.chatbot_id }}')">Copy Embed Code</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h3>You don't have any chatbots yet</h3>
+                        <p>Create your first AI chatbot by entering a website URL below.</p>
+                    </div>
+                {% endif %}
+                
+                <div class="create-new">
+                    <a href="/">Create New Chatbot</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <ul class="footer-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <script>
+        function copyEmbedCode(chatbotId) {
+            const embedCode = `<script>
+window.davesEasyChatConfig = {
+    chatbotId: "${chatbotId}"
+};
+<\/script>
+<script src="${window.location.origin}/static/js/chatbot-embed.js"><\/script>`;
+            
+            navigator.clipboard.writeText(embedCode).then(() => {
+                alert('Embed code copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy embed code. Please try again.');
+            });
+        }
+    </script>
+</body>
+</html>

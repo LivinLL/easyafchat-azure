@@ -6,6 +6,76 @@
     <title>EasyAF Chat - Demo</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .cta-section {
+            background-color: #f9f9f9;
+            padding: 40px 0;
+            text-align: center;
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .cta-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        .cta-title {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .cta-description {
+            font-size: 18px;
+            margin-bottom: 30px;
+            color: #666;
+            line-height: 1.5;
+        }
+        .claim-button {
+            display: inline-block;
+            background-color: #0084ff;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 15px 40px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .claim-button:hover {
+            background-color: #0073e6;
+        }
+        .already-claimed {
+            background-color: #28a745;
+        }
+        .already-claimed:hover {
+            background-color: #218838;
+        }
+        .feature-list {
+            text-align: left;
+            max-width: 600px;
+            margin: 0 auto 30px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .feature-list h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .feature-list ul {
+            margin-bottom: 0;
+            padding-left: 25px;
+        }
+        .feature-list li {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #555;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -19,6 +89,12 @@
                     <li><a href="#features">Features</a></li>
                     <li><a href="#pricing">Pricing</a></li>
                     <li><a href="#contact">Contact</a></li>
+                    {% if session.get('user_id') %}
+                    <li><a href="/dashboard">Dashboard</a></li>
+                    <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+                    {% else %}
+                    <li><a href="{{ url_for('auth.signin') }}">Sign In</a></li>
+                    {% endif %}
                 </ul>
             </div>
         </nav>
@@ -33,13 +109,42 @@
                     <h3>Website Preview for: <span id="previewUrl">{{ website_url }}</span></h3>
                 </div>
                 <div class="preview-content" id="preview-content">
-                    <!-- This is the only line that changes in the entire file -->
                     <img src="{{ screenshot_url }}" alt="Website Preview" id="websiteScreenshot">
                 </div>
             </div>
         </section>
 
-
+        <section class="cta-section">
+            <div class="cta-container">
+                <h2 class="cta-title">Ready to Add This Chatbot to Your Website?</h2>
+                <p class="cta-description">Claim this chatbot now to start engaging with your website visitors 24/7.</p>
+                
+                <div class="feature-list">
+                    <h3>With Your Chatbot You Get:</h3>
+                    <ul>
+                        <li>24/7 customer assistance powered by AI</li>
+                        <li>Customizable appearance to match your brand</li>
+                        <li>Lead generation through the built-in contact form</li>
+                        <li>Easy installation with a simple JavaScript snippet</li>
+                        <li>Regular updates and improvements</li>
+                    </ul>
+                </div>
+                
+                {% if is_claimed and session.get('user_id') == owner_id %}
+                <button class="claim-button already-claimed" disabled>This Chatbot is Already Yours</button>
+                <p style="margin-top: 15px; font-size: 16px;">
+                    <a href="{{ url_for('dashboard') }}" style="color: #28a745; font-weight: bold;">Go to Dashboard</a> to manage your chatbots.
+                </p>
+                {% elif is_claimed %}
+                    <button class="claim-button" disabled>This Chatbot Has Been Claimed</button>
+                    <p style="margin-top: 15px; font-size: 16px;">Are you the owner? <a href="{{ url_for('auth.signin', chatbot_id=chatbot_id) }}" style="color: #0084ff; font-weight: bold;">Sign in</a> to access your dashboard.</p>
+                {% elif session.get('user_id') %}
+                    <button id="claimButton" class="claim-button" data-chatbot-id="{{ chatbot_id }}">Claim This Chatbot</button>
+                {% else %}
+                    <a href="{{ url_for('auth.signin', chatbot_id=chatbot_id) }}" class="claim-button">Claim This Chatbot</a>
+                {% endif %}
+            </div>
+        </section>
     </main>
 
     <footer>
@@ -60,5 +165,46 @@
         };
     </script>
     <script src="/static/js/chatbot-embed.js"></script>
+    
+    {% if session.get('user_id') and not is_claimed %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const claimButton = document.getElementById('claimButton');
+            if (claimButton) {
+                claimButton.addEventListener('click', async function() {
+                    const chatbotId = this.getAttribute('data-chatbot-id');
+                    claimButton.disabled = true;
+                    claimButton.textContent = 'Claiming...';
+                    
+                    try {
+                        const response = await fetch(`/auth/claim-chatbot/${chatbotId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            claimButton.textContent = 'Chatbot Claimed Successfully!';
+                            claimButton.classList.add('already-claimed');
+                            setTimeout(() => {
+                                window.location.href = '/dashboard';
+                            }, 1500);
+                        } else {
+                            claimButton.textContent = result.message || 'Error claiming chatbot';
+                            claimButton.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        claimButton.textContent = 'Error claiming chatbot';
+                        claimButton.disabled = false;
+                    }
+                });
+            }
+        });
+    </script>
+    {% endif %}
 </body>
 </html>

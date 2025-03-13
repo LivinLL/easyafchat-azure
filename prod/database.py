@@ -63,6 +63,37 @@ def connect_to_db():
         if conn is not None:
             conn.close()
 
+def get_db_connection():
+    """
+    Get a database connection (non-context manager version)
+    """
+    if DB_TYPE.lower() == 'postgresql':
+        # Set SSL mode if specified
+        ssl_mode = None
+        if DB_SSL.lower() == 'require':
+            ssl_mode = 'require'
+        
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            sslmode=ssl_mode
+        )
+        
+        # Set the schema search path
+        with conn.cursor() as cursor:
+            cursor.execute(sql.SQL("SET search_path TO {}").format(
+                sql.Identifier(DB_SCHEMA)
+            ))
+    else:
+        # Default to SQLite
+        conn = sqlite3.connect(SQLITE_DB_NAME)
+    
+    return conn
+
 def upgrade_database(verbose=False):
     """
     Upgrade the database schema.
@@ -175,18 +206,55 @@ def upgrade_database(verbose=False):
                     print(f"Creating new users table in {DB_SCHEMA} schema")
                 cursor.execute(f"""
                 CREATE TABLE {DB_SCHEMA}.users (
-                    user_id SERIAL PRIMARY KEY,
+                    user_id TEXT PRIMARY KEY,
                     email TEXT UNIQUE NOT NULL,
                     password_hash TEXT,
                     is_google_account BOOLEAN DEFAULT FALSE,
-                    google_id TEXT,
-                    first_name TEXT,
-                    last_name TEXT,
+                    google_id TEXT UNIQUE,
+                    name TEXT,
                     company_name TEXT,
+                    reset_token TEXT,
+                    reset_token_created_at TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_login TIMESTAMP
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """)
+            else:
+                # Check if name column exists in users table
+                cursor.execute(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_schema = '{DB_SCHEMA}' 
+                AND table_name = 'users' 
+                AND column_name = 'name'
+                """)
+                
+                if not cursor.fetchone():
+                    # Add name column to users table if it doesn't exist
+                    if verbose:
+                        print(f"Adding name column to users table")
+                    cursor.execute(f"""
+                    ALTER TABLE {DB_SCHEMA}.users 
+                    ADD COLUMN name TEXT
+                    """)
+                
+                # Check if company_name column exists in users table
+                cursor.execute(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_schema = '{DB_SCHEMA}' 
+                AND table_name = 'users' 
+                AND column_name = 'company_name'
+                """)
+                
+                if not cursor.fetchone():
+                    # Add company_name column to users table if it doesn't exist
+                    if verbose:
+                        print(f"Adding company_name column to users table")
+                    cursor.execute(f"""
+                    ALTER TABLE {DB_SCHEMA}.users 
+                    ADD COLUMN company_name TEXT
+                    """)
             
             # Check if user_id column exists in companies table
             cursor.execute(f"""
@@ -203,7 +271,7 @@ def upgrade_database(verbose=False):
                     print(f"Adding user_id column to companies table")
                 cursor.execute(f"""
                 ALTER TABLE {DB_SCHEMA}.companies 
-                ADD COLUMN user_id INTEGER REFERENCES {DB_SCHEMA}.users(user_id)
+                ADD COLUMN user_id TEXT REFERENCES {DB_SCHEMA}.users(user_id)
                 """)
             
             # Check if leads table exists
@@ -317,18 +385,33 @@ def upgrade_database(verbose=False):
             # Create users table if not exists
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT,
                 is_google_account INTEGER DEFAULT 0,
-                google_id TEXT,
-                first_name TEXT,
-                last_name TEXT,
+                google_id TEXT UNIQUE,
+                name TEXT,
                 company_name TEXT,
+                reset_token TEXT,
+                reset_token_created_at DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                last_login DATETIME
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             ''')
+            
+            # Check if columns exist in users table and add them if needed
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'name' not in columns:
+                cursor.execute('ALTER TABLE users ADD COLUMN name TEXT')
+                if verbose:
+                    print("Added missing 'name' column to users table")
+                    
+            if 'company_name' not in columns:
+                cursor.execute('ALTER TABLE users ADD COLUMN company_name TEXT')
+                if verbose:
+                    print("Added missing 'company_name' column to users table")
             
             # Check if user_id column exists in companies table
             cursor.execute("PRAGMA table_info(companies)")
@@ -337,7 +420,7 @@ def upgrade_database(verbose=False):
             if 'user_id' not in columns:
                 # Add user_id column to companies table
                 cursor.execute('''
-                ALTER TABLE companies ADD COLUMN user_id INTEGER REFERENCES users(user_id)
+                ALTER TABLE companies ADD COLUMN user_id TEXT REFERENCES users(user_id)
                 ''')
             
             # Create leads table if not exists
@@ -410,7 +493,7 @@ def upgrade_database(verbose=False):
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         scraped_text TEXT,
                         processed_content TEXT,
-                        user_id INTEGER REFERENCES users(user_id)
+                        user_id TEXT REFERENCES users(user_id)
                     )
                     ''')
                     
