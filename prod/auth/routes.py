@@ -224,8 +224,13 @@ def google_login():
     if chatbot_id:
         session['chatbot_id'] = chatbot_id
     
-    # Hard-code the redirect URI to match Google Console exactly
-    redirect_uri = f"{request.host_url.rstrip('/')}/auth/google/callback"
+    # Always use HTTPS for production environments
+    if os.environ.get('ENVIRONMENT') == 'production':
+        base_url = f"https://{request.host}"
+        redirect_uri = f"{base_url}/auth/google/callback"
+    else:
+        # For local development
+        redirect_uri = f"{request.host_url.rstrip('/')}/auth/google/callback"
     
     # Debug logging
     print(f"Google Client ID: {GOOGLE_CLIENT_ID}")
@@ -268,11 +273,18 @@ def google_callback():
     chatbot_id = session.get('chatbot_id')
     
     # Exchange authorization code for tokens
+    if os.environ.get('ENVIRONMENT') == 'production':
+        base_url = f"https://{request.host}"
+        redirect_uri = f"{base_url}/auth/google/callback"
+    else:
+        # For local development
+        redirect_uri = f"{request.host_url.rstrip('/')}/auth/google/callback"
+        
     token_data = {
         'code': code,
         'client_id': GOOGLE_CLIENT_ID,
         'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': f"{request.host_url.rstrip('/')}/auth/google/callback",
+        'redirect_uri': redirect_uri,
         'grant_type': 'authorization_code'
     }
     
