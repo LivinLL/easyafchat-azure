@@ -344,13 +344,13 @@ def google_callback():
                 if not user_dict.get('google_id'):
                     if os.environ.get('DB_TYPE') == 'postgresql':
                         cursor.execute(
-                            "UPDATE users SET google_id = %s, is_google_account = %s, updated_at = %s WHERE user_id = %s",
-                            (google_id, True, now, user_id)
+                            "UPDATE users SET google_id = %s, is_google_account = %s, name = %s, updated_at = %s WHERE user_id = %s",
+                            (google_id, True, name, now, user_id)
                         )
                     else:
                         cursor.execute(
-                            "UPDATE users SET google_id = ?, is_google_account = ?, updated_at = ? WHERE user_id = ?",
-                            (google_id, True, now, user_id)
+                            "UPDATE users SET google_id = ?, is_google_account = ?, name = ?, updated_at = ? WHERE user_id = ?",
+                            (google_id, True, name, now, user_id)
                         )
                     conn.commit()
             else:

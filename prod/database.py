@@ -291,7 +291,7 @@ def upgrade_database(verbose=False):
                 cursor.execute(f"""
                 CREATE TABLE {DB_SCHEMA}.leads (
                     lead_id SERIAL PRIMARY KEY,
-                    chatbot_id TEXT REFERENCES companies(chatbot_id),
+                    chatbot_id TEXT REFERENCES {DB_SCHEMA}.companies(chatbot_id),
                     thread_id TEXT NOT NULL,
                     name TEXT,
                     email TEXT,
@@ -320,7 +320,7 @@ def upgrade_database(verbose=False):
                 cursor.execute(f"""
                 CREATE TABLE {DB_SCHEMA}.chatbot_config (
                     config_id SERIAL PRIMARY KEY,
-                    chatbot_id TEXT UNIQUE REFERENCES companies(chatbot_id),
+                    chatbot_id TEXT UNIQUE REFERENCES {DB_SCHEMA}.companies(chatbot_id),
                     chat_model TEXT DEFAULT 'gpt-4o',
                     temperature NUMERIC(3,2) DEFAULT 0.7,
                     max_tokens INTEGER DEFAULT 500,
@@ -361,10 +361,38 @@ def upgrade_database(verbose=False):
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     content TEXT,
                     vectors_count INTEGER,
-                    FOREIGN KEY (chatbot_id) REFERENCES companies(chatbot_id)
+                    FOREIGN KEY (chatbot_id) REFERENCES {DB_SCHEMA}.companies(chatbot_id)
                 )
                 """)
-                
+            
+            # Check if companies_backup table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'companies_backup'
+            )
+            """)
+            backup_table_exists = cursor.fetchone()[0]
+            
+            if not backup_table_exists:
+                # Create the companies_backup table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating companies_backup table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.companies_backup (
+                    chatbot_id TEXT PRIMARY KEY,
+                    company_url TEXT NOT NULL,
+                    pinecone_host_url TEXT,
+                    pinecone_index TEXT,
+                    pinecone_namespace TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    scraped_text TEXT,
+                    processed_content TEXT,
+                    user_id TEXT
+                )
+                """)
         else:
             # SQLite handling
             # Create companies table if not exists
@@ -475,6 +503,22 @@ def upgrade_database(verbose=False):
             )
             ''')
             
+            # Create companies_backup table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS companies_backup (
+                chatbot_id TEXT PRIMARY KEY,
+                company_url TEXT NOT NULL,
+                pinecone_host_url TEXT,
+                pinecone_index TEXT,
+                pinecone_namespace TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                scraped_text TEXT,
+                processed_content TEXT,
+                user_id TEXT
+            )
+            ''')
+
             # Check if the old fields exist and migrate data if needed
             try:
                 cursor.execute("PRAGMA table_info(companies)")

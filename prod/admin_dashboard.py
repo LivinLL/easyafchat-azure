@@ -41,7 +41,7 @@ HTML = '''
     </style>
 </head>
 <body>
-    <div class="container mt-4">
+<div class="container mt-4">
         <h2>EasyAFChat Management Dashboard</h2>
         <div id="statusMessage" class="alert status-message"></div>
         
@@ -164,8 +164,8 @@ HTML = '''
                         <tr>
                             <th>ID</th>
                             <th>Email</th>
-                            <th>First Name</th>
-                            <th>Last Name</th>
+                            <th>Name</th>
+                            <th>Account Type</th>
                             <th>Company</th>
                             <th>Created At</th>
                             <th>Last Login</th>
@@ -199,6 +199,14 @@ HTML = '''
                                         <p><strong>Use case:</strong> When you need to "unclaim" all chatbots from users.</p>
                                         <button id="clearCompanyUsersBtn" class="btn btn-warning">
                                             <i class="bi bi-exclamation-triangle"></i> Clear All User IDs from Companies
+                                        </button>
+                                        
+                                        <hr class="my-3">
+                                        
+                                        <p>This will <strong>DROP and RECREATE</strong> the companies table with the correct schema.</p>
+                                        <p><strong>Warning:</strong> This will rebuild the companies table schema. Your data will be preserved, but this fixes any schema issues.</p>
+                                        <button id="cleanCompaniesTableBtn" class="btn btn-danger">
+                                            <i class="bi bi-exclamation-octagon"></i> Rebuild Companies Table
                                         </button>
                                     </div>
                                 </div>
@@ -250,31 +258,127 @@ HTML = '''
                 </div>
 
                 <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">Database Structure Inspector</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>This will generate a detailed report of your database structure, including tables, schemas, foreign keys, and sample data.</p>
-                            <button id="inspectDatabaseBtn" class="btn btn-info">
-                                <i class="bi bi-database-check"></i> Inspect Database Structure
-                            </button>
-                            
-                            <div id="databaseReportContainer" class="mt-3 d-none">
-                                <div class="card">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0">Database Inspection Report</h6>
-                                    </div>
-                                    <div class="card-body p-0">
-                                        <pre id="databaseReport" class="p-3 bg-light" style="max-height: 600px; overflow-y: auto; font-size: 12px; font-family: monospace; white-space: pre-wrap;"></pre>
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Database Structure Inspector</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>This will generate a detailed report of your database structure, including tables, schemas, foreign keys, and sample data.</p>
+                                <button id="inspectDatabaseBtn" class="btn btn-info">
+                                    <i class="bi bi-database-check"></i> Inspect Database Structure
+                                </button>
+                                
+                                <div id="databaseReportContainer" class="mt-3 d-none">
+                                    <div class="card">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0">Database Inspection Report</h6>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <pre id="databaseReport" class="p-3 bg-light" style="max-height: 600px; overflow-y: auto; font-size: 12px; font-family: monospace; white-space: pre-wrap;"></pre>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+
+                <!-- Table Truncation Tools -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0">Table Truncation Tools</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-warning">
+                                    <strong>Warning:</strong> These buttons will delete ALL records from their respective tables. This action cannot be undone!
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-header bg-danger">
+                                                <h6 class="mb-0 text-white">Companies Table</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Delete all company records.</p>
+                                                <button id="truncateCompaniesBtn" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Empty Companies Table
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-header bg-danger">
+                                                <h6 class="mb-0 text-white">Documents Table</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Delete all document records.</p>
+                                                <button id="truncateDocumentsBtn" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Empty Documents Table
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-header bg-danger">
+                                                <h6 class="mb-0 text-white">Leads Table</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Delete all lead records.</p>
+                                                <button id="truncateLeadsBtn" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Empty Leads Table
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-header bg-danger">
+                                                <h6 class="mb-0 text-white">Users Table</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Delete all user accounts.</p>
+                                                <button id="truncateUsersBtn" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Empty Users Table
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-header bg-danger">
+                                                <h6 class="mb-0 text-white">Chatbot Config Table</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p>Delete all chatbot configurations.</p>
+                                                <button id="truncateConfigBtn" class="btn btn-danger">
+                                                    <i class="bi bi-trash"></i> Empty Config Table
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <div id="truncateResultsAlert" class="alert d-none">
+                                        <!-- Truncation results will be displayed here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -593,12 +697,17 @@ HTML = '''
                         lastLogin = lastLogin.replace('T', ' ').substring(0, 19);
                     }
                     
+                    // Determine account type
+                    const accountType = user.is_google_account ? 
+                        '<span class="badge bg-primary">Google</span>' : 
+                        '<span class="badge bg-secondary">Regular</span>';
+                    
                     // Add row
                     usersTable.row.add([
                         user.user_id,
                         user.email,
-                        user.first_name || '-',
-                        user.last_name || '-',
+                        user.name || '-',
+                        accountType,
                         user.company_name || '-',
                         createdAt,
                         lastLogin || '-'
@@ -870,6 +979,109 @@ HTML = '''
                 inspectBtn.innerHTML = '<i class="bi bi-database-check"></i> Inspect Database Structure';
             }
         });
+
+        document.getElementById('cleanCompaniesTableBtn').addEventListener('click', async function() {
+            if (confirm('WARNING! This will rebuild the companies table schema. Your data will be preserved, but this is a significant operation that fixes schema issues. Continue?')) {
+                if (confirm('FINAL WARNING: The companies table will be dropped and recreated. Type "REBUILD" in the next prompt to proceed.')) {
+                    const confirmation = prompt('Type "REBUILD" to proceed with rebuilding the companies table:');
+                    
+                    if (confirmation === 'REBUILD') {
+                        try {
+                            const resultsDiv = document.getElementById('dbOperationResults');
+                            
+                            resultsDiv.className = 'alert alert-info';
+                            resultsDiv.innerHTML = 'Rebuilding companies table... This may take a moment.';
+                            resultsDiv.classList.remove('d-none');
+                            
+                            const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/clean-companies-table', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'}
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                resultsDiv.className = 'alert alert-success';
+                                resultsDiv.innerHTML = `<strong>Success!</strong> ${result.message}`;
+                            } else {
+                                resultsDiv.className = 'alert alert-danger';
+                                resultsDiv.innerHTML = `<strong>Error!</strong> ${result.message}`;
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            const resultsDiv = document.getElementById('dbOperationResults');
+                            resultsDiv.className = 'alert alert-danger';
+                            resultsDiv.innerHTML = `<strong>Error!</strong> Failed to execute operation: ${error.message}`;
+                            resultsDiv.classList.remove('d-none');
+                        }
+                    } else {
+                        alert('Operation cancelled.');
+                    }
+                }
+            }
+        });
+
+        // Helper function to handle table truncation
+        async function truncateTable(tableName) {
+            if (confirm(`⚠️ WARNING! This will DELETE ALL RECORDS from the ${tableName} table!\n\nThis action CANNOT be undone. Are you sure?`)) {
+                if (confirm(`FINAL WARNING: All ${tableName} data will be permanently lost.\nType "DELETE" in the next prompt to proceed.`)) {
+                    const confirmation = prompt(`Type "DELETE" to empty the ${tableName} table:`);
+                    
+                    if (confirmation === "DELETE") {
+                        try {
+                            const resultsAlert = document.getElementById('truncateResultsAlert');
+                            resultsAlert.className = 'alert alert-info';
+                            resultsAlert.innerHTML = `<strong>Processing:</strong> Emptying the ${tableName} table...`;
+                            resultsAlert.classList.remove('d-none');
+                            
+                            const response = await fetch(`/admin-dashboard-08x7z9y2-yoursecretword/truncate-table/${tableName}`, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'}
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                resultsAlert.className = 'alert alert-success';
+                                resultsAlert.innerHTML = `<strong>Success!</strong> ${result.message}`;
+                            } else {
+                                resultsAlert.className = 'alert alert-danger';
+                                resultsAlert.innerHTML = `<strong>Error!</strong> ${result.message}`;
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            const resultsAlert = document.getElementById('truncateResultsAlert');
+                            resultsAlert.className = 'alert alert-danger';
+                            resultsAlert.innerHTML = `<strong>Error!</strong> Failed to empty the ${tableName} table: ${error.message}`;
+                            resultsAlert.classList.remove('d-none');
+                        }
+                    } else {
+                        alert('Operation cancelled.');
+                    }
+                }
+            }
+        }
+
+        // Add event listeners for each truncate button
+        document.getElementById('truncateCompaniesBtn').addEventListener('click', function() {
+            truncateTable('companies');
+        });
+
+        document.getElementById('truncateDocumentsBtn').addEventListener('click', function() {
+            truncateTable('documents');
+        });
+
+        document.getElementById('truncateLeadsBtn').addEventListener('click', function() {
+            truncateTable('leads');
+        });
+
+        document.getElementById('truncateUsersBtn').addEventListener('click', function() {
+            truncateTable('users');
+        });
+
+        document.getElementById('truncateConfigBtn').addEventListener('click', function() {
+            truncateTable('chatbot_config');
+        });
     </script>
 </body>
 </html>
@@ -1099,6 +1311,150 @@ def clean_users_table():
     
     except Exception as e:
         print(f"Error cleaning users table: {e}")
+        return {
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }
+
+def clean_companies_table():
+    """Clean up the companies table and recreate it with the correct schema."""
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                # PostgreSQL cleanup
+                try:
+                    # Store existing data
+                    cursor.execute("""
+                        SELECT 
+                            chatbot_id, company_url, pinecone_host_url, pinecone_index, 
+                            pinecone_namespace, created_at, updated_at, scraped_text, 
+                            processed_content, user_id 
+                        FROM companies
+                    """)
+                    existing_data = cursor.fetchall()
+                    
+                    # Drop companies table if it exists
+                    cursor.execute("DROP TABLE IF EXISTS companies CASCADE")
+                    
+                    # Create companies table with TEXT user_id
+                    cursor.execute("""
+                    CREATE TABLE companies (
+                        chatbot_id TEXT PRIMARY KEY,
+                        company_url TEXT NOT NULL,
+                        pinecone_host_url TEXT,
+                        pinecone_index TEXT,
+                        pinecone_namespace TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        scraped_text TEXT,
+                        processed_content TEXT,
+                        user_id TEXT,
+                        FOREIGN KEY (user_id) REFERENCES users(user_id)
+                    )
+                    """)
+                    
+                    # Restore data with proper type conversion
+                    for row in existing_data:
+                        # If user_id is not NULL and not already a TEXT, convert it
+                        user_id = row[9]
+                        if user_id is not None and not isinstance(user_id, str):
+                            user_id = str(user_id)
+                            
+                        cursor.execute("""
+                            INSERT INTO companies (
+                                chatbot_id, company_url, pinecone_host_url, pinecone_index, 
+                                pinecone_namespace, created_at, updated_at, scraped_text, 
+                                processed_content, user_id
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            row[0], row[1], row[2], row[3], row[4], row[5], 
+                            row[6], row[7], row[8], user_id
+                        ))
+                    
+                    return {
+                        'success': True,
+                        'message': f"PostgreSQL companies table recreated successfully with {len(existing_data)} records restored"
+                    }
+                
+                except Exception as e:
+                    print(f"PostgreSQL Error: {e}")
+                    conn.rollback()
+                    return {
+                        'success': False,
+                        'message': f"PostgreSQL Error: {str(e)}"
+                    }
+            
+            else:
+                # SQLite cleanup
+                try:
+                    # Store existing data
+                    cursor.execute("""
+                        SELECT 
+                            chatbot_id, company_url, pinecone_host_url, pinecone_index, 
+                            pinecone_namespace, created_at, updated_at, scraped_text, 
+                            processed_content, user_id 
+                        FROM companies
+                    """)
+                    existing_data = cursor.fetchall()
+                    
+                    # Create a backup of the companies table first
+                    cursor.execute("CREATE TABLE IF NOT EXISTS companies_backup AS SELECT * FROM companies")
+                    
+                    # Drop companies table
+                    cursor.execute("DROP TABLE IF EXISTS companies")
+                    
+                    # Create new companies table with correct schema
+                    cursor.execute('''
+                    CREATE TABLE companies (
+                        chatbot_id TEXT PRIMARY KEY,
+                        company_url TEXT NOT NULL,
+                        pinecone_host_url TEXT,
+                        pinecone_index TEXT,
+                        pinecone_namespace TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        scraped_text TEXT,
+                        processed_content TEXT,
+                        user_id TEXT,
+                        FOREIGN KEY (user_id) REFERENCES users(user_id)
+                    )
+                    ''')
+                    
+                    # Restore data with proper type conversion
+                    for row in existing_data:
+                        # If user_id is not NULL and not already a TEXT, convert it
+                        user_id = row[9]
+                        if user_id is not None and not isinstance(user_id, str):
+                            user_id = str(user_id)
+                            
+                        cursor.execute("""
+                            INSERT INTO companies (
+                                chatbot_id, company_url, pinecone_host_url, pinecone_index, 
+                                pinecone_namespace, created_at, updated_at, scraped_text, 
+                                processed_content, user_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            row[0], row[1], row[2], row[3], row[4], row[5], 
+                            row[6], row[7], row[8], user_id
+                        ))
+                    
+                    return {
+                        'success': True,
+                        'message': f"SQLite companies table recreated successfully with {len(existing_data)} records restored"
+                    }
+                
+                except Exception as e:
+                    print(f"SQLite Error: {e}")
+                    conn.rollback()
+                    return {
+                        'success': False,
+                        'message': f"SQLite Error: {str(e)}"
+                    }
+    
+    except Exception as e:
+        print(f"Error cleaning companies table: {e}")
         return {
             'success': False,
             'message': f"Error: {str(e)}"
@@ -1740,6 +2096,12 @@ def rebuild_users_table():
     result = clean_users_table()
     return jsonify(result)
 
+@admin_dashboard.route('/clean-companies-table', methods=['POST'])
+def rebuild_companies_table():
+    """Rebuild the companies table with the correct schema."""
+    result = clean_companies_table()
+    return jsonify(result)
+
 @admin_dashboard.route('/inspect-database', methods=['POST'])
 def run_database_inspection():
     """Run the database inspection and return the report."""
@@ -1751,6 +2113,85 @@ def run_database_inspection():
         })
     except Exception as e:
         print(f"Error inspecting database: {e}")
+        return jsonify({
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }), 500
+
+@admin_dashboard.route('/truncate-table/<table_name>', methods=['POST'])
+def truncate_table(table_name):
+    """
+    Delete all records from the specified table.
+    """
+    allowed_tables = ['companies', 'documents', 'leads', 'users', 'chatbot_config']
+    
+    if table_name not in allowed_tables:
+        return jsonify({
+            'success': False,
+            'message': f"Invalid table name: {table_name}"
+        }), 400
+    
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Start transaction
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('BEGIN')
+            
+            # Get record count first
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            
+            # Delete all records
+            cursor.execute(f"DELETE FROM {table_name}")
+            
+            # For SQLite, we need to reset the auto-increment counter for tables with INTEGER PRIMARY KEY
+            if os.getenv('DB_TYPE', '').lower() != 'postgresql':
+                # Check if table has an autoincrement primary key
+                if table_name in ['leads']:  # Add other tables with autoincrement as needed
+                    cursor.execute(f"DELETE FROM sqlite_sequence WHERE name='{table_name}'")
+            
+            # Commit transaction
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('COMMIT')
+            
+            # If this is the companies table, also clean up Pinecone
+            if table_name == 'companies':
+                try:
+                    # Get all namespaces from another query connection to avoid transaction issues
+                    namespaces = []
+                    with connect_to_db() as namespace_conn:
+                        namespace_cursor = namespace_conn.cursor()
+                        namespace_cursor.execute("SELECT pinecone_namespace FROM companies_backup WHERE pinecone_namespace IS NOT NULL")
+                        namespaces = [row[0] for row in namespace_cursor.fetchall()]
+                    
+                    # Delete vectors from Pinecone for each namespace
+                    index = pinecone_client.Index(PINECONE_INDEX)
+                    for namespace in namespaces:
+                        if namespace:
+                            try:
+                                index.delete(delete_all=True, namespace=namespace)
+                                print(f"Deleted all vectors for namespace: {namespace}")
+                            except Exception as e:
+                                print(f"Warning: Error deleting Pinecone vectors for namespace {namespace}: {e}")
+                except Exception as e:
+                    print(f"Warning: Error cleaning up Pinecone: {e}")
+            
+            return jsonify({
+                'success': True,
+                'message': f"Successfully deleted {count} records from the {table_name} table."
+            })
+            
+    except Exception as e:
+        print(f"Error truncating table {table_name}: {e}")
+        # Try to rollback if possible
+        try:
+            if conn and os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('ROLLBACK')
+        except:
+            pass
+            
         return jsonify({
             'success': False,
             'message': f"Error: {str(e)}"

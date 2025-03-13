@@ -118,7 +118,13 @@
                         </form>
                         
                         <div class="text-center mt-3">
-                            <p>Don't have an account? <a href="{{ url_for('auth.signup') }}">Sign Up</a></p>
+                            <p>Don't have an account? 
+                                {% if chatbot_id %}
+                                <a href="{{ url_for('auth.signup', chatbot_id=chatbot_id) }}">Sign Up</a>
+                                {% else %}
+                                <a href="{{ url_for('auth.signup') }}">Sign Up</a>
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
                 </div>
