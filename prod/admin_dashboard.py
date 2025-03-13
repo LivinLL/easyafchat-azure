@@ -1183,74 +1183,30 @@ def clean_users_table():
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 # PostgreSQL cleanup
                 try:
-                    # First, check the data type of user_id in the companies table
-                    cursor.execute("""
-                        SELECT data_type 
-                        FROM information_schema.columns 
-                        WHERE table_schema = %s 
-                        AND table_name = 'companies' 
-                        AND column_name = 'user_id'
-                    """, (os.getenv('DB_SCHEMA', 'easychat'),))
-                    
-                    company_user_id_type = cursor.fetchone()
-                    user_id_type = "TEXT"  # Default type for new users table
-                    
-                    if company_user_id_type and company_user_id_type[0].upper() == 'INTEGER':
-                        # If companies.user_id is INTEGER, we need to make users.user_id INTEGER too
-                        user_id_type = "INTEGER"
-                    
                     # Drop users table if it exists
                     cursor.execute("DROP TABLE IF EXISTS users CASCADE")
                     
-                    # Create users table with appropriate user_id type
-                    if user_id_type == "INTEGER":
-                        cursor.execute("""
-                        CREATE TABLE users (
-                            user_id INTEGER PRIMARY KEY,
-                            email TEXT UNIQUE NOT NULL,
-                            password_hash TEXT,
-                            is_google_account BOOLEAN DEFAULT FALSE,
-                            google_id TEXT UNIQUE,
-                            name TEXT,
-                            company_name TEXT,
-                            reset_token TEXT,
-                            reset_token_created_at TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        )
-                        """)
-                    else:
-                        cursor.execute("""
-                        CREATE TABLE users (
-                            user_id TEXT PRIMARY KEY,
-                            email TEXT UNIQUE NOT NULL,
-                            password_hash TEXT,
-                            is_google_account BOOLEAN DEFAULT FALSE,
-                            google_id TEXT UNIQUE,
-                            name TEXT,
-                            company_name TEXT,
-                            reset_token TEXT,
-                            reset_token_created_at TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        )
-                        """)
-                    
-                    # Update foreign key constraint in companies table
+                    # Create users table with TEXT id (not INTEGER)
                     cursor.execute("""
-                    ALTER TABLE companies 
-                    DROP CONSTRAINT IF EXISTS companies_user_id_fkey;
-                    """)
-                    
-                    cursor.execute("""
-                    ALTER TABLE companies 
-                    ADD CONSTRAINT companies_user_id_fkey 
-                    FOREIGN KEY (user_id) REFERENCES users(user_id);
+                    CREATE TABLE users (
+                        user_id TEXT PRIMARY KEY,
+                        email TEXT UNIQUE NOT NULL,
+                        password_hash TEXT,
+                        is_google_account BOOLEAN DEFAULT FALSE,
+                        google_id TEXT UNIQUE,
+                        name TEXT,
+                        company_name TEXT,
+                        reset_token TEXT,
+                        reset_token_created_at TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_login TIMESTAMP
+                    )
                     """)
                     
                     return {
                         'success': True,
-                        'message': f"PostgreSQL users table recreated successfully with user_id type: {user_id_type}"
+                        'message': "PostgreSQL users table recreated successfully with TEXT user_id"
                     }
                 
                 except Exception as e:
@@ -1274,7 +1230,7 @@ def clean_users_table():
                     if cursor.fetchone():
                         cursor.execute("DROP TABLE users")
                     
-                    # Create new users table with correct schema
+                    # Create new users table with TEXT id (not INTEGER)
                     cursor.execute('''
                     CREATE TABLE users (
                         user_id TEXT PRIMARY KEY,
@@ -1287,18 +1243,14 @@ def clean_users_table():
                         reset_token TEXT,
                         reset_token_created_at DATETIME,
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        last_login DATETIME
                     )
                     ''')
                     
-                    # Check if temporary tables exist and drop them
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users_temp'")
-                    if cursor.fetchone():
-                        cursor.execute("DROP TABLE users_temp")
-                    
                     return {
                         'success': True,
-                        'message': "SQLite users table recreated successfully"
+                        'message': "SQLite users table recreated successfully with TEXT user_id"
                     }
                 
                 except Exception as e:
