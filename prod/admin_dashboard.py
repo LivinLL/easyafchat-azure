@@ -2175,20 +2175,22 @@ def nuclear_reset(id):
         # Store company info for potential re-use
         company_url = None
         namespace = None
+        user_id = None
         
         with connect_to_db() as conn:
             cursor = conn.cursor()
             
             # First get the company info before deleting
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                cursor.execute('SELECT company_url, pinecone_namespace FROM companies WHERE chatbot_id = %s', (id,))
+                cursor.execute('SELECT company_url, pinecone_namespace, user_id FROM companies WHERE chatbot_id = %s', (id,))
             else:
-                cursor.execute('SELECT company_url, pinecone_namespace FROM companies WHERE chatbot_id = ?', (id,))
+                cursor.execute('SELECT company_url, pinecone_namespace, user_id FROM companies WHERE chatbot_id = ?', (id,))
                 
             company_info = cursor.fetchone()
             if company_info:
                 company_url = company_info[0]
                 namespace = company_info[1]
+                user_id = company_info[2]
                 
             # START TRANSACTION - important for consistency
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
@@ -2212,46 +2214,30 @@ def nuclear_reset(id):
             else:
                 cursor.execute('DELETE FROM chatbot_config WHERE chatbot_id = ?', (id,))
             
-            # 4. Find any users who ONLY have this chatbot
-            # (if you want to keep users who have multiple chatbots, you can skip this part)
-            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                # Find user_id for this chatbot
-                cursor.execute('SELECT user_id FROM companies WHERE chatbot_id = %s', (id,))
-                user_row = cursor.fetchone()
-                
-                if user_row and user_row[0]:  # If there's a user associated
-                    user_id = user_row[0]
-                    
-                    # Check if this user has other chatbots
-                    cursor.execute('SELECT COUNT(*) FROM companies WHERE user_id = %s AND chatbot_id != %s', 
-                                 (user_id, id))
-                    other_chatbots = cursor.fetchone()[0]
-                    
-                    if other_chatbots == 0:
-                        # User only has this chatbot, so delete the user
-                        cursor.execute('DELETE FROM users WHERE user_id = %s', (user_id,))
-            else:
-                # Do the same for SQLite
-                cursor.execute('SELECT user_id FROM companies WHERE chatbot_id = ?', (id,))
-                user_row = cursor.fetchone()
-                
-                if user_row and user_row[0]:  # If there's a user associated
-                    user_id = user_row[0]
-                    
-                    # Check if this user has other chatbots
-                    cursor.execute('SELECT COUNT(*) FROM companies WHERE user_id = ? AND chatbot_id != ?', 
-                                 (user_id, id))
-                    other_chatbots = cursor.fetchone()[0]
-                    
-                    if other_chatbots == 0:
-                        # User only has this chatbot, so delete the user
-                        cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
-            
-            # 5. Finally delete the company record
+            # 4. Remove the company record first (break the foreign key relationship)
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('DELETE FROM companies WHERE chatbot_id = %s', (id,))
             else:
                 cursor.execute('DELETE FROM companies WHERE chatbot_id = ?', (id,))
+            
+            # 5. Now see if we need to delete the user (if they don't have any other chatbots)
+            if user_id:
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    # Check if this user has other chatbots
+                    cursor.execute('SELECT COUNT(*) FROM companies WHERE user_id = %s', (user_id,))
+                    other_chatbots = cursor.fetchone()[0]
+                    
+                    if other_chatbots == 0:
+                        # User has no other chatbots, so delete the user
+                        cursor.execute('DELETE FROM users WHERE user_id = %s', (user_id,))
+                else:
+                    # Do the same for SQLite
+                    cursor.execute('SELECT COUNT(*) FROM companies WHERE user_id = ?', (user_id,))
+                    other_chatbots = cursor.fetchone()[0]
+                    
+                    if other_chatbots == 0:
+                        # User has no other chatbots, so delete the user
+                        cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
             
             # COMMIT TRANSACTION
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
