@@ -25,12 +25,10 @@
         vector_cache.py
         database.py
         app.py
-        clean_db_users_table_azure.py
-        clean_db_companies_table.py
-        clean_db_users_table.py
         nuclear_reset_test.py
         db_chk.py
         db_chk_results.txt
+        app_utils.py
         static/
             css/
                 style.css
@@ -54,6 +52,7 @@
             js/
                 script.js
                 chatbot-embed.js
+                chatbot-embed-support.js
         templates/
             chat_test.html
             chat_manual.html
@@ -72,13 +71,18 @@
             main_easyafchat-v3-backup.yml
             app-screenshotone-version.py
             documents_blueprint.py
-            admin_dashboard.py
             chat_handler.py
             chatbot-embed.js
             03-11-2025-overview.txt
             google_client_secret_1081215761675-vuqqiig0hnndrh6lqgdj1olgjq11q471.apps.googleusercontent.com.json
             app_has_thum.py
             app.py
+            dashboard.js
+            dashboard-support-chat.js
+            clean_db_companies_table.py
+            clean_db_users_table_azure.py
+            clean_db_users_table.py
+            admin_dashboard.py
         marketing/
             info.txt
         auth/
@@ -88,8 +92,9 @@
             routes.py
         flask_session/
             b490fc6ca3292e938b406ed0b04c217e
-            712530d4ab168484b79684eca7680489
+            e57b7f6daef3ca7f54ede5d989de76da
             7e0987edc0ba66889b59e52a170f7280
+            fb5f5e03bd69ce8c71d7552174f67eb2
             2029240f6d1128be89ddc32729463129
     .github/
         workflows/

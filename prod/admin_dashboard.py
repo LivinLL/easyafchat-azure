@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template_string, request, jsonify, Response, render_template
 import os
-from datetime import datetime
+from datetime import datetime, UTC
 import csv
 import io
 import uuid
@@ -10,6 +10,20 @@ from database import connect_to_db
 
 # Import document handler
 from documents_handler import DocumentsHandler
+
+# Needed for the new manual add route
+from flask import request
+
+# Import from app_utils.py
+from app_utils import (
+    generate_chatbot_id, 
+    check_namespace, 
+    chunk_text, 
+    get_existing_record,
+    process_simple_content
+)
+
+PINECONE_HOST = "https://all-companies-6ctd3g7.svc.aped-4627-b74a.pinecone.io"
 
 # Import shared OpenAI and Pinecone clients from the main app
 # This will be filled in when the blueprint is registered
@@ -256,6 +270,131 @@ HTML = '''
                         </div>
                     </div>
                 </div>
+
+                <!-- Manually Add a New Company -->
+                <!-- This feature uses the add_manual_company() function from app_utils.py to handle the core logic of adding new companies.
+                    The form below collects data that is sent to the /manual-add-company route, which then calls the utility function. -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">Manual Company/Chatbot Addition</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="manualCompanyAddForm">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="websiteUrl" class="form-label">Website URL <span class="text-danger">*</span></label>
+                                            <input type="url" class="form-control" id="websiteUrl" name="website_url" required 
+                                                placeholder="https://example.com" pattern="https?://.*">
+                                            <div class="form-text">Full URL of the website</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="skipOpenaiProcessing" class="form-label">Skip OpenAI Processing?</label>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="skipOpenaiProcessing" name="skip_openai_processing">
+                                                <label class="form-check-label" for="skipOpenaiProcessing">
+                                                    Provide pre-processed content
+                                                </label>
+                                            </div>
+                                            <div class="form-text">If checked, you must provide processed content below</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="scrapedText" class="form-label">Scraped Text <span class="text-danger">*</span></label>
+                                        <textarea class="form-control" id="scrapedText" name="scraped_text" rows="6" required 
+                                                placeholder="Paste the raw text scraped from the website"></textarea>
+                                        <div class="form-text">Raw text content from the website. This will be processed by OpenAI unless skipped.</div>
+                                    </div>
+
+                                    <div id="processedContentGroup" class="mb-3" style="display:none;">
+                                        <label for="processedContent" class="form-label">Processed Content</label>
+                                        <textarea class="form-control" id="processedContent" name="processed_content" rows="6"
+                                                placeholder="Paste pre-processed content if skipping OpenAI processing"></textarea>
+                                        <div class="form-text">Required when skipping OpenAI processing</div>
+                                    </div>
+
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-plus-circle"></i> Add Company/Chatbot
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <div id="manualAddResults" class="mt-3">
+                                    <!-- Results or error messages will be displayed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const skipProcessingCheckbox = document.getElementById('skipOpenaiProcessing');
+                    const processedContentGroup = document.getElementById('processedContentGroup');
+                    const processedContentInput = document.getElementById('processedContent');
+                    const manualCompanyAddForm = document.getElementById('manualCompanyAddForm');
+                    const resultsDiv = document.getElementById('manualAddResults');
+
+                    // Toggle processed content visibility based on checkbox
+                    skipProcessingCheckbox.addEventListener('change', function() {
+                        processedContentGroup.style.display = this.checked ? 'block' : 'none';
+                        processedContentInput.required = this.checked;
+                    });
+
+                    // Form submission handler
+                    manualCompanyAddForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        
+                        // Create FormData object
+                        const formData = new FormData(manualCompanyAddForm);
+                        
+                        // Show loading state
+                        resultsDiv.innerHTML = `
+                            <div class="alert alert-info">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Processing... Please wait.
+                            </div>
+                        `;
+
+                        // Send AJAX request
+                        fetch('/admin-dashboard-08x7z9y2-yoursecretword/manual-add-company', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                resultsDiv.innerHTML = `
+                                    <div class="alert alert-success">
+                                        <strong>Success!</strong> 
+                                        Company added. Chatbot ID: ${data.chatbot_id}<br>
+                                        Namespace: ${data.namespace}<br>
+                                        Website: ${data.website_url}
+                                    </div>
+                                `;
+                                // Optional: Reload companies table or perform other actions
+                                loadCompanies(); // Assuming you have a function to reload companies
+                            } else {
+                                resultsDiv.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <strong>Error!</strong> ${data.error}
+                                    </div>
+                                `;
+                            }
+                        })
+                        .catch(error => {
+                            resultsDiv.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <strong>Network Error!</strong> ${error.message}
+                                </div>
+                            `;
+                        });
+                    });
+                });
+                </script>
 
                 <div class="row mt-4">
                     <div class="col-12">
@@ -1082,29 +1221,15 @@ HTML = '''
         document.getElementById('truncateConfigBtn').addEventListener('click', function() {
             truncateTable('chatbot_config');
         });
+
+        function loadCompanies() {
+            // Reload the page to refresh the companies table
+            location.reload();
+        }
     </script>
 </body>
 </html>
 '''
-
-def chunk_text(text, chunk_size=500):
-    words = text.split()
-    chunks = []
-    current_chunk = []
-    current_size = 0
-    
-    for word in words:
-        current_size += len(word) + 1
-        if current_size > chunk_size:
-            chunks.append(' '.join(current_chunk))
-            current_chunk = [word]
-            current_size = len(word)
-        else:
-            current_chunk.append(word)
-            
-    if current_chunk:
-        chunks.append(' '.join(current_chunk))
-    return chunks
 
 def get_embeddings(text_chunks):
     embeddings = []
@@ -1115,23 +1240,6 @@ def get_embeddings(text_chunks):
         )
         embeddings.append(response.data[0].embedding)
     return embeddings
-
-def update_pinecone_index(namespace, text_chunks, embeddings):
-    try:
-        index = pinecone_client.Index(PINECONE_INDEX)
-        
-        # First, delete all vectors in the namespace
-        index.delete(delete_all=True, namespace=namespace)
-        
-        vectors = [
-            (f"{namespace}-{i}", embedding, {"text": chunk})
-            for i, (chunk, embedding) in enumerate(zip(text_chunks, embeddings))
-        ]
-        index.upsert(vectors=vectors, namespace=namespace)
-        return True
-    except Exception as e:
-        print(f"Error updating Pinecone: {e}")
-        return False
 
 def clear_user_id_from_companies():
     """Clear all user_id values in the companies table."""
@@ -2274,3 +2382,46 @@ def nuclear_reset(id):
             'success': False, 
             'error': str(e)
         }), 500
+    
+# Add the manual company addition route
+@admin_dashboard.route('/manual-add-company', methods=['POST'])
+def manual_add_company():
+    """
+    Manually add a new company/chatbot to the system.
+    This route handler uses the add_manual_company utility function.
+    """
+    try:
+        # Extract form data
+        website_url = request.form.get('website_url')
+        scraped_text = request.form.get('scraped_text')
+        skip_openai_processing = request.form.get('skip_openai_processing') == 'on'
+        processed_content = request.form.get('processed_content', '')
+
+        # Call the utility function from app_utils
+        from app_utils import add_manual_company
+        
+        result = add_manual_company(
+            website_url=website_url,
+            scraped_text=scraped_text,
+            skip_openai_processing=skip_openai_processing,
+            processed_content=processed_content,
+            openai_client=openai_client,
+            pinecone_client=pinecone_client,
+            pinecone_index=PINECONE_INDEX,
+            pinecone_host=PINECONE_HOST
+        )
+        
+        # Return the result with appropriate status code
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        # Catch any unexpected errors
+        print(f"Unexpected error in manual company addition route: {e}")
+        return jsonify({
+            'success': False, 
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
+
