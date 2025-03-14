@@ -95,10 +95,9 @@ def signin():
                                     )
                                 conn.commit()
                                 flash('Chatbot claimed successfully!', 'success')
-                        
-                        return redirect(url_for('dashboard'))
                     
-                    return redirect(url_for('home'))
+                    # Always redirect to dashboard after successful login
+                    return redirect(url_for('dashboard'))
                 else:
                     flash('Invalid email or password', 'error')
             else:
@@ -410,9 +409,9 @@ def google_callback():
                 
                 # Clear chatbot_id from session
                 session.pop('chatbot_id', None)
-                return redirect(url_for('dashboard'))
             
-            return redirect(url_for('home'))
+            # Always redirect to dashboard after successful authentication
+            return redirect(url_for('dashboard'))
             
         except (sqlite3.Error, psycopg2.Error) as e:
             conn.rollback()

@@ -3,197 +3,456 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Dashboard - EasyAFChat</title>
+    <title>Dashboard - EasyAFChat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        .dashboard-container {
-            max-width: 1200px;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        /* Header and Navigation */
+        header {
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 30px 20px;
+            height: 70px;
         }
-        .welcome-section {
-            text-align: center;
-            margin-bottom: 40px;
+
+        .logo {
+            margin-right: 40px;
         }
-        .welcome-section h1 {
-            font-size: 32px;
-            margin-bottom: 10px;
+
+        .logo img {
+            height: 40px;
         }
-        .welcome-section p {
-            font-size: 18px;
-            color: #666;
+
+        .nav-container {
+            display: flex;
+            flex-grow: 1;
+            justify-content: space-between;
         }
-        .chatbot-list {
-            margin-top: 30px;
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
         }
-        .chatbot-card {
+
+        .nav-links li {
+            position: relative;
+            margin: 0 5px;
+        }
+
+        .nav-links a {
+            display: block;
+            color: #333;
+            text-decoration: none;
+            padding: 10px 20px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #0084ff;
+        }
+
+        .nav-links a.active {
+            color: #0084ff;
+            border-bottom: 3px solid #0084ff;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: white;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 1;
+            border-radius: 4px;
+        }
+
+        .dropdown-content a {
+            padding: 12px 20px;
+            display: block;
+            color: #333;
+            text-decoration: none;
+            font-weight: normal;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f5f5f5;
+        }
+
+        .nav-links li:hover .dropdown-content {
+            display: block;
+        }
+
+        /* Main Content Area */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Page Content */
+        .page-content {
+            display: none;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-height: 600px;
             padding: 20px;
+        }
+
+        .page-content.active {
+            display: block;
+        }
+
+        /* Playground Header */
+        .playground-header {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
         }
-        .chatbot-card h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: #333;
+
+        .playground-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 500;
+            margin-right: 20px;
+            display: flex;
+            align-items: center;
         }
-        .chatbot-card p {
-            margin-bottom: 15px;
+
+        .info-icon {
+            margin-left: 8px;
             color: #666;
+            cursor: pointer;
+            font-size: 18px;
         }
-        .chatbot-card .created-date {
-            font-size: 14px;
-            color: #999;
-            margin-bottom: 15px;
+
+        /* Bot Selector */
+        .bot-dropdown {
+            position: relative;
         }
-        .chatbot-actions {
-            margin-top: auto;
-            display: flex;
-            gap: 10px;
-        }
-        .btn {
-            display: inline-block;
-            padding: 8px 16px;
+
+        .bot-dropdown-button {
+            background-color: white;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            text-align: center;
+            padding: 8px 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
         }
-        .btn-primary {
+
+        .bot-dropdown-button:after {
+            content: '▼';
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .bot-dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 250px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 10;
+            border-radius: 4px;
+            top: 100%;
+            left: 0;
+        }
+
+        .bot-dropdown-content a {
+            padding: 12px 20px;
+            display: block;
+            color: #333;
+            text-decoration: none;
+        }
+
+        .bot-dropdown-content a:hover {
+            background-color: #f5f5f5;
+        }
+
+        .bot-dropdown:hover .bot-dropdown-content {
+            display: block;
+        }
+
+        /* Playground Content */
+        .playground-container {
+            width: 100%;
+            height: 700px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            background-image: radial-gradient(circle, #e0e0e0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Connect Page */
+        .connect-container {
+            padding: 30px;
+        }
+
+        .connect-container h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .code-box {
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .code-box pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
             background-color: #0084ff;
             color: white;
             border: none;
+            border-radius: 4px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-weight: bold;
         }
-        .btn-secondary {
-            background-color: #f8f9fa;
-            color: #333;
-            border: 1px solid #ddd;
-        }
-        .btn-primary:hover {
+
+        .copy-btn:hover {
             background-color: #0073e6;
         }
-        .btn-secondary:hover {
-            background-color: #e9ecef;
-        }
-        .empty-state {
+
+        /* Placeholder Pages */
+        .placeholder-content {
+            padding: 40px;
             text-align: center;
-            padding: 60px 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-        }
-        .empty-state h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-        .empty-state p {
-            margin-bottom: 25px;
             color: #666;
         }
-        .create-new {
-            margin-top: 30px;
-            text-align: center;
+        
+        /* Custom chat styles for the playground */
+        #customer-chatbot .daves-chat-window {
+            position: relative !important;
+            bottom: auto !important;
+            right: auto !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            border-radius: 8px !important;
+            display: block !important;
         }
-        .create-new a {
-            display: inline-block;
-            background-color: #0084ff;
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-            padding: 12px 30px;
-            border-radius: 5px;
-            text-decoration: none;
-            transition: background-color 0.3s;
+        
+        #customer-chatbot .daves-chat-bubble {
+            display: none !important;
         }
-        .create-new a:hover {
-            background-color: #0073e6;
+        
+        /* Support chat bubble iframe container */
+        #support-chat-container {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            z-index: 1000;
+            width: 100px;
+            height: 100px;
         }
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
+        
+        /* Hide the customer chatbot bubble */
+        #playground-container .daves-chat-bubble {
+            display: none !important;
+        }
+        
+        #playground-container .daves-chat-window {
+            display: flex !important;
+            position: relative !important;
+            bottom: auto !important;
+            right: auto !important;
+            width: 475px !important;  
+            height: 475px !important; /* Fixed height for better proportions */
+            max-height: 650px !important; /* Match fixed height */
+            border-radius: 8px !important;
+            margin: 0 auto !important; /* Center the chat window */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important; /* Add subtle shadow */
+            background-color: white !important; /* Ensure white background */
+        }
+
+        /* Add responsive behavior for mobile devices */
+        @media (max-width: 768px) {
+            #playground-container .daves-chat-window {
+                width: 95% !important; /* Use more width on mobile */
+                height: 600px !important; /* Slightly smaller height on mobile */
+                max-height: 600px !important;
+            }
         }
     </style>
 </head>
 <body>
     <header>
-        <nav>
+        <div class="header-container">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="EasyAF Logo">
+            </div>
             <div class="nav-container">
-                <div class="logo">
-                    <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="EasyAF Logo">
-                </div>
                 <ul class="nav-links">
-                    <li><a href="/">Home</a></li>
-                    <li><a href="#features">Features</a></li>
-                    <li><a href="#pricing">Pricing</a></li>
-                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="javascript:void(0);" class="active" onclick="openPage('playground')">Playground</a></li>
+                    <li><a href="javascript:void(0);" onclick="openPage('connect')">Connect</a></li>
+                    <li><a href="javascript:void(0);" onclick="openPage('sources')">Sources</a></li>
+                    <li><a href="javascript:void(0);" onclick="openPage('chat-logs')">Chat Logs</a></li>
+                    <li><a href="javascript:void(0);" onclick="openPage('leads')">Leads</a></li>
+                    <li>
+                        <a href="javascript:void(0);" onclick="openPage('settings')">Settings</a>
+                        <div class="dropdown-content">
+                            <a href="javascript:void(0);">Profile</a>
+                            <a href="javascript:void(0);">Billing</a>
+                            <a href="javascript:void(0);">API Keys</a>
+                            <a href="javascript:void(0);">Team</a>
+                        </div>
+                    </li>
+                </ul>
+                <ul class="nav-links">
                     <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
                 </ul>
             </div>
-        </nav>
+        </div>
     </header>
 
-    <main>
-        <div class="dashboard-container">
-            <div class="welcome-section">
-                <h1>Welcome, {{ user_name }}!</h1>
-                <p>Manage your AI chatbots from this dashboard.</p>
-            </div>
-            
-            <div class="chatbot-list">
-                <h2>Your Chatbots</h2>
-                
-                {% if chatbots|length > 0 %}
-                    <div class="grid-container">
-                    {% for chatbot in chatbots %}
-                        <div class="chatbot-card">
-                            <h3>{{ chatbot.company_url }}</h3>
-                            <div class="created-date">Created on {{ chatbot.created_at.strftime('%B %d, %Y') if chatbot.created_at else 'Unknown date' }}</div>
-                            <p>Chatbot ID: {{ chatbot.chatbot_id }}</p>
-                            
-                            <div class="chatbot-actions">
-                                <a href="{{ url_for('demo', session_id=chatbot.chatbot_id) }}" class="btn btn-primary">View Demo</a>
-                                <a href="#" class="btn btn-secondary" onclick="copyEmbedCode('{{ chatbot.chatbot_id }}')">Copy Embed Code</a>
-                            </div>
-                        </div>
-                    {% endfor %}
+    <main class="dashboard-container">
+        <!-- Playground Page -->
+        <div id="playground" class="page-content active">
+            <div class="playground-header">
+                <h1>
+                    Playground
+                    <span class="info-icon" title="Test and interact with your chatbot">ⓘ</span>
+                </h1>
+                <div class="bot-dropdown">
+                    <div class="bot-dropdown-button">
+                        <span id="selected-bot-name">
+                            {% if chatbots|length > 0 %}
+                                {{ chatbots[0].company_url }}
+                            {% else %}
+                                No chatbots available
+                            {% endif %}
+                        </span>
                     </div>
-                {% else %}
-                    <div class="empty-state">
-                        <h3>You don't have any chatbots yet</h3>
-                        <p>Create your first AI chatbot by entering a website URL below.</p>
+                    <div class="bot-dropdown-content">
+                        {% for chatbot in chatbots %}
+                            <a href="javascript:void(0);" onclick="selectBot('{{ chatbot.chatbot_id }}', '{{ chatbot.company_url }}')">{{ chatbot.company_url }}</a>
+                        {% endfor %}
                     </div>
-                {% endif %}
-                
-                <div class="create-new">
-                    <a href="/">Create New Chatbot</a>
                 </div>
+            </div>
+
+            <div id="playground-container" class="playground-container">
+                <!-- Customer's chatbot will be loaded here -->
+                <div id="customer-chatbot"></div>
+            </div>
+        </div>
+
+        <!-- Connect Page -->
+        <div id="connect" class="page-content">
+            <div class="connect-container">
+                <h2>Embed Your Chatbot</h2>
+                <p>Copy the code below and paste it into your website's HTML to embed your chatbot:</p>
+                
+                <div class="code-box">
+                    <pre><code id="embed-code">
+&lt;script&gt;
+window.davesEasyChatConfig = {
+    chatbotId: "{% if chatbots|length > 0 %}{{ chatbots[0].chatbot_id }}{% else %}YOUR_CHATBOT_ID{% endif %}"
+};
+&lt;/script&gt;
+&lt;script src="{{ request.url_root }}static/js/chatbot-embed.js"&gt;&lt;/script&gt;
+                    </code></pre>
+                    <button class="copy-btn" onclick="copyEmbedCode()">Copy</button>
+                </div>
+                
+                <h3>Installation Instructions</h3>
+                <p>1. Copy the code above by clicking the "Copy" button</p>
+                <p>2. Paste the code into your website's HTML, just before the closing &lt;/body&gt; tag</p>
+                <p>3. Save your changes and reload your website to see your chatbot in action</p>
+            </div>
+        </div>
+
+        <!-- Sources Page -->
+        <div id="sources" class="page-content">
+            <div class="placeholder-content">
+                <h2>Sources</h2>
+                <p>This is where you'll manage your chatbot's knowledge sources.</p>
+            </div>
+        </div>
+
+        <!-- Chat Logs Page -->
+        <div id="chat-logs" class="page-content">
+            <div class="placeholder-content">
+                <h2>Chat Logs</h2>
+                <p>View your chatbot's conversation history here.</p>
+            </div>
+        </div>
+
+        <!-- Leads Page -->
+        <div id="leads" class="page-content">
+            <div class="placeholder-content">
+                <h2>Leads</h2>
+                <p>Manage leads captured by your chatbot.</p>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings" class="page-content">
+            <div class="placeholder-content">
+                <h2>Settings</h2>
+                <p>Configure your account and chatbot settings.</p>
             </div>
         </div>
     </main>
 
-    <footer>
-        <div class="footer-container">
-            <ul class="footer-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#pricing">Pricing</a></li>
-                <li><a href="#contact">Contact</a></li>
-            </ul>
-        </div>
-    </footer>
-
     <script>
-        function copyEmbedCode(chatbotId) {
-            const embedCode = `<script>
-window.davesEasyChatConfig = {
-    chatbotId: "${chatbotId}"
-};
-<\/script>
-<script src="${window.location.origin}/static/js/chatbot-embed.js"><\/script>`;
+        // Page navigation
+        function openPage(pageId) {
+            // Hide all pages
+            const pages = document.querySelectorAll('.page-content');
+            pages.forEach(page => {
+                page.classList.remove('active');
+            });
             
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
+            
+            // Update active nav link
+            const navLinks = document.querySelectorAll('.nav-links > li > a');
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(pageId)) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        
+        // Copy embed code
+        function copyEmbedCode() {
+            const embedCode = document.getElementById('embed-code').innerText;
             navigator.clipboard.writeText(embedCode).then(() => {
                 alert('Embed code copied to clipboard!');
             }).catch(err => {
@@ -201,6 +460,124 @@ window.davesEasyChatConfig = {
                 alert('Failed to copy embed code. Please try again.');
             });
         }
+        
+        // Bot selection
+        function selectBot(chatbotId, companyUrl) {
+            document.getElementById('selected-bot-name').textContent = companyUrl;
+            
+            // Update embed code
+            const embedCodeElement = document.getElementById('embed-code');
+            if (embedCodeElement) {
+                embedCodeElement.innerHTML = 
+                    '&lt;script&gt;\n' +
+                    'window.davesEasyChatConfig = {\n' +
+                    '    chatbotId: "' + chatbotId + '"\n' +
+                    '};\n' +
+                    '&lt;/script&gt;\n' +
+                    '&lt;script src="' + window.location.origin + '/static/js/chatbot-embed.js"&gt;&lt;/script&gt;';
+            }
+            
+            // Load the selected chatbot
+            loadCustomerChatbot(chatbotId);
+        }
+        
+        // Load the customer's chatbot in the playground
+        function loadCustomerChatbot(chatbotId) {
+            // Remove any existing chatbot script and config
+            const existingScripts = document.querySelectorAll('.customer-bot-script');
+            existingScripts.forEach(script => script.remove());
+            
+            // Clear the container
+            const container = document.getElementById('customer-chatbot');
+            container.innerHTML = '';
+            
+            // Create a script to initialize the chatbot with custom config
+            var chatbotConfig = document.createElement('script');
+            chatbotConfig.className = 'customer-bot-script';
+            chatbotConfig.innerHTML = 'window.davesEasyChatConfig = { chatbotId: "' + chatbotId + '", mountTo: "#customer-chatbot", readyToLoad: true };';
+            document.head.appendChild(chatbotConfig);
+            
+            // Create a script to load the chatbot JavaScript
+            var chatbotScript = document.createElement('script');
+            chatbotScript.className = 'customer-bot-script'; 
+            chatbotScript.src = "{{ url_for('static', filename='js/chatbot-embed.js') }}";
+            document.body.appendChild(chatbotScript);
+            
+            // After the script loads, apply our own CSS to hide bubble and show window
+            chatbotScript.onload = function() {
+                // Wait a moment for the chatbot to initialize
+                setTimeout(function() {
+                    // Force the chat window to be visible and the bubble to be hidden
+                    const chatBubble = document.querySelector('#customer-chatbot .daves-chat-bubble');
+                    const chatWindow = document.querySelector('#customer-chatbot .daves-chat-window');
+                    
+                    if (chatBubble) {
+                        chatBubble.style.display = 'none';
+                    }
+                    
+                    if (chatWindow) {
+                        chatWindow.classList.remove('d-none');
+                        chatWindow.style.display = 'flex';
+                        chatWindow.style.position = 'relative';
+                        chatWindow.style.bottom = 'auto';
+                        chatWindow.style.right = 'auto';
+                        chatWindow.style.width = '100%';
+                        chatWindow.style.height = '100%';
+                        chatWindow.style.maxHeight = '700px';
+                        chatWindow.style.borderRadius = '8px';
+                        
+                        // Add the welcome message if it doesn't exist
+                        setTimeout(function() {
+                            const messagesContainer = chatWindow.querySelector('#daves-chat-messages');
+                            if (messagesContainer && messagesContainer.childNodes.length === 0) {
+                                // Create and add the welcome message
+                                const welcomeMsg = document.createElement('div');
+                                welcomeMsg.className = 'daves-chat-message assistant';
+                                welcomeMsg.innerHTML = 'Hi there! 👋 How can I help you?';
+                                messagesContainer.appendChild(welcomeMsg);
+                            }
+                        }, 300);
+                    }
+                }, 100);
+            };
+        }
+        
+        // Support chatbot setup
+        function setupSupportChatbot() {
+            // Create a script element for EasyAFChat's support bot
+            var supportScript = document.createElement('script');
+            supportScript.innerHTML = `
+                window.davesEasyChatConfig = {
+                    chatbotId: "9a38e47fdd204240993c"
+                };
+            `;
+            document.head.appendChild(supportScript);
+            
+            // Load the chatbot script
+            var chatbotScript = document.createElement('script');
+            chatbotScript.src = "{{ url_for('static', filename='js/chatbot-embed.js') }}";
+            document.body.appendChild(chatbotScript);
+        }
+        
+        // Initialize when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load the first chatbot by default
+            {% if chatbots|length > 0 %}
+                loadCustomerChatbot('{{ chatbots[0].chatbot_id }}');
+            {% endif %}
+            
+            // Setup the EasyAFChat support chatbot (commented out for now)
+            // Uncomment the line below to enable the support chatbot
+            // setupSupportChatbot();
+        });
     </script>
+
+    <!-- Support Chatbot with namespace isolation -->
+    <script>
+        window.davesEasySupportChatConfig = {
+            chatbotId: "9a38e47fdd204240993c"  // EasyAFChat support bot ID
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/chatbot-embed-support.js') }}"></script>
 </body>
 </html>
