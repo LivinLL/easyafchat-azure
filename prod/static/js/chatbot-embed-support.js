@@ -727,7 +727,7 @@
             if (config.showInitialMessage === false) return;
             
             // Default message or custom message from config
-            const initialMessage = config.initialMessage || "Hi there! 👋 How can I help you?";
+            const initialMessage = config.initialMessage || "EasyAFChat here! 👋 How can I help you?";
             
             // Create popup element
             const popup = document.createElement('div');
@@ -778,7 +778,7 @@
             }
             
             if (messages.length === 0) {
-                addMessage("Hi there! 👋 How can I help you with EasyAFChat?", 'assistant');
+                addMessage("EasyAFChat here! 👋 How can I help you?", 'assistant');
                 console.log('Added initial assistant greeting');
             }
         });
@@ -1049,7 +1049,7 @@
                 initialQuestion = null;
                 console.log('Lead form state reset');
                 messagesContainer.innerHTML = '';
-                addMessage("Hi there! 👋 How can I help you with EasyAFChat?", 'assistant');
+                addMessage("EasyAFChat here! 👋 How can I help you?", 'assistant');
             } catch (error) {
                 console.error('Error resetting chat:', error);
             }
