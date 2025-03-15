@@ -59,464 +59,391 @@ HTML = '''
         <h2>EasyAFChat Management Dashboard</h2>
         <div id="statusMessage" class="alert status-message"></div>
         
-        <!-- Nav tabs -->
-        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="companies-tab" data-bs-toggle="tab" data-bs-target="#companies" type="button">Companies</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="leads-tab" data-bs-toggle="tab" data-bs-target="#leads" type="button">Leads</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">Users</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link" href="/documents">Documents</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="db-management-tab" data-bs-toggle="tab" data-bs-target="#db-management" type="button">DB Management</button>
-            </li>
-            <li class="nav-item ms-auto">
-                <button class="nav-link btn btn-warning" id="clearSessionBtn" type="button">
-                    <i class="bi bi-x-circle"></i> Clear All Sessions
-                </button>
-            </li>
-        </ul>
+<!-- Nav tabs -->
+<ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="companies-tab" data-bs-toggle="tab" data-bs-target="#companies" type="button">Companies</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="leads-tab" data-bs-toggle="tab" data-bs-target="#leads" type="button">Leads</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">Users</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" href="/documents">Documents</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="db-management-tab" data-bs-toggle="tab" data-bs-target="#db-management" type="button">DB Management</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="manual-add-tab" data-bs-toggle="tab" data-bs-target="#manual-add" type="button">Manual Add</button>
+    </li>
+    <li class="nav-item ms-auto">
+        <button class="nav-link btn btn-warning" id="clearSessionBtn" type="button">
+            <i class="bi bi-x-circle"></i> Clear All Sessions
+        </button>
+    </li>
+</ul>
 
-        <!-- Tab content -->
-        <div class="tab-content">
-            <!-- Companies Tab -->
-            <div class="tab-pane fade show active" id="companies" role="tabpanel">
-                <table id="companiesTable" class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Chatbot ID</th>
-                            <th>URL</th>
-                            <th>Namespace</th>
-                            <th>Created At</th>
-                            <th>Actions</th>
-                            <th>Nuclear Option</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for record in records %}
-                        <tr>
-                            <td>{{ record[0] }}</td>
-                            <td>{{ record[1] }}</td>
-                            <td>{{ record[4] }}</td>
-                            <td>{{ record[5] }}</td>
-                            <td class="action-buttons">
-                                <button class="btn btn-sm btn-primary" onclick="viewRecord('{{ record[0] }}')">View/Edit</button>
-                                <button class="btn btn-sm btn-success" onclick="updatePinecone('{{ record[0] }}', '{{ record[4] }}')">Update Pinecone</button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteRecord('{{ record[0] }}')">Delete</button>
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-danger" style="background-color: #dc3545; border-color: #dc3545;" onclick="nuclearReset('{{ record[0] }}', '{{ record[1] }}')">
-                                    ☢️ Nuclear Reset
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<!-- Tab content -->
+<div class="tab-content">
+    <!-- Companies Tab -->
+    <div class="tab-pane fade show active" id="companies" role="tabpanel">
+        <table id="companiesTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Chatbot ID</th>
+                    <th>URL</th>
+                    <th>Namespace</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                    <th>Nuclear Option</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr>
+                    <td>{{ record[0] }}</td>
+                    <td>{{ record[1] }}</td>
+                    <td>{{ record[4] }}</td>
+                    <td>{{ record[5] }}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-primary" onclick="viewRecord('{{ record[0] }}')">View/Edit</button>
+                        <button class="btn btn-sm btn-success" onclick="updatePinecone('{{ record[0] }}', '{{ record[4] }}')">Update Pinecone</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRecord('{{ record[0] }}')">Delete</button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" style="background-color: #dc3545; border-color: #dc3545;" onclick="nuclearReset('{{ record[0] }}', '{{ record[1] }}')">
+                            ☢️ Nuclear Reset
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Leads Tab -->
+    <div class="tab-pane fade" id="leads" role="tabpanel">
+        <div class="row filter-row">
+            <div class="col-md-4">
+                <select id="companyFilter" class="form-select">
+                    <option value="">All Companies</option>
+                    {% for record in records %}
+                    <option value="{{ record[0] }}">{{ record[1] }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            
-            <!-- Leads Tab -->
-            <div class="tab-pane fade" id="leads" role="tabpanel">
-                <div class="row filter-row">
-                    <div class="col-md-4">
-                        <select id="companyFilter" class="form-select">
-                            <option value="">All Companies</option>
-                            {% for record in records %}
-                            <option value="{{ record[0] }}">{{ record[1] }}</option>
-                            {% endfor %}
-                        </select>
+            <div class="col-md-3">
+                <select id="statusFilter" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="qualified">Qualified</option>
+                    <option value="converted">Converted</option>
+                    <option value="closed">Closed</option>
+                </select>
+            </div>
+            <div class="col-md-5 text-end">
+                <button id="exportLeadsBtn" class="btn btn-success">
+                    <i class="bi bi-download"></i> Export to CSV
+                </button>
+                <button id="refreshLeadsBtn" class="btn btn-primary">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+        </div>
+        
+        <table id="leadsTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Company</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Leads will be loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Users Tab -->
+    <div class="tab-pane fade" id="users" role="tabpanel">
+        <table id="usersTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Account Type</th>
+                    <th>Company</th>
+                    <th>Created At</th>
+                    <th>Last Login</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Users will be loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- DB Management Tab -->
+    <div class="tab-pane fade" id="db-management" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Database Management Tools</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Current Database:</strong> {{ db_info.type }} {% if db_info.type == "PostgreSQL" %}({{ db_info.host }}/{{ db_info.name }}){% else %}({{ db_info.name }}){% endif %}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-warning">
+                                <h5 class="mb-0">Companies Table Management</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>This will clear all user associations from companies (set user_id to NULL).</p>
+                                <p><strong>Use case:</strong> When you need to "unclaim" all chatbots from users.</p>
+                                <button id="clearCompanyUsersBtn" class="btn btn-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> Clear All User IDs from Companies
+                                </button>
+                                
+                                <hr class="my-3">
+                                
+                                <p>This will <strong>DROP and RECREATE</strong> the companies table with the correct schema.</p>
+                                <p><strong>Warning:</strong> This will rebuild the companies table schema. Your data will be preserved, but this fixes any schema issues.</p>
+                                <button id="cleanCompaniesTableBtn" class="btn btn-danger">
+                                    <i class="bi bi-exclamation-octagon"></i> Rebuild Companies Table
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <select id="statusFilter" class="form-select">
-                            <option value="">All Statuses</option>
-                            <option value="new">New</option>
-                            <option value="contacted">Contacted</option>
-                            <option value="qualified">Qualified</option>
-                            <option value="converted">Converted</option>
-                            <option value="closed">Closed</option>
-                        </select>
-                    </div>
-                    <div class="col-md-5 text-end">
-                        <button id="exportLeadsBtn" class="btn btn-success">
-                            <i class="bi bi-download"></i> Export to CSV
-                        </button>
-                        <button id="refreshLeadsBtn" class="btn btn-primary">
-                            <i class="bi bi-arrow-clockwise"></i> Refresh
-                        </button>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-danger">
+                                <h5 class="mb-0">Users Table Management</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>This will <strong>DROP and RECREATE</strong> the users table with the correct schema.</p>
+                                <p><strong>Warning:</strong> This will delete all user accounts! Only use when fixing database schema issues.</p>
+                                <button id="cleanUsersTableBtn" class="btn btn-danger">
+                                    <i class="bi bi-exclamation-octagon"></i> Rebuild Users Table (DANGER!)
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <table id="leadsTable" class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Company</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Leads will be loaded dynamically -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Users Tab -->
-            <div class="tab-pane fade" id="users" role="tabpanel">
-                <table id="usersTable" class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Email</th>
-                            <th>Name</th>
-                            <th>Account Type</th>
-                            <th>Company</th>
-                            <th>Created At</th>
-                            <th>Last Login</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Users will be loaded dynamically -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- DB Management Tab -->
-            <div class="tab-pane fade" id="db-management" role="tabpanel">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Database Management Tools</h5>
+                <div class="card mt-3">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Operation Results</h5>
                     </div>
                     <div class="card-body">
-                        <div class="alert alert-info">
-                            <strong>Current Database:</strong> {{ db_info.type }} {% if db_info.type == "PostgreSQL" %}({{ db_info.host }}/{{ db_info.name }}){% else %}({{ db_info.name }}){% endif %}
+                        <div id="dbOperationResults" class="alert d-none">
+                            <!-- Results will be displayed here -->
+                        </div>
+                        <div id="chatbotsContainer" class="mt-3 d-none">
+                            <h6>Affected Chatbots:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Chatbot ID</th>
+                                            <th>URL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="chatbotsList">
+                                        <!-- Chatbots will be listed here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Database Structure Inspector</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>This will generate a detailed report of your database structure, including tables, schemas, foreign keys, and sample data.</p>
+                        <button id="inspectDatabaseBtn" class="btn btn-info">
+                            <i class="bi bi-database-check"></i> Inspect Database Structure
+                        </button>
+                        
+                        <div id="databaseReportContainer" class="mt-3 d-none">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Database Inspection Report</h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <pre id="databaseReport" class="p-3 bg-light" style="max-height: 600px; overflow-y: auto; font-size: 12px; font-family: monospace; white-space: pre-wrap;"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Truncation Tools -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Table Truncation Tools</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <strong>Warning:</strong> These buttons will delete ALL records from their respective tables. This action cannot be undone!
                         </div>
                         
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="card mb-3">
-                                    <div class="card-header bg-warning">
-                                        <h5 class="mb-0">Companies Table Management</h5>
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-danger">
+                                        <h6 class="mb-0 text-white">Companies Table</h6>
                                     </div>
                                     <div class="card-body">
-                                        <p>This will clear all user associations from companies (set user_id to NULL).</p>
-                                        <p><strong>Use case:</strong> When you need to "unclaim" all chatbots from users.</p>
-                                        <button id="clearCompanyUsersBtn" class="btn btn-warning">
-                                            <i class="bi bi-exclamation-triangle"></i> Clear All User IDs from Companies
-                                        </button>
-                                        
-                                        <hr class="my-3">
-                                        
-                                        <p>This will <strong>DROP and RECREATE</strong> the companies table with the correct schema.</p>
-                                        <p><strong>Warning:</strong> This will rebuild the companies table schema. Your data will be preserved, but this fixes any schema issues.</p>
-                                        <button id="cleanCompaniesTableBtn" class="btn btn-danger">
-                                            <i class="bi bi-exclamation-octagon"></i> Rebuild Companies Table
+                                        <p>Delete all company records.</p>
+                                        <button id="truncateCompaniesBtn" class="btn btn-danger">
+                                            <i class="bi bi-trash"></i> Empty Companies Table
                                         </button>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="col-md-6">
-                                <div class="card mb-3">
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
                                     <div class="card-header bg-danger">
-                                        <h5 class="mb-0">Users Table Management</h5>
+                                        <h6 class="mb-0 text-white">Documents Table</h6>
                                     </div>
                                     <div class="card-body">
-                                        <p>This will <strong>DROP and RECREATE</strong> the users table with the correct schema.</p>
-                                        <p><strong>Warning:</strong> This will delete all user accounts! Only use when fixing database schema issues.</p>
-                                        <button id="cleanUsersTableBtn" class="btn btn-danger">
-                                            <i class="bi bi-exclamation-octagon"></i> Rebuild Users Table (DANGER!)
+                                        <p>Delete all document records.</p>
+                                        <button id="truncateDocumentsBtn" class="btn btn-danger">
+                                            <i class="bi bi-trash"></i> Empty Documents Table
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-danger">
+                                        <h6 class="mb-0 text-white">Leads Table</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>Delete all lead records.</p>
+                                        <button id="truncateLeadsBtn" class="btn btn-danger">
+                                            <i class="bi bi-trash"></i> Empty Leads Table
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="card mt-3">
-                            <div class="card-header bg-secondary text-white">
-                                <h5 class="mb-0">Operation Results</h5>
-                            </div>
-                            <div class="card-body">
-                                <div id="dbOperationResults" class="alert d-none">
-                                    <!-- Results will be displayed here -->
-                                </div>
-                                <div id="chatbotsContainer" class="mt-3 d-none">
-                                    <h6>Affected Chatbots:</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Chatbot ID</th>
-                                                    <th>URL</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="chatbotsList">
-                                                <!-- Chatbots will be listed here -->
-                                            </tbody>
-                                        </table>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-danger">
+                                        <h6 class="mb-0 text-white">Users Table</h6>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Manually Add a New Company -->
-                <!-- This feature uses the add_manual_company() function from app_utils.py to handle the core logic of adding new companies.
-                    The form below collects data that is sent to the /manual-add-company route, which then calls the utility function. -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header bg-success text-white">
-                                <h5 class="mb-0">Manual Company/Chatbot Addition</h5>
-                            </div>
-                            <div class="card-body">
-                                <form id="manualCompanyAddForm">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="websiteUrl" class="form-label">Website URL <span class="text-danger">*</span></label>
-                                            <input type="url" class="form-control" id="websiteUrl" name="website_url" required 
-                                                placeholder="https://example.com" pattern="https?://.*">
-                                            <div class="form-text">Full URL of the website</div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="skipOpenaiProcessing" class="form-label">Skip OpenAI Processing?</label>
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" id="skipOpenaiProcessing" name="skip_openai_processing">
-                                                <label class="form-check-label" for="skipOpenaiProcessing">
-                                                    Provide pre-processed content
-                                                </label>
-                                            </div>
-                                            <div class="form-text">If checked, you must provide processed content below</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="scrapedText" class="form-label">Scraped Text <span class="text-danger">*</span></label>
-                                        <textarea class="form-control" id="scrapedText" name="scraped_text" rows="6" required 
-                                                placeholder="Paste the raw text scraped from the website"></textarea>
-                                        <div class="form-text">Raw text content from the website. This will be processed by OpenAI unless skipped.</div>
-                                    </div>
-
-                                    <div id="processedContentGroup" class="mb-3" style="display:none;">
-                                        <label for="processedContent" class="form-label">Processed Content</label>
-                                        <textarea class="form-control" id="processedContent" name="processed_content" rows="6"
-                                                placeholder="Paste pre-processed content if skipping OpenAI processing"></textarea>
-                                        <div class="form-text">Required when skipping OpenAI processing</div>
-                                    </div>
-
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="bi bi-plus-circle"></i> Add Company/Chatbot
+                                    <div class="card-body">
+                                        <p>Delete all user accounts.</p>
+                                        <button id="truncateUsersBtn" class="btn btn-danger">
+                                            <i class="bi bi-trash"></i> Empty Users Table
                                         </button>
                                     </div>
-                                </form>
-
-                                <div id="manualAddResults" class="mt-3">
-                                    <!-- Results or error messages will be displayed here -->
                                 </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-danger">
+                                        <h6 class="mb-0 text-white">Chatbot Config Table</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>Delete all chatbot configurations.</p>
+                                        <button id="truncateConfigBtn" class="btn btn-danger">
+                                            <i class="bi bi-trash"></i> Empty Config Table
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                            <div id="truncateResultsAlert" class="alert d-none">
+                                <!-- Truncation results will be displayed here -->
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const skipProcessingCheckbox = document.getElementById('skipOpenaiProcessing');
-                    const processedContentGroup = document.getElementById('processedContentGroup');
-                    const processedContentInput = document.getElementById('processedContent');
-                    const manualCompanyAddForm = document.getElementById('manualCompanyAddForm');
-                    const resultsDiv = document.getElementById('manualAddResults');
-
-                    // Toggle processed content visibility based on checkbox
-                    skipProcessingCheckbox.addEventListener('change', function() {
-                        processedContentGroup.style.display = this.checked ? 'block' : 'none';
-                        processedContentInput.required = this.checked;
-                    });
-
-                    // Form submission handler
-                    manualCompanyAddForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        
-                        // Create FormData object
-                        const formData = new FormData(manualCompanyAddForm);
-                        
-                        // Show loading state
-                        resultsDiv.innerHTML = `
-                            <div class="alert alert-info">
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                Processing... Please wait.
+            </div>
+        </div>
+    
+    <!-- Manual Add Tab -->
+    <div class="tab-pane fade" id="manual-add" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Manual Company/Chatbot Addition</h5>
+            </div>
+            <div class="card-body">
+                <form id="manualCompanyAddForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="websiteUrl" class="form-label">Website URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="websiteUrl" name="website_url" required 
+                                placeholder="https://example.com" pattern="https?://.*">
+                            <div class="form-text">Full URL of the website</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="skipOpenaiProcessing" class="form-label">Skip OpenAI Processing?</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="skipOpenaiProcessing" name="skip_openai_processing">
+                                <label class="form-check-label" for="skipOpenaiProcessing">
+                                    Provide pre-processed content
+                                </label>
                             </div>
-                        `;
-
-                        // Send AJAX request
-                        fetch('/admin-dashboard-08x7z9y2-yoursecretword/manual-add-company', {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                resultsDiv.innerHTML = `
-                                    <div class="alert alert-success">
-                                        <strong>Success!</strong> 
-                                        Company added. Chatbot ID: ${data.chatbot_id}<br>
-                                        Namespace: ${data.namespace}<br>
-                                        Website: ${data.website_url}
-                                    </div>
-                                `;
-                                // Optional: Reload companies table or perform other actions
-                                loadCompanies(); // Assuming you have a function to reload companies
-                            } else {
-                                resultsDiv.innerHTML = `
-                                    <div class="alert alert-danger">
-                                        <strong>Error!</strong> ${data.error}
-                                    </div>
-                                `;
-                            }
-                        })
-                        .catch(error => {
-                            resultsDiv.innerHTML = `
-                                <div class="alert alert-danger">
-                                    <strong>Network Error!</strong> ${error.message}
-                                </div>
-                            `;
-                        });
-                    });
-                });
-                </script>
-
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header bg-info text-white">
-                                <h5 class="mb-0">Database Structure Inspector</h5>
-                            </div>
-                            <div class="card-body">
-                                <p>This will generate a detailed report of your database structure, including tables, schemas, foreign keys, and sample data.</p>
-                                <button id="inspectDatabaseBtn" class="btn btn-info">
-                                    <i class="bi bi-database-check"></i> Inspect Database Structure
-                                </button>
-                                
-                                <div id="databaseReportContainer" class="mt-3 d-none">
-                                    <div class="card">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0">Database Inspection Report</h6>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <pre id="databaseReport" class="p-3 bg-light" style="max-height: 600px; overflow-y: auto; font-size: 12px; font-family: monospace; white-space: pre-wrap;"></pre>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <div class="form-text">If checked, you must provide processed content below</div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Table Truncation Tools -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header bg-danger text-white">
-                                <h5 class="mb-0">Table Truncation Tools</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="alert alert-warning">
-                                    <strong>Warning:</strong> These buttons will delete ALL records from their respective tables. This action cannot be undone!
-                                </div>
-                                
-                                <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card">
-                                            <div class="card-header bg-danger">
-                                                <h6 class="mb-0 text-white">Companies Table</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <p>Delete all company records.</p>
-                                                <button id="truncateCompaniesBtn" class="btn btn-danger">
-                                                    <i class="bi bi-trash"></i> Empty Companies Table
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card">
-                                            <div class="card-header bg-danger">
-                                                <h6 class="mb-0 text-white">Documents Table</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <p>Delete all document records.</p>
-                                                <button id="truncateDocumentsBtn" class="btn btn-danger">
-                                                    <i class="bi bi-trash"></i> Empty Documents Table
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card">
-                                            <div class="card-header bg-danger">
-                                                <h6 class="mb-0 text-white">Leads Table</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <p>Delete all lead records.</p>
-                                                <button id="truncateLeadsBtn" class="btn btn-danger">
-                                                    <i class="bi bi-trash"></i> Empty Leads Table
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card">
-                                            <div class="card-header bg-danger">
-                                                <h6 class="mb-0 text-white">Users Table</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <p>Delete all user accounts.</p>
-                                                <button id="truncateUsersBtn" class="btn btn-danger">
-                                                    <i class="bi bi-trash"></i> Empty Users Table
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card">
-                                            <div class="card-header bg-danger">
-                                                <h6 class="mb-0 text-white">Chatbot Config Table</h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <p>Delete all chatbot configurations.</p>
-                                                <button id="truncateConfigBtn" class="btn btn-danger">
-                                                    <i class="bi bi-trash"></i> Empty Config Table
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-4">
-                                    <div id="truncateResultsAlert" class="alert d-none">
-                                        <!-- Truncation results will be displayed here -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="scrapedText" class="form-label">Scraped Text <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="scrapedText" name="scraped_text" rows="6" required 
+                                placeholder="Paste the raw text scraped from the website"></textarea>
+                        <div class="form-text">Raw text content from the website. This will be processed by OpenAI unless skipped.</div>
                     </div>
+
+                    <div id="processedContentGroup" class="mb-3" style="display:none;">
+                        <label for="processedContent" class="form-label">Processed Content</label>
+                        <textarea class="form-control" id="processedContent" name="processed_content" rows="6"
+                                placeholder="Paste pre-processed content if skipping OpenAI processing"></textarea>
+                        <div class="form-text">Required when skipping OpenAI processing</div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Add Company/Chatbot
+                        </button>
+                    </div>
+                </form>
+
+                <div id="manualAddResults" class="mt-3">
+                    <!-- Results or error messages will be displayed here -->
                 </div>
             </div>
         </div>
@@ -535,11 +462,11 @@ HTML = '''
                         <input type="hidden" id="chatbotId">
                         <div class="mb-3">
                             <label class="form-label">Scraped Text</label>
-                            <textarea class="form-control" id="scrapedText" rows="10"></textarea>
+                            <textarea class="form-control" id="modalScrapedText" rows="10"></textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Processed Content</label>
-                            <textarea class="form-control" id="processedContent" rows="10"></textarea>
+                            <textarea class="form-control" id="modalProcessedContent" rows="10"></textarea>
                         </div>
                     </form>
                 </div>
@@ -693,16 +620,16 @@ HTML = '''
             const response = await fetch(`/admin-dashboard-08x7z9y2-yoursecretword/record/${id}`);
             const data = await response.json();
             document.getElementById('chatbotId').value = id;
-            document.getElementById('scrapedText').value = data.scraped_text;
-            document.getElementById('processedContent').value = data.processed_content;
+            document.getElementById('modalScrapedText').value = data.scraped_text;
+            document.getElementById('modalProcessedContent').value = data.processed_content;
             recordModal.show();
         }
 
         async function saveRecord() {
             const id = document.getElementById('chatbotId').value;
             const data = {
-                scraped_text: document.getElementById('scrapedText').value,
-                processed_content: document.getElementById('processedContent').value
+                scraped_text: document.getElementById('modalScrapedText').value,
+                processed_content: document.getElementById('modalProcessedContent').value
             };
 
             try {
@@ -1227,6 +1154,73 @@ HTML = '''
             location.reload();
         }
     </script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const skipProcessingCheckbox = document.getElementById('skipOpenaiProcessing');
+        const processedContentGroup = document.getElementById('processedContentGroup');
+        const processedContentInput = document.getElementById('processedContent');
+        const manualCompanyAddForm = document.getElementById('manualCompanyAddForm');
+        const resultsDiv = document.getElementById('manualAddResults');
+
+        // Toggle processed content visibility based on checkbox
+        skipProcessingCheckbox.addEventListener('change', function() {
+            processedContentGroup.style.display = this.checked ? 'block' : 'none';
+            processedContentInput.required = this.checked;
+        });
+
+        // Form submission handler
+        manualCompanyAddForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Create FormData object
+            const formData = new FormData(manualCompanyAddForm);
+            
+            // Show loading state
+            resultsDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Processing... Please wait.
+                </div>
+            `;
+
+            // Send AJAX request
+            fetch('/admin-dashboard-08x7z9y2-yoursecretword/manual-add-company', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Success!</strong> 
+                            Company added. Chatbot ID: ${data.chatbot_id}<br>
+                            Namespace: ${data.namespace}<br>
+                            Website: ${data.website_url}
+                        </div>
+                    `;
+                    // Optional: Reload companies table or perform other actions
+                    loadCompanies(); // Assuming you have a function to reload companies
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Error!</strong> ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>Network Error!</strong> ${error.message}
+                    </div>
+                `;
+            });
+        });
+    });
+    </script>
+
 </body>
 </html>
 '''
@@ -1745,17 +1739,22 @@ def get_record(id):
         cursor = conn.cursor()
         
         if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-            cursor.execute('SELECT * FROM companies WHERE chatbot_id = %s', (id,))
+            cursor.execute('SELECT scraped_text, processed_content FROM companies WHERE chatbot_id = %s', (id,))
         else:
-            cursor.execute('SELECT * FROM companies WHERE chatbot_id = ?', (id,))
+            cursor.execute('SELECT scraped_text, processed_content FROM companies WHERE chatbot_id = ?', (id,))
             
         record = cursor.fetchone()
         
-    # For PostgreSQL compatibility, access by index instead of by name
-    return jsonify({
-        'scraped_text': record[7] if record else '',  # scraped_text is 8th column (index 7)
-        'processed_content': record[8] if record else ''  # processed_content is 9th column (index 8)
-    })
+        if record:
+            return jsonify({
+                'scraped_text': record[0] or '',
+                'processed_content': record[1] or ''
+            })
+        else:
+            return jsonify({
+                'scraped_text': '',
+                'processed_content': ''
+            })
 
 @admin_dashboard.route('/record/<id>', methods=['PUT'])
 def update_record(id):
@@ -2424,4 +2423,3 @@ def manual_add_company():
             'success': False, 
             'error': f'Unexpected error: {str(e)}'
         }), 500
-
