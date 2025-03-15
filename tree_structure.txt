@@ -94,8 +94,9 @@
             b490fc6ca3292e938b406ed0b04c217e
             e57b7f6daef3ca7f54ede5d989de76da
             7e0987edc0ba66889b59e52a170f7280
-            fb5f5e03bd69ce8c71d7552174f67eb2
             2029240f6d1128be89ddc32729463129
+            fb5f5e03bd69ce8c71d7552174f67eb2
+            9dbde3501c5f4c2d353e1f54da6c5f04
     .github/
         workflows/
             main_easyafchat-v3.yml

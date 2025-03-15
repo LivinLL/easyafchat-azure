@@ -33,6 +33,27 @@ DB_PATH = None
 PINECONE_INDEX = None
 document_handler = None
 
+def update_pinecone_index(namespace, text_chunks, embeddings, old_namespace=None):
+    """Update Pinecone index with new vectors"""
+    try:
+        index = pinecone_client.Index(PINECONE_INDEX)
+        
+        # Check if namespace exists before trying to delete from it
+        existing_stats = index.describe_index_stats()
+        if namespace in existing_stats.namespaces:
+            # Delete all vectors in the current namespace if it exists
+            index.delete(delete_all=True, namespace=namespace)
+        
+        # Upload vectors to the namespace
+        vectors = [(f"{namespace}-{i}", embedding, {"text": chunk}) 
+                  for i, (chunk, embedding) in enumerate(zip(text_chunks, embeddings))]
+        index.upsert(vectors=vectors, namespace=namespace)
+        
+        return True
+    except Exception as e:
+        print(f"Error in Pinecone update: {e}")
+        return False
+
 # Create Blueprint
 admin_dashboard = Blueprint('admin_dashboard', __name__)
 
