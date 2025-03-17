@@ -94,6 +94,65 @@
             font-weight: 600;
         }
     </style>
+
+<!-- Google reCAPTCHA v3 -->
+<script src="https://www.google.com/recaptcha/api.js?render={{ config.CAPTCHA_SITE_KEY }}"></script>
+<script>
+    function onSubmitForm(e) {
+        console.log('[reCAPTCHA] Form submission intercepted');
+        e.preventDefault();
+        
+        // Show processing overlay immediately
+        const processingOverlay = document.getElementById('processingOverlay');
+        if (processingOverlay) {
+            processingOverlay.style.display = 'flex';
+        }
+        
+        console.log('[reCAPTCHA] Site key:', '{{ config.CAPTCHA_SITE_KEY }}');
+        
+        grecaptcha.ready(function() {
+            console.log('[reCAPTCHA] reCAPTCHA is ready');
+            
+            grecaptcha.execute('{{ config.CAPTCHA_SITE_KEY }}', {action: 'submit'})
+            .then(function(token) {
+                console.log('[reCAPTCHA] Token received, length:', token.length);
+                
+                // Add the token to the form
+                const recaptchaResponse = document.createElement('input');
+                recaptchaResponse.type = 'hidden';
+                recaptchaResponse.name = 'g-recaptcha-response';
+                recaptchaResponse.value = token;
+                document.getElementById('urlForm').appendChild(recaptchaResponse);
+                
+                console.log('[reCAPTCHA] Token added to form, submitting form');
+                
+                // Submit the form
+                document.getElementById('urlForm').submit();
+            })
+            .catch(function(error) {
+                console.error('[reCAPTCHA] Error getting token:', error);
+                alert('Error with reCAPTCHA verification. Please try again.');
+                // Hide processing overlay if there's an error
+                if (processingOverlay) {
+                    processingOverlay.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Add event listener once DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('[reCAPTCHA] DOM loaded, adding form submit listener');
+        const urlForm = document.getElementById('urlForm');
+        
+        if (urlForm) {
+            console.log('[reCAPTCHA] Form found with id:', urlForm.id);
+            urlForm.addEventListener('submit', onSubmitForm);
+        } else {
+            console.error('[reCAPTCHA] Form not found with id: urlForm');
+        }
+    });
+</script>
 </head>
 <body>
     <header>
@@ -295,10 +354,11 @@
     <!-- Include JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     
-    <!-- Async Processing JavaScript -->
     <script>
-// Async Processing JavaScript - Updated
+// Async Processing JavaScript - Fixed Version
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[AsyncProcessing] DOM loaded');
+    
     const urlForm = document.getElementById('urlForm');
     const processingOverlay = document.getElementById('processingOverlay');
     const processingMessage = document.getElementById('processingMessage');
@@ -309,6 +369,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const step3 = document.getElementById('step3');
     const step4 = document.getElementById('step4');
     
+    console.log('[AsyncProcessing] Elements found:', {
+        urlForm: !!urlForm,
+        processingOverlay: !!processingOverlay,
+        processingMessage: !!processingMessage,
+        processingTime: !!processingTime,
+        processingError: !!processingError,
+        steps: [!!step1, !!step2, !!step3, !!step4]
+    });
+    
     let startTime;
     let pollingInterval;
     let timerInterval;
@@ -316,6 +385,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update processing time - this will run independently
     function startTimer() {
+        console.log('[AsyncProcessing] Starting timer');
+        startTime = Date.now();
         timerInterval = setInterval(function() {
             const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
             processingTime.textContent = `Time elapsed: ${elapsedSeconds} seconds`;
@@ -324,6 +395,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update step status
     function updateStepStatus(step, status) {
+        console.log(`[AsyncProcessing] Updating step status: ${step.id} to ${status}`);
+        
         // Remove all existing status classes
         step.classList.remove('active', 'completed');
         
@@ -333,35 +406,50 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (status === 'completed') {
             step.classList.add('completed');
         }
+        
+        console.log(`[AsyncProcessing] Step ${step.id} classes now:`, step.className);
     }
     
-    // Function to execute processing
-    async function executeProcessing(chatbot_id) {
-        try {
-            const response = await fetch(`/process-url-execute/${chatbot_id}`);
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to process URL');
-            }
-        } catch (error) {
-            console.error('Error executing processing:', error);
-            processingError.textContent = `Error: ${error.message}`;
-            processingError.style.display = 'block';
-        }
+    // Function to handle the processing when form is submitted
+    function handleProcessingStart(chatbot_id) {
+        console.log(`[AsyncProcessing] Starting processing for ${chatbot_id}`);
+        chatbotId = chatbot_id;
+        
+        // Show processing overlay
+        processingOverlay.style.display = 'flex';
+        processingError.style.display = 'none';
+        processingMessage.textContent = 'Initializing chatbot creation...';
+        
+        // Reset step statuses and set first step as active
+        updateStepStatus(step1, 'active');
+        updateStepStatus(step2, '');
+        updateStepStatus(step3, '');
+        updateStepStatus(step4, '');
+        
+        // Start the timer
+        startTimer();
+        
+        // Start polling for status
+        pollingInterval = setInterval(checkProcessingStatus, 1000);
     }
     
     // Check processing status
     async function checkProcessingStatus() {
+        console.log(`[AsyncProcessing] Checking status for chatbot_id: ${chatbotId}`);
         try {
             const response = await fetch(`/check-processing/${chatbotId}`);
+            console.log(`[AsyncProcessing] Status check response:`, response.status);
+            
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to check processing status');
             }
             
             const data = await response.json();
+            console.log(`[AsyncProcessing] Status data:`, data);
             
             if (data.status === 'error') {
+                console.error(`[AsyncProcessing] Error status:`, data.message);
                 processingError.textContent = `Error: ${data.message}`;
                 processingError.style.display = 'block';
                 clearInterval(pollingInterval);
@@ -370,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (data.status === 'processing') {
+                console.log(`[AsyncProcessing] Processing phase:`, data.phase);
                 // Update UI based on processing phase
                 if (data.phase === 'content') {
                     processingMessage.textContent = 'Analyzing website content...';
@@ -385,6 +474,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateStepStatus(step4, '');
                 }
             } else if (data.status === 'complete') {
+                console.log(`[AsyncProcessing] Processing complete!`);
                 // Processing complete, update UI
                 processingMessage.textContent = 'Your chatbot is ready!';
                 updateStepStatus(step1, 'completed');
@@ -397,71 +487,61 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearInterval(timerInterval);
                 
                 // Redirect to demo page after a short delay
+                console.log(`[AsyncProcessing] Will redirect to demo in 1 second`);
                 setTimeout(() => {
+                    console.log(`[AsyncProcessing] Redirecting to demo now...`);
                     window.location.href = `/demo/${chatbotId}`;
                 }, 1000);
             }
         } catch (error) {
-            console.error('Error checking status:', error);
+            console.error('[AsyncProcessing] Error checking status:', error);
             processingError.textContent = `Error: ${error.message}`;
             processingError.style.display = 'block';
         }
     }
     
-    // Handle form submission
-    urlForm.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        
-        // Show processing overlay
-        processingOverlay.style.display = 'flex';
-        processingError.style.display = 'none';
-        processingMessage.textContent = 'Initializing chatbot creation...';
-        
-        // Reset step statuses and immediately set first step as active
-        updateStepStatus(step1, 'active');
-        updateStepStatus(step2, '');
-        updateStepStatus(step3, '');
-        updateStepStatus(step4, '');
-        
-        // Start timing
-        startTime = Date.now();
-        
-        // Start the timer independently of the polling
-        startTimer();
-        
-        const formData = new FormData(urlForm);
-        
-        try {
-            // Submit form data to start processing
-            const response = await fetch('/process-url-async', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to process URL');
+    // Watch for form submission to start processing
+    // We need to use MutationObserver since the form might be submitted by reCAPTCHA
+    const observer = new MutationObserver(function(mutations) {
+        for(let mutation of mutations) {
+            if (mutation.type === 'attributes' && 
+                mutation.target === processingOverlay && 
+                processingOverlay.style.display === 'flex') {
+                
+                console.log('[AsyncProcessing] Processing overlay appeared, extracting chatbot ID');
+                
+                // The form has been submitted, get the chatbot ID from the URL
+                // We can try to parse it from the URL with a very small delay to ensure
+                // the server had time to respond
+                setTimeout(async function() {
+                    try {
+                        // Try to find the chatbot ID in the processing-status endpoint or URL
+                        const response = await fetch('/check-processing-latest');
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.chatbot_id) {
+                                handleProcessingStart(data.chatbot_id);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[AsyncProcessing] Error checking for chatbot ID:', e);
+                    }
+                }, 500);
             }
-            
-            const data = await response.json();
-            chatbotId = data.chatbot_id;
-
-            // Start the processing
-            executeProcessing(chatbotId);
-            
-            // Add a small delay before starting polling to ensure backend has registered
-            setTimeout(() => {
-                // Start polling for status updates
-                pollingInterval = setInterval(checkProcessingStatus, 1000);
-            }, 500);
-            
-        } catch (error) {
-            console.error('Error submitting form:', error);
-            processingError.textContent = `Error: ${error.message}`;
-            processingError.style.display = 'block';
-            clearInterval(timerInterval);
         }
     });
+    
+    // Directly add an event listener for form submit to capture and start processing
+    if (urlForm) {
+        urlForm.addEventListener('submit', function() {
+            console.log('[AsyncProcessing] Form submitted, showing overlay');
+            processingOverlay.style.display = 'flex';
+            startTimer();
+        });
+    }
+    
+    // Start observing the processing overlay for display changes
+    observer.observe(processingOverlay, { attributes: true });
 });
     </script>
 </body>

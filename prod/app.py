@@ -49,6 +49,10 @@ initialize_database(verbose=True)
 # Initialize Flask app
 app = Flask(__name__)
 
+# Add reCAPTCHA configuration
+app.config["CAPTCHA_SITE_KEY"] = os.environ.get("CAPTCHA_SITE_KEY", "")
+app.config["CAPTCHA_SECRET_KEY"] = os.environ.get("CAPTCHA_SECRET_KEY", "")
+
 # Configure server-side session
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
@@ -517,6 +521,41 @@ def process_simple_content(home_data, about_data):
         # In case of error, return None
         return None
 
+def verify_recaptcha(token, remote_ip):
+    """Verify reCAPTCHA token with Google"""
+    print(f"[reCAPTCHA] Starting verification for IP: {remote_ip}")
+    print(f"[reCAPTCHA] Token present: {bool(token)}")
+    
+    if not token:
+        print("[reCAPTCHA] No token provided, verification failed")
+        return False
+    
+    try:
+        print(f"[reCAPTCHA] Using secret key (length): {len(app.config['CAPTCHA_SECRET_KEY']) if app.config['CAPTCHA_SECRET_KEY'] else 0}")
+        
+        data = {
+            'secret': app.config["CAPTCHA_SECRET_KEY"],
+            'response': token,
+            'remoteip': remote_ip
+        }
+        
+        print("[reCAPTCHA] Sending verification request to Google")
+        response = requests.post('https://www.google.com/recaptcha/api/siteverify', data=data)
+        result = response.json()
+        
+        print(f"[reCAPTCHA] Verification response: {result}")
+        success = result.get('success', False)
+        score = result.get('score', 0)
+        
+        print(f"[reCAPTCHA] Verification result - Success: {success}, Score: {score}")
+        
+        return success
+    except Exception as e:
+        print(f"[reCAPTCHA] Verification error: {str(e)}")
+        import traceback
+        print(f"[reCAPTCHA] Error trace: {traceback.format_exc()}")
+        return False
+
 # Flask routes
 @app.route('/chat-test')
 def chat_test():
@@ -528,48 +567,61 @@ def home():
 
 @app.route('/process-url-async', methods=['POST'])
 def process_url_async():
+    print(f"[process_url_async] Starting at {datetime.now().isoformat()}")
+    print(f"[process_url_async] Form data: {request.form}")
     website_url = request.form.get('url')
+    print(f"[process_url_async] URL: {website_url}")
+    
+    # Verify reCAPTCHA
+    recaptcha_token = request.form.get('g-recaptcha-response')
+    print(f"[process_url_async] reCAPTCHA token present: {bool(recaptcha_token)}")
+    
+    if not verify_recaptcha(recaptcha_token, request.remote_addr):
+        print("[process_url_async] reCAPTCHA verification failed")
+        return jsonify({"error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    print("[process_url_async] reCAPTCHA verification successful")
     
     if not validators.url(website_url):
+        print(f"[process_url_async] Invalid URL: {website_url}")
         return jsonify({"error": "Please enter a valid URL"}), 400
     
     # Check if URL already exists in the database
     existing_record = get_existing_record(website_url)
     
     if existing_record:
+        print(f"[process_url_async] Found existing record: {existing_record}")
         chatbot_id = existing_record[0]
         namespace = existing_record[1]
     else:
+        print("[process_url_async] No existing record, generating new chatbot ID")
         chatbot_id = generate_chatbot_id()
         namespace, _ = check_namespace(website_url)
+        print(f"[process_url_async] New chatbot ID: {chatbot_id}, namespace: {namespace}")
     
     # Generate APIFlash screenshot URL immediately
     screenshot_url = ""
     try:
         base_url = "https://api.apiflash.com/v1/urltoimage"
         screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
-        print(f"Screenshot URL generated immediately: {screenshot_url}")
+        print(f"[process_url_async] Screenshot URL generated: {screenshot_url}")
         
         # Make an HTTP request to trigger APIFlash to generate and cache the screenshot
-        # We don't need to store the response, just trigger the generation
         try:
-            # Set a reasonable timeout to not block our process too long
+            print("[process_url_async] Triggering APIFlash screenshot generation")
             response = requests.get(screenshot_url, timeout=2, stream=True)
-            # Just start reading the response then close it - we don't need the full image data
             for chunk in response.iter_content(chunk_size=1024):
-                if chunk:  # filter out keep-alive chunks
-                    # Just read the first chunk to trigger the request and then break
+                if chunk:
                     break
             response.close()
-            print(f"APIFlash screenshot generation triggered successfully")
+            print("[process_url_async] APIFlash screenshot generation triggered successfully")
         except requests.exceptions.Timeout:
-            # If it times out, that's okay - the screenshot will still be generated
-            print(f"APIFlash request timed out, but screenshot generation was triggered")
+            print("[process_url_async] APIFlash request timed out, but screenshot generation was triggered")
         except Exception as api_e:
-            print(f"Error making APIFlash request: {api_e}, but continuing")
+            print(f"[process_url_async] Error making APIFlash request: {api_e}, but continuing")
             
     except Exception as e:
-        print(f"Error generating screenshot URL: {e}, but continuing")
+        print(f"[process_url_async] Error generating screenshot URL: {e}, but continuing")
     
     # Initialize processing status
     processing_status[chatbot_id] = {
@@ -577,10 +629,86 @@ def process_url_async():
         "completed": False,
         "start_time": time.time(),
         "website_url": website_url,
-        "screenshot_url": screenshot_url  # Store the URL for later use
+        "screenshot_url": screenshot_url
     }
     
+    print(f"[process_url_async] Processing status initialized for {chatbot_id}")
+    print(f"[process_url_async] Current processing_status keys: {list(processing_status.keys())}")
+    
+    # Start the processing in the background
+    # This is important - we need to make sure processing starts
+    # before returning to the client
+    try:
+        print(f"[process_url_async] Starting processing execution for {chatbot_id}")
+        # We'll execute processing here directly instead of waiting for the client to call
+        # This ensures processing starts even if client-side polling fails
+        
+        # Simplified scraping of the website and its About page
+        home_data = simple_scrape_page(website_url)
+        about_url = find_about_page(website_url)
+        about_data = simple_scrape_page(about_url) if about_url else None
+        
+        if not home_data.get("all_text"):
+            processing_status[chatbot_id]["error"] = "Failed to scrape website content"
+            return jsonify({"error": "Failed to scrape website content"}), 400
+
+        # Process the content with OpenAI - returns both content and prompt
+        result = process_simple_content(home_data, about_data)
+        if not result:
+            processing_status[chatbot_id]["error"] = "Failed to process content"
+            return jsonify({"error": "Failed to process content"}), 400
+            
+        # Unpack the result
+        processed_content, full_prompt = result
+        
+        # Store the about page text (if it was found)
+        about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
+        
+        # Combine into a single scraped_text field with clear sections
+        scraped_text = f"""OpenAI Prompt
+{full_prompt}
+
+About Scrape
+{about_text}"""
+        
+        # Chunk the content and create embeddings
+        chunks = chunk_text(processed_content)
+        embeddings = get_embeddings(chunks)
+        
+        # Add to the in-memory cache first (60 seconds expiration by default)
+        vector_cache.add_to_cache(namespace, embeddings, chunks, expiry_seconds=60)
+        
+        # Update Pinecone in background
+        update_pinecone_task = update_pinecone_index(namespace, chunks, embeddings)
+        
+        now = datetime.now(UTC)
+        data = (
+            chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
+            namespace, now, now, scraped_text, processed_content
+        )
+
+        try:
+            if existing_record := get_existing_record(website_url):
+                update_company_data(data, chatbot_id)
+            else:
+                insert_company_data(data)
+        except Exception as e:
+            processing_status[chatbot_id]["error"] = f"Failed to save company data: {str(e)}"
+            return jsonify({"error": "Failed to save company data"}), 400
+
+        # Processing is complete - update status to ready
+        processing_status[chatbot_id]["completed"] = True
+        processing_time = time.time() - processing_status[chatbot_id]["start_time"]
+        print(f"[process_url_async] Processing completed for {chatbot_id} in {processing_time:.2f} seconds")
+    
+    except Exception as e:
+        print(f"[process_url_async] Error during processing: {e}")
+        import traceback
+        print(f"[process_url_async] Error traceback: {traceback.format_exc()}")
+        processing_status[chatbot_id]["error"] = f"Processing error: {str(e)}"
+    
     # Return chatbot_id immediately so frontend can start polling
+    print(f"[process_url_async] Returning to client - chatbot_id: {chatbot_id}")
     return jsonify({
         "status": "processing",
         "chatbot_id": chatbot_id
@@ -589,30 +717,45 @@ def process_url_async():
 @app.route('/process-url-execute/<chatbot_id>', methods=['GET'])
 def process_url_execute(chatbot_id):
     """Execute URL processing in background while frontend polls for status"""
+    print(f"[process_url_execute] Starting for chatbot_id: {chatbot_id}")
+    
     if chatbot_id not in processing_status:
+        print(f"[process_url_execute] Chatbot ID not found in processing_status")
         return jsonify({"error": "Invalid chatbot ID"}), 404
     
     status_info = processing_status[chatbot_id]
     website_url = status_info["website_url"]
     namespace = status_info["namespace"]
     
+    print(f"[process_url_execute] Processing URL: {website_url}, namespace: {namespace}")
+    
     # Simplified scraping of the website and its About page
+    print(f"[process_url_execute] Starting website scraping")
     home_data = simple_scrape_page(website_url)
+    print(f"[process_url_execute] Home page scraped, content length: {len(home_data.get('all_text', ''))}")
+    
     about_url = find_about_page(website_url)
+    print(f"[process_url_execute] About page URL: {about_url}")
+    
     about_data = simple_scrape_page(about_url) if about_url else None
+    print(f"[process_url_execute] About page scraped: {about_data is not None}")
     
     if not home_data.get("all_text"):
         processing_status[chatbot_id]["error"] = "Failed to scrape website content"
+        print(f"[process_url_execute] Failed to scrape website content")
         return jsonify({"error": "Failed to scrape website content"}), 400
 
     # Process the content with OpenAI - returns both content and prompt
+    print(f"[process_url_execute] Processing content with OpenAI")
     result = process_simple_content(home_data, about_data)
     if not result:
         processing_status[chatbot_id]["error"] = "Failed to process content"
+        print(f"[process_url_execute] Failed to process content with OpenAI")
         return jsonify({"error": "Failed to process content"}), 400
         
     # Unpack the result - processed_content is the OpenAI response, full_prompt is what was sent to OpenAI
     processed_content, full_prompt = result
+    print(f"[process_url_execute] OpenAI processing complete, content length: {len(processed_content)}")
     
     # Store the about page text (if it was found)
     about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
@@ -625,17 +768,20 @@ About Scrape
 {about_text}"""
     
     # Chunk the content and create embeddings
+    print(f"[process_url_execute] Chunking content and creating embeddings")
     chunks = chunk_text(processed_content)
+    print(f"[process_url_execute] Created {len(chunks)} chunks")
+    
     embeddings = get_embeddings(chunks)
+    print(f"[process_url_execute] Created {len(embeddings)} embeddings")
     
     # Add to the in-memory cache first (60 seconds expiration by default)
     vector_cache.add_to_cache(namespace, embeddings, chunks, expiry_seconds=60)
-    print(f"Added {len(chunks)} vectors to in-memory cache for namespace '{namespace}'")
+    print(f"[process_url_execute] Added vectors to in-memory cache for namespace '{namespace}'")
     
     # Update Pinecone in background (will continue while user is redirected to demo)
     update_pinecone_task = update_pinecone_index(namespace, chunks, embeddings)
-    if not update_pinecone_task:
-        print(f"Warning: Pinecone update might be delayed for namespace '{namespace}'")
+    print(f"[process_url_execute] Pinecone update started: {update_pinecone_task}")
     
     now = datetime.now(UTC)
     data = (
@@ -644,12 +790,15 @@ About Scrape
     )
 
     try:
+        print(f"[process_url_execute] Updating database for chatbot_id: {chatbot_id}")
         if existing_record := get_existing_record(website_url):
+            print(f"[process_url_execute] Updating existing record")
             update_company_data(data, chatbot_id)
         else:
+            print(f"[process_url_execute] Inserting new record")
             insert_company_data(data)
     except Exception as e:
-        print(f"Database error: {e}")
+        print(f"[process_url_execute] Database error: {e}")
         processing_status[chatbot_id]["error"] = f"Failed to save company data: {str(e)}"
         return jsonify({"error": "Failed to save company data"}), 400
 
@@ -657,7 +806,7 @@ About Scrape
     # No need to wait for Pinecone since we're using the cache
     processing_status[chatbot_id]["completed"] = True
     processing_time = time.time() - status_info["start_time"]
-    print(f"Processing completed for {chatbot_id} in {processing_time:.2f} seconds")
+    print(f"[process_url_execute] Processing completed for {chatbot_id} in {processing_time:.2f} seconds")
     
     return jsonify({
         "status": "success", 
@@ -668,13 +817,19 @@ About Scrape
 @app.route('/check-processing/<chatbot_id>', methods=['GET'])
 def check_processing(chatbot_id):
     """Check if processing is complete for a chatbot"""
+    print(f"[check_processing] Checking status for chatbot_id: {chatbot_id}")
+    print(f"[check_processing] Available processing_status keys: {list(processing_status.keys())}")
+    
     if chatbot_id not in processing_status:
+        print(f"[check_processing] Chatbot ID not found in processing_status")
         return jsonify({"status": "error", "message": "Chatbot ID not found"}), 404
     
     status_info = processing_status[chatbot_id]
+    print(f"[check_processing] Status info: {status_info}")
     
     # If already marked as completed, return success
     if status_info.get("completed", False):
+        print(f"[check_processing] Processing complete for {chatbot_id}")
         return jsonify({
             "status": "complete",
             "chatbot_id": chatbot_id,
@@ -684,6 +839,7 @@ def check_processing(chatbot_id):
     
     # If there was an error during processing
     if "error" in status_info:
+        print(f"[check_processing] Error for {chatbot_id}: {status_info['error']}")
         return jsonify({
             "status": "error",
             "message": status_info["error"]
@@ -691,6 +847,7 @@ def check_processing(chatbot_id):
     
     # If we're still in the initial processing phase
     elapsed_time = time.time() - status_info["start_time"]
+    print(f"[check_processing] Still processing {chatbot_id}, elapsed: {int(elapsed_time)}s")
     return jsonify({
         "status": "processing",
         "phase": "content",
@@ -699,9 +856,23 @@ def check_processing(chatbot_id):
 
 @app.route('/', methods=['POST'])
 def process_url():
+    print(f"[process_url] Starting POST request processing")
     website_url = request.form.get('url')
+    print(f"[process_url] URL: {website_url}")
+    
+    # Verify reCAPTCHA
+    recaptcha_token = request.form.get('g-recaptcha-response')
+    print(f"[process_url] reCAPTCHA token present: {bool(recaptcha_token)}")
+    
+    if not verify_recaptcha(recaptcha_token, request.remote_addr):
+        print("[process_url] reCAPTCHA verification failed")
+        flash("reCAPTCHA verification failed. Please try again.")
+        return redirect(url_for('home'))
+    
+    print("[process_url] reCAPTCHA verification successful")
     
     if not validators.url(website_url):
+        print(f"[process_url] Invalid URL: {website_url}")
         flash("Please enter a valid URL")
         return redirect(url_for('home'))
     
@@ -709,29 +880,42 @@ def process_url():
     existing_record = get_existing_record(website_url)
     
     if existing_record:
+        print(f"[process_url] Found existing record: {existing_record}")
         chatbot_id = existing_record[0]
         namespace = existing_record[1]
     else:
+        print("[process_url] No existing record, generating new chatbot ID")
         chatbot_id = generate_chatbot_id()
         namespace, _ = check_namespace(website_url)
+        print(f"[process_url] New chatbot ID: {chatbot_id}, namespace: {namespace}")
 
     # Simplified scraping of the website and its About page
+    print(f"[process_url] Starting website scraping")
     home_data = simple_scrape_page(website_url)
+    print(f"[process_url] Home page scraped, content length: {len(home_data.get('all_text', ''))}")
+    
     about_url = find_about_page(website_url)
+    print(f"[process_url] About page URL: {about_url}")
+    
     about_data = simple_scrape_page(about_url) if about_url else None
+    print(f"[process_url] About page scraped: {about_data is not None}")
     
     if not home_data.get("all_text"):
+        print(f"[process_url] Failed to scrape website content")
         flash("Failed to scrape website content")
         return redirect(url_for('home'))
 
     # Process the content with OpenAI - returns both content and prompt
+    print(f"[process_url] Processing content with OpenAI")
     result = process_simple_content(home_data, about_data)
     if not result:
+        print(f"[process_url] Failed to process content with OpenAI")
         flash("Failed to process content")
         return redirect(url_for('home'))
         
     # Unpack the result - processed_content is the OpenAI response, full_prompt is what was sent to OpenAI
     processed_content, full_prompt = result
+    print(f"[process_url] OpenAI processing complete, content length: {len(processed_content)}")
     
     # Store the about page text (if it was found)
     about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
@@ -744,10 +928,15 @@ About Scrape
 {about_text}"""
     
     # Chunk the content and create embeddings
+    print(f"[process_url] Chunking content and creating embeddings")
     chunks = chunk_text(processed_content)
+    print(f"[process_url] Created {len(chunks)} chunks")
+    
     embeddings = get_embeddings(chunks)
+    print(f"[process_url] Created {len(embeddings)} embeddings")
     
     if not update_pinecone_index(namespace, chunks, embeddings):
+        print(f"[process_url] Failed to update Pinecone index")
         flash("Failed to update knowledge base")
         return redirect(url_for('home'))
 
@@ -758,12 +947,15 @@ About Scrape
     )
 
     try:
+        print(f"[process_url] Updating database for chatbot_id: {chatbot_id}")
         if existing_record:
+            print(f"[process_url] Updating existing record")
             update_company_data(data, chatbot_id)
         else:
+            print(f"[process_url] Inserting new record")
             insert_company_data(data)
     except Exception as e:
-        print(f"Database error: {e}")
+        print(f"[process_url] Database error: {e}")
         flash("Failed to save company data")
         return redirect(url_for('home'))
 
@@ -773,11 +965,15 @@ About Scrape
         base_url = "https://api.apiflash.com/v1/urltoimage"
         
         screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
-        print(f"Screenshot URL generated: {screenshot_url}")
+        print(f"[process_url] Screenshot URL generated: {screenshot_url}")
     except Exception as e:
-        print(f"Error generating screenshot URL: {e}")
+        print(f"[process_url] Error generating screenshot URL: {e}")
         flash("Failed to generate screenshot URL")
         return redirect(url_for('home'))
+    
+    print(f"[process_url] Processing complete, redirecting to demo page for: {chatbot_id}")
+    # Add this line to redirect to the demo page after processing
+    return redirect(url_for('demo', session_id=chatbot_id))
 
 @app.route('/demo/<session_id>')
 def demo(session_id):
@@ -1090,6 +1286,33 @@ def dashboard():
         flash('An unexpected error occurred', 'error')
         return redirect(url_for('home'))
 
+@app.route('/check-processing-latest', methods=['GET'])
+def check_processing_latest():
+    """Return the ID of the most recently created chatbot process"""
+    print(f"[check_processing_latest] Checking for latest chatbot")
+    
+    if not processing_status:
+        print(f"[check_processing_latest] No processing status entries found")
+        return jsonify({"status": "error", "message": "No processing found"}), 404
+    
+    # Get the most recent chatbot_id based on start_time
+    latest_chatbot_id = None
+    latest_start_time = 0
+    
+    for chatbot_id, status_info in processing_status.items():
+        if status_info.get("start_time", 0) > latest_start_time:
+            latest_start_time = status_info.get("start_time", 0)
+            latest_chatbot_id = chatbot_id
+    
+    if not latest_chatbot_id:
+        print(f"[check_processing_latest] No valid chatbot found")
+        return jsonify({"status": "error", "message": "No valid processing found"}), 404
+    
+    print(f"[check_processing_latest] Found latest chatbot: {latest_chatbot_id}")
+    return jsonify({
+        "status": "success",
+        "chatbot_id": latest_chatbot_id
+    })
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
