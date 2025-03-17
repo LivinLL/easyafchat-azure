@@ -1286,6 +1286,34 @@ def dashboard():
         flash('An unexpected error occurred', 'error')
         return redirect(url_for('home'))
 
+@app.route('/check-processing-latest', methods=['GET'])
+def check_processing_latest():
+    """Return the ID of the most recently created chatbot process"""
+    print(f"[check_processing_latest] Checking for latest chatbot")
+    
+    if not processing_status:
+        print(f"[check_processing_latest] No processing status entries found")
+        return jsonify({"status": "error", "message": "No processing found"}), 404
+    
+    # Get the most recent chatbot_id based on start_time
+    latest_chatbot_id = None
+    latest_start_time = 0
+    
+    for chatbot_id, status_info in processing_status.items():
+        if status_info.get("start_time", 0) > latest_start_time:
+            latest_start_time = status_info.get("start_time", 0)
+            latest_chatbot_id = chatbot_id
+    
+    if not latest_chatbot_id:
+        print(f"[check_processing_latest] No valid chatbot found")
+        return jsonify({"status": "error", "message": "No valid processing found"}), 404
+    
+    print(f"[check_processing_latest] Found latest chatbot: {latest_chatbot_id}")
+    return jsonify({
+        "status": "success",
+        "chatbot_id": latest_chatbot_id
+    })
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces
