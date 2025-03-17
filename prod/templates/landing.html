@@ -324,7 +324,7 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     
     <script>
-// Async Processing JavaScript - Updated
+// Async Processing JavaScript - Fixed for Azure
 document.addEventListener('DOMContentLoaded', function() {
     const urlForm = document.getElementById('urlForm');
     const processingOverlay = document.getElementById('processingOverlay');
@@ -373,10 +373,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to process URL');
             }
+            return await response.json(); // Return the response data
         } catch (error) {
             console.error('Error executing processing:', error);
             processingError.textContent = `Error: ${error.message}`;
             processingError.style.display = 'block';
+            throw error; // Re-throw to be caught by caller
         }
     }
     
@@ -396,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 processingError.style.display = 'block';
                 clearInterval(pollingInterval);
                 clearInterval(timerInterval);
-                return;
+                return false;
             }
             
             if (data.status === 'processing') {
@@ -414,6 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateStepStatus(step3, 'active');
                     updateStepStatus(step4, '');
                 }
+                return false;
             } else if (data.status === 'complete') {
                 // Processing complete, update UI
                 processingMessage.textContent = 'Your chatbot is ready!';
@@ -425,21 +428,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear intervals
                 clearInterval(pollingInterval);
                 clearInterval(timerInterval);
-                
-                // Redirect to demo page after a short delay
-                setTimeout(() => {
-                    window.location.href = `/demo/${chatbotId}`;
-                }, 1000);
+                return true;
             }
+            
+            return false;
         } catch (error) {
             console.error('Error checking status:', error);
             processingError.textContent = `Error: ${error.message}`;
             processingError.style.display = 'block';
+            return false;
         }
     }
     
-    // Handle form submission with reCAPTCHA validation
-    urlForm.addEventListener('submit', async function(event) {
+    // This function handles the form submission with reCAPTCHA
+    async function handleFormSubmission(event) {
         event.preventDefault();
         
         // Show processing overlay immediately
@@ -465,61 +467,126 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            // Execute reCAPTCHA and get the token
-            grecaptcha.ready(function() {
-                grecaptcha.execute('{{ config.CAPTCHA_SITE_KEY }}', {action: 'submit'})
-                .then(function(token) {
-                    // Create a new form data object
-                    const formData = new FormData(urlForm);
-                    
-                    // Add the reCAPTCHA token
-                    formData.append('g-recaptcha-response', token);
-                    
-                    // Submit the form asynchronously
-                    fetch('/process-url-async', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            return response.json().then(data => {
-                                throw new Error(data.error || 'Failed to process URL');
-                            });
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        chatbotId = data.chatbot_id;
-                        
-                        // Start the processing
-                        executeProcessing(chatbotId);
-                        
-                        // Start polling for status updates after a small delay
-                        setTimeout(() => {
-                            pollingInterval = setInterval(checkProcessingStatus, 1000);
-                        }, 500);
-                    })
-                    .catch(error => {
-                        console.error('Error submitting form:', error);
-                        processingError.textContent = `Error: ${error.message}`;
-                        processingError.style.display = 'block';
-                        clearInterval(timerInterval);
-                    });
-                })
-                .catch(function(error) {
-                    console.error('reCAPTCHA error:', error);
-                    processingError.textContent = 'Error with reCAPTCHA verification. Please try again.';
-                    processingError.style.display = 'block';
-                    clearInterval(timerInterval);
+            // Get the reCAPTCHA token
+            const token = await new Promise((resolve, reject) => {
+                grecaptcha.ready(function() {
+                    grecaptcha.execute('{{ config.CAPTCHA_SITE_KEY }}', {action: 'submit'})
+                    .then(resolve)
+                    .catch(reject);
                 });
             });
+            
+            // Create a new form data object
+            const formData = new FormData(urlForm);
+            
+            // Add the reCAPTCHA token
+            formData.append('g-recaptcha-response', token);
+            
+            // Submit the form asynchronously
+            const response = await fetch('/process-url-async', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to process URL');
+            }
+            
+            const data = await response.json();
+            chatbotId = data.chatbot_id;
+            
+            // Start the processing
+            await executeProcessing(chatbotId);
+            
+            // Start polling for status updates
+            pollingInterval = setInterval(async function() {
+                const isComplete = await checkProcessingStatus();
+                
+                // If processing is complete, redirect after a short delay
+                if (isComplete) {
+                    setTimeout(() => {
+                        window.location.href = `/demo/${chatbotId}`;
+                    }, 1000);
+                }
+            }, 1000);
+            
         } catch (error) {
             console.error('Error in form submission:', error);
             processingError.textContent = `Error: ${error.message}`;
             processingError.style.display = 'block';
             clearInterval(timerInterval);
         }
+    }
+    
+    // Replace the onSubmitForm function with our new handling
+    window.onSubmitForm = handleFormSubmission;
+    
+    // Make sure we have the proper event listener setup
+    urlForm.addEventListener('submit', handleFormSubmission);
+    
+    // Anti-Bot Protection Script (keep existing code)
+    // Configuration
+    const MINIMUM_FORM_TIME_MS = 3000; // 3 seconds minimum time on page
+    const REQUIRED_MOUSE_MOVEMENTS = 2; // Require at least 2 mouse movements
+    
+    // Tracking variables
+    let mouseMovements = 0;
+    let formSubmitted = false;
+    
+    // Add a honeypot field (hidden field that should remain empty)
+    const honeypotField = document.createElement('input');
+    honeypotField.type = 'text';
+    honeypotField.name = 'website_notes';
+    honeypotField.id = 'website_notes';
+    honeypotField.autocomplete = 'off';
+    honeypotField.setAttribute('aria-hidden', 'true');
+    // Make the field invisible to humans but visible to bots
+    honeypotField.style.opacity = '0';
+    honeypotField.style.position = 'absolute';
+    honeypotField.style.height = '0';
+    honeypotField.style.width = '0';
+    honeypotField.style.zIndex = '-1';
+    
+    // Add the honeypot field to the form
+    urlForm.appendChild(honeypotField);
+    
+    // Add hidden fields for timing and mouse movement validation
+    const timingField = document.createElement('input');
+    timingField.type = 'hidden';
+    timingField.name = 'form_time';
+    timingField.id = 'form_time';
+    urlForm.appendChild(timingField);
+    
+    const mouseMovementField = document.createElement('input');
+    mouseMovementField.type = 'hidden';
+    mouseMovementField.name = 'mouse_validation';
+    mouseMovementField.id = 'mouse_validation';
+    mouseMovementField.value = '0';
+    urlForm.appendChild(mouseMovementField);
+    
+    // Track mouse movements
+    document.addEventListener('mousemove', function() {
+        mouseMovements++;
+        mouseMovementField.value = mouseMovements.toString();
     });
+    
+    // Touch events for mobile users
+    document.addEventListener('touchmove', function() {
+        mouseMovements++;
+        mouseMovementField.value = mouseMovements.toString();
+    });
+    
+    // Function to simulate success for bots without processing
+    function simulateSuccess() {
+        // Show the processing overlay to make it seem like it's working
+        processingOverlay.style.display = 'flex';
+        
+        // After a random delay, redirect to a fake success page or home
+        setTimeout(function() {
+            window.location.href = '/';
+        }, 3000 + Math.random() * 2000);
+    }
 });
 
 
