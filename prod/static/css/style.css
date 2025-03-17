@@ -668,3 +668,9 @@ footer {
         padding: 1rem;
     }
 }
+
+/* Captcha */
+.grecaptcha-badge {
+    visibility: hidden !important;
+    opacity: 0 !important;
+}

@@ -24,6 +24,14 @@ import sqlite3
 import psycopg2
 from psycopg2 import sql
 
+# Added for captcha and bot detection
+import time
+import requests
+import functools
+from collections import defaultdict
+from datetime import datetime, timedelta
+import random
+
 # Import the admin dashboard blueprint
 from admin_dashboard import admin_dashboard, init_admin_dashboard
 from documents_blueprint import documents_blueprint, init_documents_blueprint
@@ -49,6 +57,10 @@ initialize_database(verbose=True)
 # Initialize Flask app
 app = Flask(__name__)
 
+# Add reCAPTCHA configuration
+app.config["CAPTCHA_SITE_KEY"] = os.environ.get("CAPTCHA_SITE_KEY", "")
+app.config["CAPTCHA_SECRET_KEY"] = os.environ.get("CAPTCHA_SECRET_KEY", "")
+
 # Configure server-side session
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
@@ -72,6 +84,14 @@ PINECONE_INDEX = "all-companies"
 PINECONE_HOST = "https://all-companies-6ctd3g7.svc.aped-4627-b74a.pinecone.io"
 DB_PATH = os.getenv('DB_PATH', 'easyafchat.db')
 APIFLASH_KEY = os.getenv('APIFLASH_ACCESS_KEY', '')  # Add this line
+
+# Simple in-memory rate limiting cache
+ip_request_cache = defaultdict(list)
+BOT_DETECTION_RESPONSES = {
+    "success": "Your chatbot is being processed.",
+    "rate_limited": "You've reached the maximum number of requests. Please try again later.",
+    "bot_detected": "Your request appears to be automated. Please try again."
+}
 
 
 # Initialize and register the admin dashboard blueprint
@@ -517,6 +537,84 @@ def process_simple_content(home_data, about_data):
         # In case of error, return None
         return None
 
+def check_for_bot(request):
+    """
+    Check if the request is likely from a bot
+    Returns:
+        bool: True if likely a bot, False otherwise
+        str: Reason for detection if a bot
+    """
+    # Check honeypot field (should be empty)
+    honeypot = request.form.get('website_notes', '')
+    if honeypot:
+        return True, "honeypot_filled"
+    
+    # Check timing (form should not be submitted too quickly)
+    form_time = request.form.get('form_time', '0')
+    try:
+        time_on_page = int(form_time)
+        if time_on_page < 3000:  # Less than 3 seconds
+            return True, "too_fast"
+    except (ValueError, TypeError):
+        return True, "invalid_timing"
+    
+    # Check mouse movements (should have some movement)
+    mouse_validation = request.form.get('mouse_validation', '0')
+    try:
+        movements = int(mouse_validation)
+        if movements < 2:
+            return True, "no_mouse_movement"
+    except (ValueError, TypeError):
+        return True, "invalid_mouse_data"
+    
+    # Check reCAPTCHA
+    recaptcha_response = request.form.get('g-recaptcha-response')
+    if not recaptcha_response:
+        return True, "no_recaptcha"
+    
+    # Verify reCAPTCHA with Google
+    try:
+        verify_data = {
+            'secret': app.config["CAPTCHA_SECRET_KEY"],
+            'response': recaptcha_response,
+            'remoteip': request.remote_addr
+        }
+        response = requests.post('https://www.google.com/recaptcha/api/siteverify', data=verify_data)
+        result = response.json()
+        
+        if not result.get('success', False):
+            return True, "recaptcha_failed"
+        
+        # Check score - below 0.5 is suspicious
+        if result.get('score', 0) < 0.5:
+            return True, "low_recaptcha_score"
+    except Exception as e:
+        app.logger.error(f"reCAPTCHA verification error: {str(e)}")
+        # If verification fails, we'll let it pass but log the error
+    
+    return False, None
+
+def check_rate_limit(request, limit=5, window_minutes=60):
+    """
+    Check if the IP has exceeded rate limits
+    """
+    client_ip = request.remote_addr
+    current_time = datetime.now()
+    
+    # Clean expired entries
+    ip_request_cache[client_ip] = [
+        timestamp for timestamp in ip_request_cache[client_ip]
+        if current_time - timestamp < timedelta(minutes=window_minutes)
+    ]
+    
+    # Check if over limit
+    if len(ip_request_cache[client_ip]) >= limit:
+        return True
+    
+    # Add current request timestamp
+    ip_request_cache[client_ip].append(current_time)
+    return False
+
 # Flask routes
 @app.route('/chat-test')
 def chat_test():
@@ -524,10 +622,37 @@ def chat_test():
 
 @app.route('/')
 def home():
-    return render_template('landing.html')
+    return render_template('landing.html', config=app.config)
 
 @app.route('/process-url-async', methods=['POST'])
 def process_url_async():
+    # Start timing for response (used for silent failures to bots)
+    start_time = time.time()
+    
+    # Check rate limiting
+    if check_rate_limit(request):
+        # Add random delay to disguise rate limiting
+        time.sleep(1 + (2 * random.random()))
+        return jsonify({
+            "status": "processing",
+            "message": BOT_DETECTION_RESPONSES["rate_limited"]
+        }), 429
+    
+    # Check for bot indicators
+    is_bot, bot_reason = check_for_bot(request)
+    if is_bot:
+        app.logger.warning(f"Bot detected: {bot_reason} from IP {request.remote_addr}")
+        # Add random delay for bot detection
+        time.sleep(1 + (2 * random.random()))
+        
+        # Return success-looking message but don't process
+        return jsonify({
+            "status": "processing",
+            "chatbot_id": f"pending-{uuid.uuid4().hex[:8]}",
+            "message": BOT_DETECTION_RESPONSES["success"]
+        })
+    
+    # Normal processing for legitimate users
     website_url = request.form.get('url')
     
     if not validators.url(website_url):
@@ -778,6 +903,9 @@ About Scrape
         print(f"Error generating screenshot URL: {e}")
         flash("Failed to generate screenshot URL")
         return redirect(url_for('home'))
+    
+    # Add this line to redirect to the demo page after processing
+    return redirect(url_for('demo', session_id=chatbot_id))
 
 @app.route('/demo/<session_id>')
 def demo(session_id):
