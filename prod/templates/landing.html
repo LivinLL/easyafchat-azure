@@ -94,34 +94,6 @@
             font-weight: 600;
         }
     </style>
-
-<!-- Add this in the <head> section of landing.html -->
-<!-- Google reCAPTCHA v3 -->
-<script src="https://www.google.com/recaptcha/api.js?render={{ config.CAPTCHA_SITE_KEY }}"></script>
-<script>
-    function onSubmitForm(e) {
-        e.preventDefault();
-        grecaptcha.ready(function() {
-            grecaptcha.execute('{{ config.CAPTCHA_SITE_KEY }}', {action: 'submit'}).then(function(token) {
-                // Add the token to the form
-                const recaptchaResponse = document.createElement('input');
-                recaptchaResponse.type = 'hidden';
-                recaptchaResponse.name = 'g-recaptcha-response';
-                recaptchaResponse.value = token;
-                document.getElementById('urlForm').appendChild(recaptchaResponse);
-                
-                // Submit the form
-                document.getElementById('urlForm').submit();
-            });
-        });
-    }
-    
-    // Add event listener once DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        const urlForm = document.getElementById('urlForm');
-        urlForm.addEventListener('submit', onSubmitForm);
-    });
-</script>
 </head>
 <body>
     <header>
@@ -323,8 +295,9 @@
     <!-- Include JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     
+    <!-- Async Processing JavaScript -->
     <script>
-// Async Processing JavaScript - Fixed for Azure
+// Async Processing JavaScript - Updated
 document.addEventListener('DOMContentLoaded', function() {
     const urlForm = document.getElementById('urlForm');
     const processingOverlay = document.getElementById('processingOverlay');
@@ -340,9 +313,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let pollingInterval;
     let timerInterval;
     let chatbotId;
-    
-    // Page load time for bot detection
-    let pageLoadTime = Date.now();
     
     // Update processing time - this will run independently
     function startTimer() {
@@ -373,12 +343,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to process URL');
             }
-            return await response.json(); // Return the response data
         } catch (error) {
             console.error('Error executing processing:', error);
             processingError.textContent = `Error: ${error.message}`;
             processingError.style.display = 'block';
-            throw error; // Re-throw to be caught by caller
         }
     }
     
@@ -398,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 processingError.style.display = 'block';
                 clearInterval(pollingInterval);
                 clearInterval(timerInterval);
-                return false;
+                return;
             }
             
             if (data.status === 'processing') {
@@ -416,7 +384,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateStepStatus(step3, 'active');
                     updateStepStatus(step4, '');
                 }
-                return false;
             } else if (data.status === 'complete') {
                 // Processing complete, update UI
                 processingMessage.textContent = 'Your chatbot is ready!';
@@ -428,23 +395,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear intervals
                 clearInterval(pollingInterval);
                 clearInterval(timerInterval);
-                return true;
+                
+                // Redirect to demo page after a short delay
+                setTimeout(() => {
+                    window.location.href = `/demo/${chatbotId}`;
+                }, 1000);
             }
-            
-            return false;
         } catch (error) {
             console.error('Error checking status:', error);
             processingError.textContent = `Error: ${error.message}`;
             processingError.style.display = 'block';
-            return false;
         }
     }
     
-    // This function handles the form submission with reCAPTCHA
-    async function handleFormSubmission(event) {
+    // Handle form submission
+    urlForm.addEventListener('submit', async function(event) {
         event.preventDefault();
         
-        // Show processing overlay immediately
+        // Show processing overlay
         processingOverlay.style.display = 'flex';
         processingError.style.display = 'none';
         processingMessage.textContent = 'Initializing chatbot creation...';
@@ -457,32 +425,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Start timing
         startTime = Date.now();
+        
+        // Start the timer independently of the polling
         startTimer();
         
-        // Set the time on page value
-        const timeOnPage = Date.now() - pageLoadTime;
-        const formTimeElement = document.getElementById('form_time');
-        if (formTimeElement) {
-            formTimeElement.value = timeOnPage.toString();
-        }
+        const formData = new FormData(urlForm);
         
         try {
-            // Get the reCAPTCHA token
-            const token = await new Promise((resolve, reject) => {
-                grecaptcha.ready(function() {
-                    grecaptcha.execute('{{ config.CAPTCHA_SITE_KEY }}', {action: 'submit'})
-                    .then(resolve)
-                    .catch(reject);
-                });
-            });
-            
-            // Create a new form data object
-            const formData = new FormData(urlForm);
-            
-            // Add the reCAPTCHA token
-            formData.append('g-recaptcha-response', token);
-            
-            // Submit the form asynchronously
+            // Submit form data to start processing
             const response = await fetch('/process-url-async', {
                 method: 'POST',
                 body: formData
@@ -495,211 +445,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             chatbotId = data.chatbot_id;
-            
+
             // Start the processing
-            await executeProcessing(chatbotId);
+            executeProcessing(chatbotId);
             
-            // Start polling for status updates
-            pollingInterval = setInterval(async function() {
-                const isComplete = await checkProcessingStatus();
-                
-                // If processing is complete, redirect after a short delay
-                if (isComplete) {
-                    setTimeout(() => {
-                        window.location.href = `/demo/${chatbotId}`;
-                    }, 1000);
-                }
-            }, 1000);
+            // Add a small delay before starting polling to ensure backend has registered
+            setTimeout(() => {
+                // Start polling for status updates
+                pollingInterval = setInterval(checkProcessingStatus, 1000);
+            }, 500);
             
         } catch (error) {
-            console.error('Error in form submission:', error);
+            console.error('Error submitting form:', error);
             processingError.textContent = `Error: ${error.message}`;
             processingError.style.display = 'block';
             clearInterval(timerInterval);
         }
-    }
-    
-    // Replace the onSubmitForm function with our new handling
-    window.onSubmitForm = handleFormSubmission;
-    
-    // Make sure we have the proper event listener setup
-    urlForm.addEventListener('submit', handleFormSubmission);
-    
-    // Anti-Bot Protection Script (keep existing code)
-    // Configuration
-    const MINIMUM_FORM_TIME_MS = 3000; // 3 seconds minimum time on page
-    const REQUIRED_MOUSE_MOVEMENTS = 2; // Require at least 2 mouse movements
-    
-    // Tracking variables
-    let mouseMovements = 0;
-    let formSubmitted = false;
-    
-    // Add a honeypot field (hidden field that should remain empty)
-    const honeypotField = document.createElement('input');
-    honeypotField.type = 'text';
-    honeypotField.name = 'website_notes';
-    honeypotField.id = 'website_notes';
-    honeypotField.autocomplete = 'off';
-    honeypotField.setAttribute('aria-hidden', 'true');
-    // Make the field invisible to humans but visible to bots
-    honeypotField.style.opacity = '0';
-    honeypotField.style.position = 'absolute';
-    honeypotField.style.height = '0';
-    honeypotField.style.width = '0';
-    honeypotField.style.zIndex = '-1';
-    
-    // Add the honeypot field to the form
-    urlForm.appendChild(honeypotField);
-    
-    // Add hidden fields for timing and mouse movement validation
-    const timingField = document.createElement('input');
-    timingField.type = 'hidden';
-    timingField.name = 'form_time';
-    timingField.id = 'form_time';
-    urlForm.appendChild(timingField);
-    
-    const mouseMovementField = document.createElement('input');
-    mouseMovementField.type = 'hidden';
-    mouseMovementField.name = 'mouse_validation';
-    mouseMovementField.id = 'mouse_validation';
-    mouseMovementField.value = '0';
-    urlForm.appendChild(mouseMovementField);
-    
-    // Track mouse movements
-    document.addEventListener('mousemove', function() {
-        mouseMovements++;
-        mouseMovementField.value = mouseMovements.toString();
     });
-    
-    // Touch events for mobile users
-    document.addEventListener('touchmove', function() {
-        mouseMovements++;
-        mouseMovementField.value = mouseMovements.toString();
-    });
-    
-    // Function to simulate success for bots without processing
-    function simulateSuccess() {
-        // Show the processing overlay to make it seem like it's working
-        processingOverlay.style.display = 'flex';
-        
-        // After a random delay, redirect to a fake success page or home
-        setTimeout(function() {
-            window.location.href = '/';
-        }, 3000 + Math.random() * 2000);
-    }
 });
-
-
-// Anti-Bot Protection Script
-document.addEventListener('DOMContentLoaded', function() {
-    // Configuration
-    const MINIMUM_FORM_TIME_MS = 3000; // 3 seconds minimum time on page
-    const REQUIRED_MOUSE_MOVEMENTS = 2; // Require at least 2 mouse movements
-    
-    // Tracking variables
-    let pageLoadTime = Date.now();
-    let mouseMovements = 0;
-    let formSubmitted = false;
-    
-    // Get the URL form
-    const urlForm = document.getElementById('urlForm');
-    
-    // Add a honeypot field (hidden field that should remain empty)
-    const honeypotField = document.createElement('input');
-    honeypotField.type = 'text';
-    honeypotField.name = 'website_notes';
-    honeypotField.id = 'website_notes';
-    honeypotField.autocomplete = 'off';
-    honeypotField.setAttribute('aria-hidden', 'true');
-    // Make the field invisible to humans but visible to bots
-    honeypotField.style.opacity = '0';
-    honeypotField.style.position = 'absolute';
-    honeypotField.style.height = '0';
-    honeypotField.style.width = '0';
-    honeypotField.style.zIndex = '-1';
-    
-    // Add the honeypot field to the form
-    urlForm.appendChild(honeypotField);
-    
-    // Add hidden fields for timing and mouse movement validation
-    const timingField = document.createElement('input');
-    timingField.type = 'hidden';
-    timingField.name = 'form_time';
-    timingField.id = 'form_time';
-    urlForm.appendChild(timingField);
-    
-    const mouseMovementField = document.createElement('input');
-    mouseMovementField.type = 'hidden';
-    mouseMovementField.name = 'mouse_validation';
-    mouseMovementField.id = 'mouse_validation';
-    mouseMovementField.value = '0';
-    urlForm.appendChild(mouseMovementField);
-    
-    // Track mouse movements
-    document.addEventListener('mousemove', function() {
-        mouseMovements++;
-        mouseMovementField.value = mouseMovements.toString();
-    });
-    
-    // Touch events for mobile users
-    document.addEventListener('touchmove', function() {
-        mouseMovements++;
-        mouseMovementField.value = mouseMovements.toString();
-    });
-    
-    // Form submission handler
-    urlForm.addEventListener('submit', function(event) {
-        // Prevent multiple submissions
-        if (formSubmitted) {
-            event.preventDefault();
-            return;
-        }
-        
-        // Check if this is likely a bot
-        const timeOnPage = Date.now() - pageLoadTime;
-        timingField.value = timeOnPage.toString();
-        
-        // If the honeypot field is filled, silently fail
-        if (honeypotField.value !== '') {
-            console.log('Form validation passed'); // Fake success message for bots
-            event.preventDefault();
-            simulateSuccess();
-            return;
-        }
-        
-        // If form was filled too quickly, silently fail
-        if (timeOnPage < MINIMUM_FORM_TIME_MS) {
-            console.log('Form validation passed'); // Fake success message for bots
-            event.preventDefault();
-            simulateSuccess();
-            return;
-        }
-        
-        // If not enough mouse movement, silently fail
-        if (mouseMovements < REQUIRED_MOUSE_MOVEMENTS) {
-            console.log('Form validation passed'); // Fake success message for bots
-            event.preventDefault();
-            simulateSuccess();
-            return;
-        }
-        
-        // Form passed bot validation
-        formSubmitted = true;
-    });
-    
-    // Function to simulate success for bots without processing
-    function simulateSuccess() {
-        // Show the processing overlay to make it seem like it's working
-        const processingOverlay = document.getElementById('processingOverlay');
-        processingOverlay.style.display = 'flex';
-        
-        // After a random delay, redirect to a fake success page or home
-        setTimeout(function() {
-            window.location.href = '/';
-        }, 3000 + Math.random() * 2000);
-    }
-});
-</script>
-
+    </script>
 </body>
 </html>
