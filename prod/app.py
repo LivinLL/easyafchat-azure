@@ -793,34 +793,90 @@ About Scrape
 @app.route('/check-processing/<chatbot_id>', methods=['GET'])
 def check_processing(chatbot_id):
     """Check if processing is complete for a chatbot"""
-    if chatbot_id not in processing_status:
-        return jsonify({"status": "error", "message": "Chatbot ID not found"}), 404
-    
-    status_info = processing_status[chatbot_id]
-    
-    # If already marked as completed, return success
-    if status_info.get("completed", False):
+    # First check in-memory processing status
+    if chatbot_id in processing_status:
+        status_info = processing_status[chatbot_id]
+        
+        # If already marked as completed, return success
+        if status_info.get("completed", False):
+            return jsonify({
+                "status": "complete",
+                "chatbot_id": chatbot_id,
+                "website_url": status_info.get("website_url", ""),
+                "screenshot_url": status_info.get("screenshot_url", "")  # Include screenshot URL
+            })
+        
+        # If there was an error during processing
+        if "error" in status_info:
+            return jsonify({
+                "status": "error",
+                "message": status_info["error"]
+            }), 400
+        
+        # If we're still in the initial processing phase
+        elapsed_time = time.time() - status_info["start_time"]
         return jsonify({
-            "status": "complete",
-            "chatbot_id": chatbot_id,
-            "website_url": status_info.get("website_url", ""),
-            "screenshot_url": status_info.get("screenshot_url", "")  # Include screenshot URL
+            "status": "processing",
+            "phase": "content",
+            "elapsed_seconds": int(elapsed_time)
         })
-    
-    # If there was an error during processing
-    if "error" in status_info:
-        return jsonify({
-            "status": "error",
-            "message": status_info["error"]
-        }), 400
-    
-    # If we're still in the initial processing phase
-    elapsed_time = time.time() - status_info["start_time"]
-    return jsonify({
-        "status": "processing",
-        "phase": "content",
-        "elapsed_seconds": int(elapsed_time)
-    })
+    else:
+        # If not in memory, check the database
+        # This helps in case of Azure app service recycling or multiple instances
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT company_url
+                    FROM companies
+                    WHERE chatbot_id = %s
+                ''', (chatbot_id,))
+            else:
+                cursor.execute('''
+                    SELECT company_url
+                    FROM companies
+                    WHERE chatbot_id = ?
+                ''', (chatbot_id,))
+                
+            row = cursor.fetchone()
+            
+            if row:
+                # If it exists in the database, it's completed
+                website_url = row[0]
+                
+                # Generate APIFlash screenshot URL
+                screenshot_url = ""
+                try:
+                    base_url = "https://api.apiflash.com/v1/urltoimage"
+                    screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
+                except Exception as e:
+                    print(f"Error generating screenshot URL: {e}")
+                
+                # Return complete status
+                return jsonify({
+                    "status": "complete",
+                    "chatbot_id": chatbot_id,
+                    "website_url": website_url,
+                    "screenshot_url": screenshot_url
+                })
+            else:
+                # If not found in database, consider it an error
+                return jsonify({
+                    "status": "error", 
+                    "message": "Chatbot ID not found"
+                }), 404
+        
+        except Exception as e:
+            print(f"Error checking database for chatbot: {e}")
+            return jsonify({
+                "status": "error",
+                "message": f"Error checking status: {str(e)}"
+            }), 500
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
 
 @app.route('/', methods=['POST'])
 def process_url():
