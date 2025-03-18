@@ -572,6 +572,16 @@ def process_url_async():
     website_url = request.form.get('url')
     print(f"[process_url_async] URL: {website_url}")
     
+    # Check honeypot field - silently succeed but don't process if filled
+    if request.form.get('contact_email'):
+        print("[process_url_async] Honeypot field filled, likely bot activity")
+        # Return success-like response but with a fake chatbot ID
+        fake_chatbot_id = str(uuid.uuid4()).replace('-', '')[:20]
+        return jsonify({
+            "status": "processing",
+            "chatbot_id": fake_chatbot_id
+        })
+    
     # Verify reCAPTCHA
     recaptcha_token = request.form.get('g-recaptcha-response')
     print(f"[process_url_async] reCAPTCHA token present: {bool(recaptcha_token)}")
@@ -859,6 +869,12 @@ def process_url():
     print(f"[process_url] Starting POST request processing")
     website_url = request.form.get('url')
     print(f"[process_url] URL: {website_url}")
+    
+    # Check honeypot field - silently succeed but don't process if filled
+    if request.form.get('contact_email'):
+        print("[process_url] Honeypot field filled, likely bot activity")
+        # Redirect to home as if something went wrong, but don't show an error
+        return redirect(url_for('home'))
     
     # Verify reCAPTCHA
     recaptcha_token = request.form.get('g-recaptcha-response')

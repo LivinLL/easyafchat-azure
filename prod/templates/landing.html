@@ -296,11 +296,15 @@
     <main>
         <!-- Hero Section -->
         <section class="hero">
-            <h1>A Smart AI Agent Chatbot V59 for Your Website in Under a Minute</h1>
+            <h1>A Smart AI Agent Chatbot V82 for Your Website in Under a Minute</h1>
             <p>Simply enter your website URL below, and we'll create a smart AI chatbot for you instantly.</p>
             <div class="hero-input">
                 <form id="urlForm" action="/" method="POST">
                     <input type="text" name="url" placeholder="Enter your website URL (e.g., https://yourwebsite.com)" required>
+                    <!-- Honeypot field - hidden from real users but attractive to bots -->
+                    <div class="contact-field" style="opacity: 0; position: absolute; top: -9999px; left: -9999px;">
+                        <input type="text" name="contact_email" autocomplete="off" tabindex="-1">
+                    </div>
                     <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Create My Chatbot</button>
                 </form>
             </div>
