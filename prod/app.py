@@ -9,6 +9,8 @@ from typing import List, Dict, Tuple, Optional
 from chat_handler import ChatPromptHandler
 from flask_cors import CORS
 from db_leads import leads_blueprint, init_leads_blueprint
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import time
 import os
 import validators
@@ -48,6 +50,15 @@ initialize_database(verbose=True)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Add rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window",  # Simple strategy that's effective for most cases
+)
 
 # Add reCAPTCHA configuration
 app.config["CAPTCHA_SITE_KEY"] = os.environ.get("CAPTCHA_SITE_KEY", "")
@@ -556,6 +567,25 @@ def verify_recaptcha(token, remote_ip):
         print(f"[reCAPTCHA] Error trace: {traceback.format_exc()}")
         return False
 
+# Add this after your other app configurations but before the routes
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """Custom handler for rate limit exceeded errors"""
+    # Log the rate limit exceeded event
+    print(f"[RATE LIMIT] Rate limit exceeded for IP: {request.remote_addr}")
+    
+    # Check if it's an AJAX/JSON request
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # For AJAX requests, return a JSON response
+        return jsonify({
+            "error": "Too many requests. Please try again later.",
+            "rate_limit_exceeded": True
+        }), 429
+    else:
+        # For regular form submissions, flash a message and redirect
+        flash("Too many requests. Please try again later.")
+        return redirect(url_for('home'))
+
 # Flask routes
 @app.route('/chat-test')
 def chat_test():
@@ -566,6 +596,7 @@ def home():
     return render_template('landing.html')
 
 @app.route('/process-url-async', methods=['POST'])
+@limiter.limit("5 per minute; 20 per hour")
 def process_url_async():
     print(f"[process_url_async] Starting at {datetime.now().isoformat()}")
     print(f"[process_url_async] Form data: {request.form}")
@@ -865,6 +896,7 @@ def check_processing(chatbot_id):
     })
 
 @app.route('/', methods=['POST'])
+@limiter.limit("5 per minute; 20 per hour")
 def process_url():
     print(f"[process_url] Starting POST request processing")
     website_url = request.form.get('url')

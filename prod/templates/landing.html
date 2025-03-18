@@ -174,7 +174,13 @@
                     method: 'POST',
                     body: formData
                 })
-                .then(response => response.json())
+                .then(response => {
+                    // Check if it's a rate limit error
+                    if (response.status === 429) {
+                        throw new Error('Rate limit exceeded. Please try again later.');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     console.log('[reCAPTCHA] Received response:', data);
                     
@@ -185,6 +191,16 @@
                         let pollingInterval = setInterval(async function() {
                             try {
                                 const statusResponse = await fetch(`/check-processing/${data.chatbot_id}`);
+                                
+                                // Check for rate limit on status check too
+                                if (statusResponse.status === 429) {
+                                    processingError.textContent = 'Rate limit exceeded. Please try again later.';
+                                    processingError.style.display = 'block';
+                                    clearInterval(pollingInterval);
+                                    clearInterval(timerInterval);
+                                    return;
+                                }
+                                
                                 const statusData = await statusResponse.json();
                                 
                                 console.log('[reCAPTCHA] Status:', statusData);
