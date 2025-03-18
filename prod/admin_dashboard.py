@@ -2219,6 +2219,12 @@ def truncate_table(table_name):
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('BEGIN')
             
+            # Special handling for users table - handle foreign key constraints first
+            if table_name == 'users':
+                # First, NULL out all user_id references in the companies table
+                cursor.execute("UPDATE companies SET user_id = NULL")
+                print("Cleared all user_id references in the companies table")
+            
             # Get record count first
             cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
             count = cursor.fetchone()[0]
