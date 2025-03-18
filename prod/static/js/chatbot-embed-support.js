@@ -917,58 +917,68 @@
                 
                 // Get the full response text
                 const fullText = data.response;
-                
-                // Add to messages array right away (we'll still display it gradually)
+
+                // Add to messages array right away
                 messages.push({ role: 'assistant', content: fullText });
-                
-                // Simulate typing with a smoother approach
-                let displayedText = '';
-                let charIndex = 0;
-                let typingStarted = false;
-                
+
+                // Make sure we display the user message at the top
+                const ensureUserMessageVisible = () => {
+                    // Find the marked user message (latest question)
+                    const currentUserMessage = messagesContainer.querySelector('.support-chat-message.user[data-current-question="true"]');
+                    
+                    if (currentUserMessage) {
+                        // Calculate top offset (accounting for card-body padding)
+                        const desiredTop = cardBodyPadding;
+                        
+                        // Get current position
+                        const rect = currentUserMessage.getBoundingClientRect();
+                        const containerRect = messagesContainer.getBoundingClientRect();
+                        
+                        // Calculate the difference from desired position
+                        const currentTopOffset = rect.top - containerRect.top;
+                        
+                        // Calculate how much we need to scroll to position message at top with padding
+                        const scrollAdjustment = currentTopOffset - desiredTop;
+                        
+                        // Apply the scroll adjustment
+                        messagesContainer.scrollTop += scrollAdjustment;
+                    }
+                };
+
                 // Create a reference for our interval so we can clear it later
                 let typeInterval = null;
-                
+
+                // Display the full response at once instead of typing it out
                 const typeNextChunk = () => {
-                    if (charIndex < fullText.length) {
-                        // Add a small chunk of text at a time for better performance
-                        const chunkSize = Math.min(4, fullText.length - charIndex);
-                        const nextChunk = fullText.substring(charIndex, charIndex + chunkSize);
-                        displayedText += nextChunk;
-                        charIndex += chunkSize;
-                        
-                        // Handle markdown rendering
-                        assistantMessageDiv.innerHTML = marked.parse(displayedText);
-                        
-                        // Once we've displayed some text and the assistant message is visible,
-                        // start positioning the user message at the top
-                        if (!typingStarted && charIndex > 20) {
-                            typingStarted = true;
-                            // Enable the consistent positioning check
-                            typeInterval = setInterval(ensureUserMessageAtTop, 100);
-                        }
-                        
-                        // Schedule the next chunk with slight randomization for natural feel
-                        setTimeout(typeNextChunk, Math.random() * 20 + 15);
-                    } else {
-                        // Finished typing
-                        
-                        // Clear the positioning interval when typing is complete
+                    // Add the full text immediately
+                    displayedText = fullText;
+                    
+                    // Handle markdown rendering
+                    assistantMessageDiv.innerHTML = marked.parse(displayedText);
+                    
+                    // Make sure the user message stays at the top
+                    ensureUserMessageVisible();
+                    
+                    // Start a short interval to maintain position during any markdown rendering or image loading
+                    typeInterval = setInterval(ensureUserMessageVisible, 100);
+                    
+                    // Clear the interval after a short time once everything is stable
+                    setTimeout(() => {
                         if (typeInterval) {
                             clearInterval(typeInterval);
                         }
                         
                         // Final position adjustment to ensure user message is at top
-                        ensureUserMessageAtTop();
+                        ensureUserMessageVisible();
                         
                         // Check if we should show lead form
                         if (messages.length === 3 && !hasShownLeadForm && !hasSubmittedLead) {
                             console.log('Showing lead form after first exchange - local message count =', messages.length);
                             createLeadForm();
                         }
-                    }
+                    }, 500); // Short delay to ensure everything is rendered properly
                 };
-                
+               
                 // Start the typing simulation
                 typeNextChunk();
                 
