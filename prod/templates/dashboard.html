@@ -298,6 +298,11 @@
             background-color: white !important; /* Ensure white background */
         }
 
+        /* Hide the user's chatbox closing "X" as it can't close so don't show it */
+        #playground-container .daves-chat-window #daves-close-chat {
+            display: none !important;
+        }
+
         /* Add responsive behavior for mobile devices */
         @media (max-width: 768px) {
             #playground-container .daves-chat-window {
@@ -306,6 +311,8 @@
                 max-height: 600px !important;
             }
         }
+
+
     </style>
 </head>
 <body>
