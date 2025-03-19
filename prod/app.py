@@ -1364,13 +1364,17 @@ def check_processing_latest():
 
 @app.route('/verify-domain', methods=['POST'])
 def verify_domain():
+    """Verify if a domain is authorized to use a specific chatbot"""
     try:
         data = request.json
         chatbot_id = data.get('chatbot_id')
         domain = data.get('domain')
         
+        print(f"[verify-domain] Received request: chatbot_id={chatbot_id}, domain={domain}")
+        
         if not chatbot_id or not domain:
-            return jsonify({'error': 'Missing chatbot_id or domain'}), 400
+            print(f"[verify-domain] Missing required fields: chatbot_id={chatbot_id}, domain={domain}")
+            return jsonify({'error': 'Missing chatbot_id or domain', 'authorized': False}), 400
             
         # Get the company URL for this chatbot
         with connect_to_db() as conn:
@@ -1392,38 +1396,65 @@ def verify_domain():
             row = cursor.fetchone()
             
         if not row:
+            print(f"[verify-domain] Chatbot not found: {chatbot_id}")
             return jsonify({'error': 'Chatbot not found', 'authorized': False}), 404
             
         company_url = row[0]
+        print(f"[verify-domain] Found company_url: {company_url}")
         
         # Extract domain from company URL
         try:
-            company_domain = urllib.parse.urlparse(company_url).netloc.lower()
+            # Handle malformed URLs by adding protocol if missing
+            if not company_url.startswith(('http://', 'https://')):
+                company_url = 'https://' + company_url
+                print(f"[verify-domain] Added protocol to URL: {company_url}")
+                
+            # Parse URL components
+            parsed_url = urlparse(company_url)
+            company_domain = parsed_url.netloc.lower()
+            
+            # Handle empty netloc by trying to use path as domain
+            if not company_domain and parsed_url.path:
+                company_domain = parsed_url.path.split('/')[0].lower()
+                print(f"[verify-domain] Using path as domain: {company_domain}")
+                
             # Remove www. prefix if present
             if company_domain.startswith('www.'):
                 company_domain = company_domain[4:]
+                print(f"[verify-domain] Removed www prefix: {company_domain}")
                 
-            # Allow subdomains (e.g., blog.example.com can use chatbot from example.com)
+            # Clean up request domain
             request_domain = domain.lower()
             if request_domain.startswith('www.'):
                 request_domain = request_domain[4:]
                 
+            print(f"[verify-domain] Comparing domains: request={request_domain}, company={company_domain}")
+                
             # Check if domains match exactly or if request domain is a subdomain of company domain
             is_authorized = (request_domain == company_domain or 
                             request_domain.endswith('.' + company_domain))
+            
+            # Also check the reverse - allow main domain to use bots created for subdomains
+            if not is_authorized and '.' in company_domain:
+                main_company_domain = '.'.join(company_domain.split('.')[-2:])
+                is_authorized = request_domain == main_company_domain
                 
-            # Log the verification
-            print(f"Domain verification: {request_domain} requesting to use chatbot from {company_domain}. Authorized: {is_authorized}")
+            print(f"[verify-domain] Authorization result: {is_authorized}")
             
             return jsonify({'authorized': is_authorized})
             
         except Exception as e:
-            print(f"Error parsing domain: {e}")
-            return jsonify({'error': 'Invalid domain format', 'authorized': False}), 400
+            import traceback
+            print(f"[verify-domain] Error parsing domain: {e}")
+            print(f"[verify-domain] Traceback: {traceback.format_exc()}")
+            print(f"[verify-domain] Company URL: {company_url}, Request domain: {domain}")
+            return jsonify({'error': f'Invalid domain format: {str(e)}', 'authorized': False}), 400
             
     except Exception as e:
-        print(f"Error in domain verification: {e}")
-        return jsonify({'error': 'Server error', 'authorized': False}), 500
+        import traceback
+        print(f"[verify-domain] Unhandled error: {e}")
+        print(f"[verify-domain] Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Server error: {str(e)}', 'authorized': False}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this

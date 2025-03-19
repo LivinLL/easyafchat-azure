@@ -385,12 +385,13 @@
                 
                 <div class="code-box">
                     <pre><code id="embed-code">
-&lt;script&gt;
-window.davesEasyChatConfig = {
-    chatbotId: "{% if chatbots|length > 0 %}{{ chatbots[0].chatbot_id }}{% else %}YOUR_CHATBOT_ID{% endif %}"
-};
-&lt;/script&gt;
-&lt;script src="{{ request.url_root }}static/js/chatbot-embed.js"&gt;&lt;/script&gt;
+                &lt;script&gt;
+                window.davesEasyChatConfig = {
+                    chatbotId: "{% if chatbots|length > 0 %}{{ chatbots[0].chatbot_id }}{% else %}YOUR_CHATBOT_ID{% endif %}",
+                    baseUrl: "{{ request.url_root.rstrip('/') }}"
+                };
+                &lt;/script&gt;
+                &lt;script src="{{ request.url_root }}static/js/chatbot-embed.js"&gt;&lt;/script&gt;
                     </code></pre>
                     <button class="copy-btn" onclick="copyEmbedCode()">Copy</button>
                 </div>
