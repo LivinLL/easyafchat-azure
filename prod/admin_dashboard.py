@@ -1319,8 +1319,24 @@ def clean_users_table():
                         google_id TEXT UNIQUE,
                         name TEXT,
                         company_name TEXT,
+                        
+                        /* Password Reset (existing fields) */
                         reset_token TEXT,
                         reset_token_created_at TIMESTAMP,
+                        
+                        /* Email Verification */
+                        email_verify_token TEXT,
+                        email_verify_status BOOLEAN DEFAULT FALSE,
+                        
+                        /* Login Security */
+                        login_failed_attempts INTEGER DEFAULT 0,
+                        login_failed_last TIMESTAMP,
+                        login_locked_until TIMESTAMP,
+                        
+                        /* Two-Factor Authentication */
+                        totp_secret TEXT,
+                        totp_enabled BOOLEAN DEFAULT FALSE,
+                        
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         last_login TIMESTAMP
@@ -1329,7 +1345,7 @@ def clean_users_table():
                     
                     return {
                         'success': True,
-                        'message': "PostgreSQL users table recreated successfully with TEXT user_id"
+                        'message': "PostgreSQL users table recreated successfully with security fields"
                     }
                 
                 except Exception as e:
@@ -1363,8 +1379,24 @@ def clean_users_table():
                         google_id TEXT UNIQUE,
                         name TEXT,
                         company_name TEXT,
+                        
+                        /* Password Reset (existing fields) */
                         reset_token TEXT,
                         reset_token_created_at DATETIME,
+                        
+                        /* Email Verification */
+                        email_verify_token TEXT,
+                        email_verify_status INTEGER DEFAULT 0,
+                        
+                        /* Login Security */
+                        login_failed_attempts INTEGER DEFAULT 0,
+                        login_failed_last DATETIME,
+                        login_locked_until DATETIME,
+                        
+                        /* Two-Factor Authentication */
+                        totp_secret TEXT,
+                        totp_enabled INTEGER DEFAULT 0,
+                        
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         last_login DATETIME
@@ -1373,7 +1405,7 @@ def clean_users_table():
                     
                     return {
                         'success': True,
-                        'message': "SQLite users table recreated successfully with TEXT user_id"
+                        'message': "SQLite users table recreated successfully with security fields"
                     }
                 
                 except Exception as e:
