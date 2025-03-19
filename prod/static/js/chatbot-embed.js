@@ -16,7 +16,84 @@
         return;
     }
 
-    // Load marked library
+    // Get the base URL where the script is hosted
+    const baseUrl = config.baseUrl || currentScript.src.split('/static/js/')[0];
+        
+    // Domain verification - First verify this site is authorized to use this chatbot
+    const verifyDomain = async function() {
+        try {
+            // Get current hostname
+            const currentHostname = window.location.hostname;
+            
+            // Skip verification for localhost during development
+            if (currentHostname === 'localhost' || 
+                currentHostname === '127.0.0.1' || 
+                currentHostname.endsWith('.local')) {
+                console.log('DavesEasyChat: Running on localhost, skipping domain verification');
+                return true;
+            }
+            
+            // Skip verification for the app's own domain (allowing the demo page to work)
+            const scriptHostname = new URL(baseUrl).hostname;
+            if (currentHostname === scriptHostname) {
+                console.log('DavesEasyChat: Running on app domain, skipping domain verification');
+                return true;
+            }
+            
+            // Verify with the server
+            const response = await fetch(`${baseUrl}/verify-domain`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chatbot_id: config.chatbotId,
+                    domain: currentHostname
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`DavesEasyChat: Domain verification failed - ${errorData.error}`);
+                return false;
+            }
+            
+            const result = await response.json();
+            return result.authorized === true;
+            
+        } catch (error) {
+            console.error('DavesEasyChat: Domain verification error -', error);
+            return false;
+        }
+    };
+
+    // Begin initialization by first verifying domain
+    verifyDomain().then(isAuthorized => {
+        if (!isAuthorized) {
+            console.error('DavesEasyChat: This domain is not authorized to use this chatbot');
+            
+            // Optional: Show a small error message instead of the chat
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position:fixed; bottom:20px; right:20px; background-color:#f8d7da; color:#721c24; padding:10px; border-radius:4px; font-family:sans-serif; font-size:12px; z-index:9999; max-width:300px;';
+            errorDiv.textContent = 'This domain is not authorized to use this chatbot.';
+            document.body.appendChild(errorDiv);
+            
+            // Remove error after 10 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 10000);
+            
+            return;
+        }
+        
+        // Domain is authorized - continue with normal initialization
+        initializeChatbot();
+    });
+
+// Load marked library and initialize chatbot
+function initializeChatbot() {
     const markedScript = document.createElement('script');
     markedScript.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
     markedScript.onload = function() {
@@ -1078,4 +1155,5 @@ setTimeout(() => {
 };
 
 document.head.appendChild(markedScript);
+    }
 })();

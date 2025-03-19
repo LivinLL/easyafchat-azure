@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g
 from dotenv import load_dotenv
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from pinecone import Pinecone
@@ -1361,6 +1361,69 @@ def check_processing_latest():
         "status": "success",
         "chatbot_id": latest_chatbot_id
     })
+
+@app.route('/verify-domain', methods=['POST'])
+def verify_domain():
+    try:
+        data = request.json
+        chatbot_id = data.get('chatbot_id')
+        domain = data.get('domain')
+        
+        if not chatbot_id or not domain:
+            return jsonify({'error': 'Missing chatbot_id or domain'}), 400
+            
+        # Get the company URL for this chatbot
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT company_url
+                    FROM companies
+                    WHERE chatbot_id = %s
+                ''', (chatbot_id,))
+            else:
+                cursor.execute('''
+                    SELECT company_url
+                    FROM companies
+                    WHERE chatbot_id = ?
+                ''', (chatbot_id,))
+                
+            row = cursor.fetchone()
+            
+        if not row:
+            return jsonify({'error': 'Chatbot not found', 'authorized': False}), 404
+            
+        company_url = row[0]
+        
+        # Extract domain from company URL
+        try:
+            company_domain = urllib.parse.urlparse(company_url).netloc.lower()
+            # Remove www. prefix if present
+            if company_domain.startswith('www.'):
+                company_domain = company_domain[4:]
+                
+            # Allow subdomains (e.g., blog.example.com can use chatbot from example.com)
+            request_domain = domain.lower()
+            if request_domain.startswith('www.'):
+                request_domain = request_domain[4:]
+                
+            # Check if domains match exactly or if request domain is a subdomain of company domain
+            is_authorized = (request_domain == company_domain or 
+                            request_domain.endswith('.' + company_domain))
+                
+            # Log the verification
+            print(f"Domain verification: {request_domain} requesting to use chatbot from {company_domain}. Authorized: {is_authorized}")
+            
+            return jsonify({'authorized': is_authorized})
+            
+        except Exception as e:
+            print(f"Error parsing domain: {e}")
+            return jsonify({'error': 'Invalid domain format', 'authorized': False}), 400
+            
+    except Exception as e:
+        print(f"Error in domain verification: {e}")
+        return jsonify({'error': 'Server error', 'authorized': False}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
