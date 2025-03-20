@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template_string, request, jsonify
+from flask import Blueprint, render_template_string, request, jsonify, session
 import os
 from datetime import datetime
 import uuid
@@ -565,6 +565,211 @@ def create_initial_document(chatbot_id):
             return jsonify({'success': True, 'doc_id': doc_result['doc_id']})
     except Exception as e:
         print(f"Error creating initial document: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@documents_blueprint.route('/user-documents', methods=['GET'])
+def user_documents():
+    """Get documents for the current user's chatbots"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    user_id = session['user_id']
+    
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Get all chatbots for this user
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('SELECT chatbot_id FROM companies WHERE user_id = %s', (user_id,))
+            else:
+                cursor.execute('SELECT chatbot_id FROM companies WHERE user_id = ?', (user_id,))
+                
+            user_chatbots = [row[0] for row in cursor.fetchall()]
+            
+            if not user_chatbots:
+                return jsonify({'documents': []})
+                
+            # Format the list for SQL IN clause
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                chatbot_ids_str = ','.join([f"'{chatbot_id}'" for chatbot_id in user_chatbots])
+                
+                # Get all documents for these chatbots
+                cursor.execute(f'''
+                    SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
+                           d.vectors_count, LEFT(d.content, 1000) as content_preview, c.company_url
+                    FROM documents d
+                    LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
+                    WHERE d.chatbot_id IN ({chatbot_ids_str})
+                    ORDER BY d.created_at DESC
+                ''')
+            else:
+                # SQLite uses ? placeholders
+                placeholders = ','.join(['?'] * len(user_chatbots))
+                
+                # Get all documents for these chatbots
+                cursor.execute(f'''
+                    SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
+                           d.vectors_count, substr(d.content, 1, 1000) as content_preview, c.company_url
+                    FROM documents d
+                    LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
+                    WHERE d.chatbot_id IN ({placeholders})
+                    ORDER BY d.created_at DESC
+                ''', user_chatbots)
+                
+            documents = []
+            for row in cursor.fetchall():
+                documents.append({
+                    'doc_id': row[0],
+                    'chatbot_id': row[1],
+                    'doc_name': row[2],
+                    'doc_type': row[3],
+                    'created_at': row[4],
+                    'updated_at': row[5],
+                    'vectors_count': row[6],
+                    'content': row[7],
+                    'company_url': row[8] if len(row) > 8 else None
+                })
+                
+            return jsonify({'documents': documents})
+    except Exception as e:
+        print(f"Error getting user documents: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@documents_blueprint.route('/processing-status/<doc_id>', methods=['GET'])
+def document_processing_status(doc_id):
+    """Check if a document's processing is complete"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # First verify that this document belongs to one of the user's chatbots
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT d.vectors_count
+                    FROM documents d
+                    JOIN companies c ON d.chatbot_id = c.chatbot_id
+                    WHERE d.doc_id = %s AND c.user_id = %s
+                ''', (doc_id, session['user_id']))
+            else:
+                cursor.execute('''
+                    SELECT d.vectors_count
+                    FROM documents d
+                    JOIN companies c ON d.chatbot_id = c.chatbot_id
+                    WHERE d.doc_id = ? AND c.user_id = ?
+                ''', (doc_id, session['user_id']))
+                
+            result = cursor.fetchone()
+            
+            if not result:
+                return jsonify({'error': 'Document not found or access denied'}), 404
+                
+            # If vectors_count is > 0, processing is complete
+            vectors_count = result[0] or 0
+            
+            return jsonify({
+                'completed': vectors_count > 0,
+                'vectors_count': vectors_count
+            })
+    except Exception as e:
+        print(f"Error checking document processing status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@documents_blueprint.route('/retrain-agent/<chatbot_id>', methods=['POST'])
+def retrain_agent(chatbot_id):
+    """Retrain the agent for a specific chatbot by refreshing vectors"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    try:
+        # First, verify the user owns this chatbot
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT pinecone_namespace, processed_content
+                    FROM companies
+                    WHERE chatbot_id = %s AND user_id = %s
+                ''', (chatbot_id, session['user_id']))
+            else:
+                cursor.execute('''
+                    SELECT pinecone_namespace, processed_content
+                    FROM companies
+                    WHERE chatbot_id = ? AND user_id = ?
+                ''', (chatbot_id, session['user_id']))
+                
+            company = cursor.fetchone()
+            
+            if not company:
+                return jsonify({'error': 'Chatbot not found or access denied'}), 404
+                
+            namespace = company[0]
+            processed_content = company[1]
+            
+            # Get all documents for this chatbot
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT doc_id, content
+                    FROM documents
+                    WHERE chatbot_id = %s
+                ''', (chatbot_id,))
+            else:
+                cursor.execute('''
+                    SELECT doc_id, content
+                    FROM documents
+                    WHERE chatbot_id = ?
+                ''', (chatbot_id,))
+                
+            documents = cursor.fetchall()
+            
+            # Combine all text content
+            all_content = processed_content if processed_content else ""
+            
+            for doc in documents:
+                if doc[1]:  # If document has content
+                    all_content += "\n\n" + doc[1]
+            
+            # Check if there's any content to process
+            if not all_content.strip():
+                return jsonify({'error': 'No content available for retraining'}), 400
+                
+            # Chunk the content and create embeddings
+            chunks = documents_handler.chunk_text(all_content)
+            embeddings = documents_handler.get_embeddings(chunks)
+            
+            # Update Pinecone
+            index = pinecone_client.Index(PINECONE_INDEX)
+            
+            # First delete all existing vectors
+            try:
+                index.delete(delete_all=True, namespace=namespace)
+            except Exception as e:
+                print(f"Warning: Error clearing vectors from namespace {namespace}: {e}")
+            
+            # Upload new vectors
+            vectors = []
+            
+            # Add vectors for the main content
+            for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+                vectors.append((
+                    f"{namespace}-{i}",
+                    embedding,
+                    {"text": chunk}
+                ))
+            
+            # Upsert vectors in batches of 100
+            batch_size = 100
+            for i in range(0, len(vectors), batch_size):
+                batch = vectors[i:i+batch_size]
+                index.upsert(vectors=batch, namespace=namespace)
+            
+            return jsonify({'success': True, 'vectors_count': len(vectors)})
+    except Exception as e:
+        print(f"Error retraining agent: {e}")
         return jsonify({'error': str(e)}), 500
 
 # This function initializes the blueprint with the OpenAI and Pinecone clients
