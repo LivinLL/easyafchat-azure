@@ -1117,6 +1117,11 @@ def embed_chat():
 
         namespace = row[0]
         
+        # Check if this is a support bot request (thread_id starting with "support_")
+        is_support_bot = thread_id and thread_id.startswith("support_")
+        if is_support_bot:
+            print(f"Support bot request detected - using namespace: {namespace}")
+        
         # Initialize chat handler with namespace if it doesn't exist
         if chatbot_id not in chat_handlers:
             chat_handlers[chatbot_id] = ChatPromptHandler(openai_client, pinecone_client)
@@ -1456,6 +1461,53 @@ def verify_domain():
         import traceback
         print(f"[verify-domain] Unhandled error: {e}")
         print(f"[verify-domain] Traceback: {traceback.format_exc()}")
+        return jsonify({'error': f'Server error: {str(e)}', 'authorized': False}), 500
+
+@app.route('/verify-support-domain', methods=['POST'])
+@limiter.limit("30 per minute")
+def verify_support_domain():
+    """Verify if a domain is authorized to use the support chatbot"""
+    try:
+        data = request.json
+        domain = data.get('domain')
+        
+        print(f"[verify-support-domain] Received request: domain={domain}")
+        
+        if not domain:
+            print(f"[verify-support-domain] Missing required field: domain={domain}")
+            return jsonify({'error': 'Missing domain', 'authorized': False}), 400
+            
+        # List of authorized domains for the support chatbot
+        authorized_domains = [
+            'localhost',
+            '127.0.0.1',
+            'easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net'
+            # Add any other domains you want to authorize here
+        ]
+        
+        # Clean up request domain
+        request_domain = domain.lower()
+        if request_domain.startswith('www.'):
+            request_domain = request_domain[4:]
+                
+        print(f"[verify-support-domain] Checking domain: {request_domain}")
+        
+        # Check if domain is in authorized list
+        is_authorized = request_domain in authorized_domains
+        
+        # Also check if it's a local development domain with common ports
+        if not is_authorized and (request_domain.startswith('localhost:') or request_domain.startswith('127.0.0.1:')):
+            base_domain = request_domain.split(':')[0]
+            is_authorized = base_domain in authorized_domains
+            
+        print(f"[verify-support-domain] Authorization result: {is_authorized}")
+        
+        return jsonify({'authorized': is_authorized})
+            
+    except Exception as e:
+        import traceback
+        print(f"[verify-support-domain] Unhandled error: {e}")
+        print(f"[verify-support-domain] Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Server error: {str(e)}', 'authorized': False}), 500
 
 if __name__ == '__main__':

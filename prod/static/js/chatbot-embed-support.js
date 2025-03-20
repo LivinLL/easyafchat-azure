@@ -15,7 +15,83 @@
         return;
     }
 
-    // Load marked library
+    // Get the base URL where the script is hosted
+    const baseUrl = config.baseUrl || currentScript.src.split('/static/js/')[0];
+        
+    // Domain verification - First verify this site is authorized to use the support chatbot
+    const verifyDomain = async function() {
+        try {
+            // Get current hostname
+            const currentHostname = window.location.hostname;
+            
+            // Skip verification for localhost during development
+            if (currentHostname === 'localhost' || 
+                currentHostname === '127.0.0.1' || 
+                currentHostname.endsWith('.local')) {
+                console.log('DavesEasyChat Support: Running on localhost, skipping domain verification');
+                return true;
+            }
+            
+            // Skip verification for the app's own domain (allowing the demo page to work)
+            const scriptHostname = new URL(baseUrl).hostname;
+            if (currentHostname === scriptHostname) {
+                console.log('DavesEasyChat Support: Running on app domain, skipping domain verification');
+                return true;
+            }
+            
+            // Verify with the server
+            const response = await fetch(`${baseUrl}/verify-support-domain`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    domain: currentHostname
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`DavesEasyChat Support: Domain verification failed - ${errorData.error}`);
+                return false;
+            }
+            
+            const result = await response.json();
+            return result.authorized === true;
+            
+        } catch (error) {
+            console.error('DavesEasyChat Support: Domain verification error -', error);
+            return false;
+        }
+    };
+
+    // Begin initialization by first verifying domain
+    verifyDomain().then(isAuthorized => {
+        if (!isAuthorized) {
+            console.error('DavesEasyChat Support: This domain is not authorized to use this chatbot');
+            
+            // Optional: Show a small error message instead of the chat
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position:fixed; bottom:20px; right:20px; background-color:#f8d7da; color:#721c24; padding:10px; border-radius:4px; font-family:sans-serif; font-size:12px; z-index:9999; max-width:300px;';
+            errorDiv.textContent = 'This domain is not authorized to use the EasyAFChat support bot.';
+            document.body.appendChild(errorDiv);
+            
+            // Remove error after 10 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 10000);
+            
+            return;
+        }
+        
+        // Domain is authorized - continue with normal initialization
+        initializeMarkedAndChatbot();
+    });
+
+// Function to initialize marked library and chatbot
+function initializeMarkedAndChatbot() {
     const markedScript = document.createElement('script');
     markedScript.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
     markedScript.onload = function() {
@@ -1065,11 +1141,12 @@
             }
         });
 
-        // Call the showInitialPopup function with a delay
-        setTimeout(() => {
-            showInitialPopup();
-        }, 500); // Small initial delay to ensure everything is loaded
-    };
+// Call the showInitialPopup function with a delay
+setTimeout(() => {
+    showInitialPopup();
+}, 500); // Small initial delay to ensure everything is loaded
+};
 
-    document.head.appendChild(markedScript);
+document.head.appendChild(markedScript);
+}
 })();

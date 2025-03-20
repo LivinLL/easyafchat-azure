@@ -206,5 +206,14 @@
         });
     </script>
     {% endif %}
+
+    <!-- Support Chatbot with namespace isolation -->
+    <script>
+        window.davesEasySupportChatConfig = {
+            chatbotId: "95695d39883544f299ba"  // EasyAFChat support bot ID
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/chatbot-embed-support.js') }}"></script>
+
 </body>
 </html>
