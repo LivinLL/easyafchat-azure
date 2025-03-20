@@ -1510,6 +1510,20 @@ def verify_support_domain():
         print(f"[verify-support-domain] Traceback: {traceback.format_exc()}")
         return jsonify({'error': f'Server error: {str(e)}', 'authorized': False}), 500
 
+@app.route('/debug-url')
+def debug_url():
+    from flask import request
+    print(f"request.url_root: {request.url_root}")
+    print(f"request.host_url: {request.host_url}")
+    print(f"request.base_url: {request.base_url}")
+    print(f"request.url: {request.url}")
+    print(f"request headers: {dict(request.headers)}")
+    return f"""
+    URL Root: {request.url_root}
+    Host URL: {request.host_url}
+    Base URL: {request.base_url}
+    """
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces
