@@ -950,7 +950,14 @@ chatForm.addEventListener('submit', async (e) => {
         clearInterval(dotAnimation);
         messagesContainer.removeChild(thinkingDiv);
 
-        if (!response.ok) throw new Error('Failed to get response');
+        // Handle rate limiting (status code 429)
+        if (response.status === 429) {
+            console.log('Rate limit exceeded');
+            addMessage('I\'m receiving too many messages right now. Please wait a moment and try again.', 'assistant');
+            return;
+        }
+
+        if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 
         const data = await response.json();
         console.log('Received chat response:', data);
@@ -1131,6 +1138,13 @@ resetButton.addEventListener('click', async () => {
             })
         });
 
+        // Handle rate limiting (status code 429)
+        if (response.status === 429) {
+            console.log('Rate limit exceeded for reset chat');
+            addMessage('You\'re resetting the conversation too frequently. Please wait a moment before trying again.', 'assistant');
+            return;
+        }
+
         if (!response.ok) throw new Error('Failed to reset chat');
         console.log('Chat reset successful');
 
@@ -1145,6 +1159,7 @@ resetButton.addEventListener('click', async () => {
         addMessage("Hi there! 👋 How can I help you?", 'assistant');
     } catch (error) {
         console.error('Error resetting chat:', error);
+        addMessage('Sorry, I couldn\'t reset our conversation. Please try again in a moment.', 'assistant');
     }
 });
 

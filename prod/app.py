@@ -1079,6 +1079,7 @@ def demo(session_id):
         conn.close()
 
 @app.route('/embed-chat', methods=['POST'])
+@limiter.limit("30 per minute")
 def embed_chat():
     try:
         data = request.json
@@ -1160,6 +1161,7 @@ def embed_chat():
     
 
 @app.route('/embed-reset-chat', methods=['POST'])
+@limiter.limit("15 per minute")
 def reset_chat():
     try:
         data = request.json
