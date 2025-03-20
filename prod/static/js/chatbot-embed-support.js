@@ -771,7 +771,36 @@ function initializeMarkedAndChatbot() {
             console.log(`Adding ${role} message:`, message.substring(0, 50) + (message.length > 50 ? '...' : ''));
             const messageDiv = document.createElement('div');
             messageDiv.className = `support-chat-message ${role}`;
-            messageDiv.innerHTML = role === 'assistant' ? marked.parse(message) : message;
+            
+            // Sanitize HTML if it's from the assistant and using markdown
+            if (role === 'assistant') {
+                // Load DOMPurify if it's not already loaded
+                if (typeof DOMPurify === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js';
+                    document.head.appendChild(script);
+                    
+                    // Set content after DOMPurify loads
+                    script.onload = function() {
+                        const sanitizedHTML = DOMPurify.sanitize(marked.parse(message));
+                        messageDiv.innerHTML = sanitizedHTML;
+                    };
+                    
+                    // Fallback in case DOMPurify fails to load
+                    script.onerror = function() {
+                        console.warn('Failed to load DOMPurify, falling back to basic escaping');
+                        messageDiv.innerHTML = marked.parse(message);
+                    };
+                } else {
+                    // DOMPurify is already loaded
+                    const sanitizedHTML = DOMPurify.sanitize(marked.parse(message));
+                    messageDiv.innerHTML = sanitizedHTML;
+                }
+            } else {
+                // User messages don't use markdown
+                messageDiv.innerHTML = message;
+            }
+            
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             messages.push({ role, content: message });
@@ -1029,8 +1058,30 @@ function initializeMarkedAndChatbot() {
                     // Add the full text immediately
                     displayedText = fullText;
                     
-                    // Handle markdown rendering
-                    assistantMessageDiv.innerHTML = marked.parse(displayedText);
+                    // Handle markdown rendering with sanitization
+                    if (typeof DOMPurify !== 'undefined') {
+                        // DOMPurify is already loaded, use it
+                        assistantMessageDiv.innerHTML = DOMPurify.sanitize(marked.parse(displayedText));
+                    } else {
+                        // Load DOMPurify if not available
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js';
+                        document.head.appendChild(script);
+                        
+                        script.onload = function() {
+                            assistantMessageDiv.innerHTML = DOMPurify.sanitize(marked.parse(displayedText));
+                            // Make sure the user message stays at the top
+                            ensureUserMessageVisible();
+                        };
+                        
+                        script.onerror = function() {
+                            // Fallback if DOMPurify fails to load
+                            console.warn('Failed to load DOMPurify, falling back to basic parsing');
+                            assistantMessageDiv.innerHTML = marked.parse(displayedText);
+                            // Make sure the user message stays at the top
+                            ensureUserMessageVisible();
+                        };
+                    }
                     
                     // Make sure the user message stays at the top
                     ensureUserMessageVisible();
