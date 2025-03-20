@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g
+from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
@@ -50,6 +51,10 @@ initialize_database(verbose=True)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Add HTTPS configuration and ProxyFix
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Add rate limiting
 limiter = Limiter(
