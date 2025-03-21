@@ -605,7 +605,7 @@
                     baseUrl: "{{ request.url_root.rstrip('/') }}"
                 };
                 &lt;/script&gt;
-                &lt;script src="{{ request.url_root }}static/js/chatbot-embed.js"&gt;&lt;/script&gt;
+                &lt;script src="{{ request.url_root }}static/js/chatbot-embed.js" defer&gt;&lt;/script&gt;
                     </code></pre>
                     <button class="copy-btn" onclick="copyEmbedCode()">Copy</button>
                 </div>
@@ -622,12 +622,13 @@
             <div class="sources-container">
                 <h2>Knowledge Sources</h2>
                 <p>Upload documents to enhance your chatbot's knowledge</p>
-                
+                <!--
                 <div class="sources-stats-line">
                     <span id="total-files">0</span> Files / <span id="total-size">0 KB</span> of <span id="max-size">33 MB</span>
                     <button id="retrain-agent-btn" class="retrain-btn">Retrain agent</button>
                 </div>
-        
+                -->
+
                 <div class="upload-box">
                     <div id="dropzone">
                         <p>Drag & drop files here, or click to select files</p>
@@ -636,15 +637,9 @@
                         <input type="file" id="file-upload-input" accept=".pdf,.doc,.docx,.txt" style="display: none;">
                     </div>
                 </div>
-        
-                <div id="document-processing" style="display: none;">
-                    <div class="processing-indicator">
-                        <span class="spinner"></span>
-                        <strong>Processing document: </strong><span id="processing-filename"></span>
-                        <p>This may take a minute as we analyze and index your document.</p>
-                    </div>
-                </div>
-        
+
+                <div id="document-processing" style="display: none;"></div>
+
                 <div id="no-documents-message">
                     <h4>No documents found</h4>
                     <p>Upload documents using the area above</p>
@@ -654,46 +649,47 @@
                     <!-- Documents will be loaded here -->
                 </div>
             </div>
-        
-<!-- Document Preview Modal -->
-<div id="documentModal" class="custom-modal" style="display: none;">
-    <div class="custom-modal-overlay"></div>
-    <div class="custom-modal-container">
-        <div class="custom-modal-content">
-            <div class="custom-modal-header">
-                <h5 class="custom-modal-title" id="documentTitle">Document Content</h5>
-                <button type="button" class="custom-modal-close" onclick="closeDocumentModal()">&times;</button>
-            </div>
-            <div class="custom-modal-body">
-                <div id="documentContent" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
-            </div>
-            <div class="custom-modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeDocumentModal()">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Delete Confirmation Modal -->
-<div id="deleteConfirmModal" class="custom-modal" style="display: none;">
-    <div class="custom-modal-overlay"></div>
-    <div class="custom-modal-container">
-        <div class="custom-modal-content">
-            <div class="custom-modal-header">
-                <h5 class="custom-modal-title">Confirm Delete</h5>
-                <button type="button" class="custom-modal-close" onclick="closeDeleteModal()">&times;</button>
+            <!-- Document Preview Modal -->
+            <div id="documentModal" class="custom-modal" style="display: none;">
+                <div class="custom-modal-overlay"></div>
+                <div class="custom-modal-container">
+                    <div class="custom-modal-content">
+                        <div class="custom-modal-header">
+                            <h5 class="custom-modal-title" id="documentTitle">Document Content</h5>
+                            <button type="button" class="custom-modal-close" onclick="closeDocumentModal()">&times;</button>
+                        </div>
+                        <div class="custom-modal-body">
+                            <div id="documentContent" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
+                        </div>
+                        <div class="custom-modal-footer">
+                            <button type="button" class="btn-cancel" onclick="closeDocumentModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="custom-modal-body">
-                <p>Are you sure you want to delete this document?</p>
-                <p>This will permanently remove the document and all associated knowledge from your chatbot.</p>
-            </div>
-            <div class="custom-modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                <button type="button" class="btn-delete" id="confirmDeleteBtn">Delete Document</button>
+
+            <!-- Delete Confirmation Modal -->
+            <div id="deleteConfirmModal" class="custom-modal" style="display: none;">
+                <div class="custom-modal-overlay"></div>
+                <div class="custom-modal-container">
+                    <div class="custom-modal-content">
+                        <div class="custom-modal-header">
+                            <h5 class="custom-modal-title">Confirm Delete</h5>
+                            <button type="button" class="custom-modal-close" onclick="closeDeleteModal()">&times;</button>
+                        </div>
+                        <div class="custom-modal-body">
+                            <p>Are you sure you want to delete this document?</p>
+                            <p>This will permanently remove the document and all associated knowledge from your chatbot.</p>
+                        </div>
+                        <div class="custom-modal-footer">
+                            <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                            <button type="button" class="btn-delete" id="confirmDeleteBtn">Delete Document</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
         <!-- Chat Logs Page -->
         <div id="chat-logs" class="page-content">
@@ -1150,188 +1146,304 @@ function createDocumentElement(doc) {
         }
     }
     
-    // Upload files
-    function uploadFiles(files) {
-        if (!files || files.length === 0) return;
-        
-        // Show uploading state
-        const originalDropzone = dropzone.innerHTML;
-        dropzone.innerHTML = `
-            <div style="text-align: center;">
-                <div class="spinner" style="width: 30px; height: 30px;"></div>
-                <p>Uploading ${files[0].name}...</p>
-                <div style="height: 5px; background: #e9ecef; border-radius: 3px; margin: 15px 0; width: 200px;">
-                    <div id="upload-progress" style="height: 100%; width: 0%; background: #0d6efd; border-radius: 3px;"></div>
-                </div>
-                <p id="upload-percent">0%</p>
-            </div>
-        `;
-        
-        // Create FormData
-        const formData = new FormData();
-        formData.append('document', files[0]);
-        
-        // Get the current chatbot ID
-        const selectedBotName = document.getElementById('selected-bot-name');
-        let chatbotId = '';
-        
-        if (selectedBotName) {
-            const chatbotOptions = document.querySelectorAll('.bot-dropdown-content a');
-            for (let option of chatbotOptions) {
-                if (option.textContent.trim() === selectedBotName.textContent.trim()) {
-                    const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
-                    if (match && match[1]) {
-                        chatbotId = match[1];
-                        break;
-                    }
-                }
-            }
-            
-            if (!chatbotId && chatbotOptions.length > 0) {
-                // Try to get the first chatbot ID as fallback
-                const match = chatbotOptions[0].getAttribute('onclick').match(/selectBot\('([^']+)'/);
+// Upload files
+function uploadFiles(files) {
+    if (!files || files.length === 0) return;
+    
+    // Get the current chatbot ID
+    const selectedBotName = document.getElementById('selected-bot-name');
+    let chatbotId = '';
+    
+    if (selectedBotName) {
+        const chatbotOptions = document.querySelectorAll('.bot-dropdown-content a');
+        for (let option of chatbotOptions) {
+            if (option.textContent.trim() === selectedBotName.textContent.trim()) {
+                const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
                 if (match && match[1]) {
                     chatbotId = match[1];
+                    break;
                 }
             }
         }
         
-        if (!chatbotId) {
-            alert('Error: No chatbot selected for this document.');
-            dropzone.innerHTML = originalDropzone;
-            return;
+        if (!chatbotId && chatbotOptions.length > 0) {
+            // Try to get the first chatbot ID as fallback
+            const match = chatbotOptions[0].getAttribute('onclick').match(/selectBot\('([^']+)'/);
+            if (match && match[1]) {
+                chatbotId = match[1];
+            }
         }
-        
-        formData.append('chatbot_id', chatbotId);
-        
-        // Create and send request
-        const xhr = new XMLHttpRequest();
-        
-        // Track upload progress
-        xhr.upload.addEventListener('progress', function(e) {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                document.getElementById('upload-progress').style.width = percent + '%';
-                document.getElementById('upload-percent').textContent = percent + '%';
-            }
-        });
-        
-        // Handle completion
-        xhr.onload = function() {
-            if (xhr.status === 200) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                        // Show processing status
-                        dropzone.innerHTML = originalDropzone;
-                        
-                        // Reattach event listener to the select files button after restoring HTML
-                        const newSelectBtn = document.getElementById('select-files-btn');
-                        if (newSelectBtn) {
-                            newSelectBtn.addEventListener('click', function() {
-                                fileInput.value = ''; // Clear the input to ensure change event fires
-                                fileInput.click();
-                            });
-                        }
-                        
-                        const processingEl = document.getElementById('document-processing');
-                        if (processingEl) {
-                            processingEl.style.display = 'block';
-                            const filenameEl = document.getElementById('processing-filename');
-                            if (filenameEl) filenameEl.textContent = files[0].name;
-                        }
-                        
-                        // Poll for processing completion
-                        checkDocumentProcessing(response.doc_id);
-                    } else {
-                        alert('Error: ' + (response.error || 'Upload failed'));
-                        dropzone.innerHTML = originalDropzone;
-                        
-                        // Reattach event listener to the select files button after restoring HTML
-                        const newSelectBtn = document.getElementById('select-files-btn');
-                        if (newSelectBtn) {
-                            newSelectBtn.addEventListener('click', function() {
-                                fileInput.value = '';
-                                fileInput.click();
-                            });
-                        }
-                    }
-                } catch (e) {
-                    alert('Error: Invalid server response');
-                    dropzone.innerHTML = originalDropzone;
-                    
-                    // Reattach event listener to the select files button after restoring HTML
-                    const newSelectBtn = document.getElementById('select-files-btn');
-                    if (newSelectBtn) {
-                        newSelectBtn.addEventListener('click', function() {
-                            fileInput.value = '';
-                            fileInput.click();
-                        });
-                    }
-                }
-            } else {
-                alert('Error: Server returned status ' + xhr.status);
-                dropzone.innerHTML = originalDropzone;
-                
-                // Reattach event listener to the select files button after restoring HTML
-                const newSelectBtn = document.getElementById('select-files-btn');
-                if (newSelectBtn) {
-                    newSelectBtn.addEventListener('click', function() {
-                        fileInput.value = '';
-                        fileInput.click();
-                    });
-                }
-            }
-        };
-        
-        // Handle error
-        xhr.onerror = function() {
-            alert('Error: Network error during upload');
-            dropzone.innerHTML = originalDropzone;
-        };
-        
-        // Send the request
-        xhr.open('POST', '/documents/upload-document', true);
-        xhr.send(formData);
     }
     
-    // Check document processing status
-    function checkDocumentProcessing(docId, attempts = 0) {
-        const processingEl = document.getElementById('document-processing');
-        
-        // Maximum number of attempts (5 minutes)
-        const maxAttempts = 60;
-        
-        if (attempts >= maxAttempts) {
+    if (!chatbotId) {
+        alert('Error: No chatbot selected for this document.');
+        return;
+    }
+    
+    // Hide the dropzone and show the processing indicator with upload progress
+    const uploadBox = document.querySelector('.upload-box');
+    if (uploadBox) uploadBox.style.display = 'none';
+    
+    // Get the processing element and show it with upload progress UI
+    const processingEl = document.getElementById('document-processing');
+    if (processingEl) {
+        processingEl.innerHTML = `
+            <div class="processing-indicator">
+                <div style="text-align: center;">
+                    <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></div>
+                    <div id="upload-status">
+                        <strong>Uploading ${files[0].name}...</strong>
+                    </div>
+                    <div style="height: 5px; background: #e9ecef; border-radius: 3px; margin: 15px auto; width: 200px;">
+                        <div id="upload-progress" style="height: 100%; width: 0%; background: #0d6efd; border-radius: 3px;"></div>
+                    </div>
+                    <p id="upload-percent">0%</p>
+                </div>
+            </div>
+        `;
+        processingEl.style.display = 'block';
+    }
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('document', files[0]);
+    formData.append('chatbot_id', chatbotId);
+    
+    // Create and send request
+    const xhr = new XMLHttpRequest();
+    
+    // Track upload progress
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            const progressBar = document.getElementById('upload-progress');
+            const percentText = document.getElementById('upload-percent');
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (percentText) percentText.textContent = percent + '%';
+        }
+    });
+    
+    // Handle completion
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    // Update the processing indicator to show upload complete and retraining
+                    if (processingEl) {
+                        processingEl.innerHTML = `
+                            <div class="processing-indicator">
+                                <div style="text-align: center;">
+                                    <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></div>
+                                    <div id="upload-status">
+                                        <strong>Uploading ${files[0].name}...</strong>
+                                        <span style="display: inline; color: green; margin-left: 8px;">✓</span>
+                                    </div>
+                                    <div id="retraining-status" style="margin-top: 15px;">
+                                        <strong>Retraining your bot, please stand by...</strong>
+                                        <p>This may take a minute.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Start polling for processing completion
+                    checkDocumentProcessingImproved(response.doc_id, uploadBox, files[0].name);
+                } else {
+                    alert('Error: ' + (response.error || 'Upload failed'));
+                    // Restore the original state
+                    if (uploadBox) uploadBox.style.display = 'block';
+                    if (processingEl) processingEl.style.display = 'none';
+                }
+            } catch (e) {
+                alert('Error: Invalid server response');
+                // Restore the original state
+                if (uploadBox) uploadBox.style.display = 'block';
+                if (processingEl) processingEl.style.display = 'none';
+            }
+        } else {
+            alert('Error: Server returned status ' + xhr.status);
+            // Restore the original state
+            if (uploadBox) uploadBox.style.display = 'block';
             if (processingEl) processingEl.style.display = 'none';
-            alert('Error: Document processing timed out. Please check back later.');
-            loadDocuments();
-            return;
+        }
+    };
+    
+    // Handle error
+    xhr.onerror = function() {
+        alert('Error: Network error during upload');
+        // Restore the original state
+        if (uploadBox) uploadBox.style.display = 'block';
+        if (processingEl) processingEl.style.display = 'none';
+    };
+    
+    // Send the request
+    xhr.open('POST', '/documents/upload-document', true);
+    xhr.send(formData);
+}
+
+// Check document processing status with improved UI flow
+function checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts = 0, startTime = Date.now()) {
+    const processingEl = document.getElementById('document-processing');
+    
+    // Maximum number of attempts (5 minutes)
+    const maxAttempts = 60;
+    // Minimum display time for processing indicator (4 seconds)
+    const minDisplayTime = 4000;
+    // Success message display time (3 seconds)
+    const successMessageTime = 3000;
+    
+    if (attempts >= maxAttempts) {
+        if (processingEl) processingEl.style.display = 'none';
+        if (uploadBoxEl) uploadBoxEl.style.display = 'block';
+        alert('Error: Document processing timed out. Please check back later.');
+        loadDocuments();
+        return;
+    }
+    
+    // Check status
+    fetch(`/documents/processing-status/${docId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.completed) {
+                // Processing complete - show the checkmark on retraining line first
+                const retrainingStatusEl = processingEl.querySelector('#retraining-status');
+                if (retrainingStatusEl) {
+                    const strongEl = retrainingStatusEl.querySelector('strong');
+                    if (strongEl && !strongEl.innerHTML.includes('✓')) {
+                        strongEl.innerHTML = strongEl.innerHTML + ' <span style="display: inline; color: green; margin-left: 8px;">✓</span>';
+                    }
+                }
+                
+                // Calculate elapsed time since start
+                const elapsedTime = Date.now() - startTime;
+                const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
+                
+                // Wait for minimum display time, then show success message
+                setTimeout(() => {
+                    if (processingEl) {
+                        // Show success message
+                        processingEl.innerHTML = `
+                            <div class="processing-indicator">
+                                <div style="text-align: center; padding: 20px;">
+                                    <h3 style="margin-bottom: 10px; color: #0c5460;">Your Bot is Smarter and Ready!</h3>
+                                    <p>Visit the Playground to test it!</p>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Wait 3 seconds with success message, then restore original UI
+                        setTimeout(() => {
+                            if (processingEl) processingEl.style.display = 'none';
+                            if (uploadBoxEl) uploadBoxEl.style.display = 'block';
+                            loadDocuments();
+                        }, successMessageTime);
+                    }
+                }, remainingTime);
+            } else {
+                // Still processing, check again after 5 seconds
+                setTimeout(() => {
+                    checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts + 1, startTime);
+                }, 5000);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking processing status:', error);
+            // Continue polling even on error
+            setTimeout(() => {
+                checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts + 1, startTime);
+            }, 5000);
+        });
+}
+
+
+// Check document processing status (using dropzone version)
+function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, startTime = Date.now()) {
+    // Maximum number of attempts (5 minutes)
+    const maxAttempts = 60;
+    // Minimum display time for processing indicator (4 seconds)
+    const minDisplayTime = 4000;
+    
+    if (attempts >= maxAttempts) {
+        // Restore the original dropzone on timeout
+        const originalContent = dropzoneEl.getAttribute('data-original-content');
+        if (originalContent) {
+            dropzoneEl.innerHTML = originalContent;
+            // Reattach event listener to the select files button
+            const newSelectBtn = document.getElementById('select-files-btn');
+            if (newSelectBtn) {
+                newSelectBtn.addEventListener('click', function() {
+                    fileInput.value = ''; // Clear the input
+                    fileInput.click();
+                });
+            }
         }
         
-        // Check status
-        fetch(`/documents/processing-status/${docId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.completed) {
-                    // Processing complete
-                    if (processingEl) processingEl.style.display = 'none';
-                    loadDocuments();
-                } else {
-                    // Still processing, check again after 5 seconds
-                    setTimeout(() => {
-                        checkDocumentProcessing(docId, attempts + 1);
-                    }, 5000);
-                }
-            })
-            .catch(error => {
-                console.error('Error checking processing status:', error);
-                // Continue polling even on error
-                setTimeout(() => {
-                    checkDocumentProcessing(docId, attempts + 1);
-                }, 5000);
-            });
+        alert('Error: Document processing timed out. Please check back later.');
+        loadDocuments();
+        return;
     }
+    
+    // Check status
+    fetch(`/documents/processing-status/${docId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.completed) {
+                // Processing complete, but ensure minimum display time
+                const elapsedTime = Date.now() - startTime;
+                const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
+                
+                if (remainingTime > 0) {
+                    // Wait for the remaining time before restoring
+                    setTimeout(() => {
+                        // Restore the original dropzone
+                        const originalContent = dropzoneEl.getAttribute('data-original-content');
+                        if (originalContent) {
+                            dropzoneEl.innerHTML = originalContent;
+                            // Reattach event listener to the select files button
+                            const newSelectBtn = document.getElementById('select-files-btn');
+                            if (newSelectBtn) {
+                                newSelectBtn.addEventListener('click', function() {
+                                    fileInput.value = ''; // Clear the input
+                                    fileInput.click();
+                                });
+                            }
+                        }
+                        loadDocuments();
+                    }, remainingTime);
+                } else {
+                    // Minimum time already passed, restore immediately
+                    // Restore the original dropzone
+                    const originalContent = dropzoneEl.getAttribute('data-original-content');
+                    if (originalContent) {
+                        dropzoneEl.innerHTML = originalContent;
+                        // Reattach event listener to the select files button
+                        const newSelectBtn = document.getElementById('select-files-btn');
+                        if (newSelectBtn) {
+                            newSelectBtn.addEventListener('click', function() {
+                                fileInput.value = ''; // Clear the input
+                                fileInput.click();
+                            });
+                        }
+                    }
+                    loadDocuments();
+                }
+            } else {
+                // Still processing, check again after 5 seconds
+                setTimeout(() => {
+                    checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts + 1, startTime);
+                }, 5000);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking processing status:', error);
+            // Continue polling even on error
+            setTimeout(() => {
+                checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts + 1, startTime);
+            }, 5000);
+        });
+}
     
     // View document
     function viewDocument(docId) {
