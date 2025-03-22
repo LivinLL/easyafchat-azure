@@ -1537,9 +1537,26 @@ def debug_url():
     """
 
 # Exempt chatbot endpoints from CSRF protection after they're defined
-for endpoint in ['embed_chat', 'embed_reset_chat', 'reset_chat', 'verify_domain', 'verify_support_domain']:
+chatbot_endpoints = [
+    'embed_chat', 
+    'embed_reset_chat', 
+    'reset_chat', 
+    'verify_domain', 
+    'verify_support_domain'
+]
+
+# Exempt function names in app.view_functions
+for endpoint in chatbot_endpoints:
     if endpoint in app.view_functions:
         csrf.exempt(app.view_functions[endpoint])
+
+# Exempt lead-related routes in the leads_blueprint
+if 'leads.handle_lead_submission' in app.view_functions:
+    csrf.exempt(app.view_functions['leads.handle_lead_submission'])
+
+# Also exempt lead form config endpoint
+if 'leads.get_lead_form_config' in app.view_functions:
+    csrf.exempt(app.view_functions['leads.get_lead_form_config'])
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this

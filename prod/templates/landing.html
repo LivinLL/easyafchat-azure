@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>EasyAF Chat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Favicons -->
@@ -172,7 +173,10 @@
                 // Submit the form with fetch instead of form submission
                 fetch('/process-url-async', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    }
                 })
                 .then(response => {
                     // Check if it's a rate limit error
@@ -316,6 +320,7 @@
             <p>Simply enter your website URL below, and we'll create a smart AI chatbot for you instantly.</p>
             <div class="hero-input">
                 <form id="urlForm" action="/" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" name="url" placeholder="Enter your website URL (e.g., https://yourwebsite.com)" required>
                     <!-- Honeypot field - hidden from real users but attractive to bots -->
                     <div class="contact-field" style="opacity: 0; position: absolute; top: -9999px; left: -9999px;">
@@ -672,5 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
     observer.observe(processingOverlay, { attributes: true });
 });
     </script>
+    <script src="/static/js/csrf.js"></script>
+
 </body>
 </html>
