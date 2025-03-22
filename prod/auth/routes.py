@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 import sqlite3
 import psycopg2
 from database import get_db_connection
+from flask_wtf.csrf import validate_csrf
 
 # Google OAuth Configuration
 from dotenv import load_dotenv
@@ -599,6 +600,13 @@ def reset_password(token):
 
 @auth_bp.route('/claim-chatbot/<chatbot_id>', methods=['POST'])
 def claim_chatbot(chatbot_id):
+    # Check for CSRF Token
+    if request.is_json and not current_app.config.get('TESTING'):
+        # For API/AJAX requests, check the X-CSRFToken header
+        csrf_token = request.headers.get('X-CSRFToken')
+        if not csrf_token or not validate_csrf(csrf_token):
+            return jsonify({'success': False, 'message': 'CSRF token missing or invalid'}), 400
+    
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': 'You must be logged in to claim a chatbot'}), 401
     

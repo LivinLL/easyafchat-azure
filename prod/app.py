@@ -26,6 +26,8 @@ from auth import auth_bp
 import sqlite3
 import psycopg2
 from psycopg2 import sql
+from flask_wtf.csrf import CSRFProtect
+
 
 # Import the admin dashboard blueprint
 from admin_dashboard import admin_dashboard, init_admin_dashboard
@@ -51,6 +53,9 @@ initialize_database(verbose=True)
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 # Add HTTPS configuration and ProxyFix
 app.config['PREFERRED_URL_SCHEME'] = 'https'
@@ -96,6 +101,8 @@ APIFLASH_KEY = os.getenv('APIFLASH_ACCESS_KEY', '')  # Add this line
 
 # Initialize and register the admin dashboard blueprint
 init_admin_dashboard(openai_client, pinecone_client, DB_PATH, PINECONE_INDEX)
+# Exempt admin dashboard from CSRF protection
+csrf.exempt(admin_dashboard)
 app.register_blueprint(admin_dashboard, url_prefix='/admin-dashboard-08x7z9y2-yoursecretword')
 
 # Initialize and register the documents blueprint
@@ -1528,6 +1535,11 @@ def debug_url():
     Host URL: {request.host_url}
     Base URL: {request.base_url}
     """
+
+# Exempt chatbot endpoints from CSRF protection after they're defined
+for endpoint in ['embed_chat', 'embed_reset_chat', 'reset_chat', 'verify_domain', 'verify_support_domain']:
+    if endpoint in app.view_functions:
+        csrf.exempt(app.view_functions[endpoint])
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this

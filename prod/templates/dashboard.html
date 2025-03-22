@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dashboard - EasyAFChat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
@@ -1278,8 +1279,13 @@ function uploadFiles(files) {
         if (processingEl) processingEl.style.display = 'none';
     };
     
-    // Send the request
+    // Send the request with CSRF token
     xhr.open('POST', '/documents/upload-document', true);
+    
+    // Add CSRF token header
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    xhr.setRequestHeader('X-CSRFToken', csrfToken);
+    
     xhr.send(formData);
 }
 
@@ -1472,9 +1478,15 @@ function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, st
     
     // Delete document
     function deleteDocument(docId, chatbotId) {
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         fetch(`/documents/document/${docId}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify({ chatbot_id: chatbotId })
         })
         .then(response => {
@@ -1528,9 +1540,15 @@ function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, st
         retrainBtn.disabled = true;
         retrainBtn.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; margin-right: 5px;"></span> Retraining...';
         
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         // Send retraining request
         fetch(`/documents/retrain-agent/${chatbotId}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
         })
         .then(response => {
             if (!response.ok) {
@@ -1555,15 +1573,18 @@ function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, st
             retrainBtn.textContent = originalBtnText;
         });
     }
+
 });
 </script>
 
     <!-- Support Chatbot with namespace isolation -->
     <script>
         window.davesEasySupportChatConfig = {
-            chatbotId: "95695d39883544f299ba"  // EasyAFChat support bot ID
+            // chatbotId: "95695d39883544f299ba"  // EasyAFChat support bot ID for Azure
+            chatbotId: "8d3df74ea51443d898fe"  // EasyAFChat support bot ID for local
         };
     </script>
     <script src="{{ url_for('static', filename='js/chatbot-embed-support.js') }}"></script>
+    <script src="/static/js/csrf.js"></script>
 </body>
 </html>

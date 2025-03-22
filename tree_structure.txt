@@ -51,16 +51,16 @@
                     easyafchat_favicon_512x512.png
             js/
                 script.js
-                chatbot-embed.js
                 chatbot-embed-support.js
+                chatbot-embed.js
         templates/
             chat_test.html
             chat_manual.html
             admin_documents.html
             standalone_test.html
             demo.html
-            dashboard.html
             landing.html
+            dashboard.html
             auth/
                 reset_password.html
                 signin.html
@@ -72,7 +72,6 @@
             app-screenshotone-version.py
             documents_blueprint.py
             chat_handler.py
-            chatbot-embed.js
             03-11-2025-overview.txt
             google_client_secret_1081215761675-vuqqiig0hnndrh6lqgdj1olgjq11q471.apps.googleusercontent.com.json
             app_has_thum.py
@@ -89,6 +88,9 @@
             app_b4_bots.py
             app_bot-protect.py
             landing_bot-protect.html
+            chatbot-embed.js
+            dashboard_partial_sources_done.html
+            dashboard.html
         marketing/
             info.txt
             chatbase_signin.png
@@ -103,9 +105,11 @@
             e57b7f6daef3ca7f54ede5d989de76da
             7e0987edc0ba66889b59e52a170f7280
             9dbde3501c5f4c2d353e1f54da6c5f04
+            a076d0ae560a5e07afe5f014f37d560f
             fb5f5e03bd69ce8c71d7552174f67eb2
-            d9d7d1280ff72ecf237659571fb46c8b
             2029240f6d1128be89ddc32729463129
+            43c1fb4c38d9ef78bf5c2daf7835e60d
+            725eee0552a13a67139e68cb4f9eb4a6
     .github/
         workflows/
             main_easyafchat-v3.yml
