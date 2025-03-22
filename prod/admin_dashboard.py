@@ -264,6 +264,21 @@ HTML = '''
                             </div>
                         </div>
                     </div>
+
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-danger">
+                                <h6 class="mb-0 text-white">Chatbot Config Table</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>This will <strong>DROP and RECREATE</strong> the chatbot config table with the correct schema.</p>
+                                <p><strong>Warning:</strong> This will rebuild the chatbot config table schema. Your data will be preserved, but this fixes any schema issues.</p>
+                                <button id="cleanConfigTableBtn" class="btn btn-danger">
+                                    <i class="bi bi-exclamation-octagon"></i> Rebuild Config Table
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="card mt-3">
@@ -1108,6 +1123,47 @@ HTML = '''
             }
         });
 
+        document.getElementById('cleanConfigTableBtn').addEventListener('click', async function() {
+            if (confirm('WARNING! This will rebuild the chatbot config table schema. Your configurations will be preserved, but this is a significant operation that fixes schema issues. Continue?')) {
+                if (confirm('FINAL WARNING: The chatbot config table will be dropped and recreated. Type "REBUILD" in the next prompt to proceed.')) {
+                    const confirmation = prompt('Type "REBUILD" to proceed with rebuilding the config table:');
+                    
+                    if (confirmation === 'REBUILD') {
+                        try {
+                            const resultsDiv = document.getElementById('dbOperationResults');
+                            
+                            resultsDiv.className = 'alert alert-info';
+                            resultsDiv.innerHTML = 'Rebuilding chatbot config table... This may take a moment.';
+                            resultsDiv.classList.remove('d-none');
+                            
+                            const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/clean-config-table', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'}
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                resultsDiv.className = 'alert alert-success';
+                                resultsDiv.innerHTML = `<strong>Success!</strong> ${result.message}`;
+                            } else {
+                                resultsDiv.className = 'alert alert-danger';
+                                resultsDiv.innerHTML = `<strong>Error!</strong> ${result.message}`;
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            const resultsDiv = document.getElementById('dbOperationResults');
+                            resultsDiv.className = 'alert alert-danger';
+                            resultsDiv.innerHTML = `<strong>Error!</strong> Failed to execute operation: ${error.message}`;
+                            resultsDiv.classList.remove('d-none');
+                        }
+                    } else {
+                        alert('Operation cancelled.');
+                    }
+                }
+            }
+        });
+
         // Helper function to handle table truncation
         async function truncateTable(tableName) {
             if (confirm(`⚠️ WARNING! This will DELETE ALL RECORDS from the ${tableName} table!\n\nThis action CANNOT be undone. Are you sure?`)) {
@@ -1566,6 +1622,106 @@ def clean_companies_table():
             'success': False,
             'message': f"Error: {str(e)}"
         }
+
+def clean_chatbot_config_table():
+    """Clean up the chatbot_config table and recreate it with the correct schema."""
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                # PostgreSQL cleanup
+                try:
+                    # Drop chatbot_config table if it exists
+                    cursor.execute("DROP TABLE IF EXISTS chatbot_config CASCADE")
+                    
+                    # Create new chatbot_config table
+                    cursor.execute("""
+                    CREATE TABLE chatbot_config (
+                        config_id SERIAL PRIMARY KEY,
+                        chatbot_id TEXT UNIQUE REFERENCES companies(chatbot_id),
+                        chat_model TEXT DEFAULT 'gpt-4o',
+                        temperature NUMERIC(3,2) DEFAULT 0.7,
+                        max_tokens INTEGER DEFAULT 500,
+                        system_prompt TEXT,
+                        chat_title TEXT,
+                        chat_subtitle TEXT,
+                        lead_form_title TEXT DEFAULT 'Want us to reach out? Need to keep this chat going? Just fill out the info below.',
+                        primary_color TEXT DEFAULT '#0084ff',
+                        accent_color TEXT DEFAULT '#ffffff',
+                        icon_image_url TEXT DEFAULT NULL,
+                        show_lead_form TEXT DEFAULT 'Yes',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """)
+                    
+                    return {
+                        'success': True,
+                        'message': "PostgreSQL chatbot_config table recreated successfully"
+                    }
+                
+                except Exception as e:
+                    print(f"PostgreSQL Error: {e}")
+                    conn.rollback()
+                    return {
+                        'success': False,
+                        'message': f"PostgreSQL Error: {str(e)}"
+                    }
+            
+            else:
+                # SQLite cleanup
+                try:
+                    # Drop chatbot_config table
+                    cursor.execute("DROP TABLE IF EXISTS chatbot_config")
+                    
+                    # Create new chatbot_config table with correct schema
+                    cursor.execute('''
+                    CREATE TABLE chatbot_config (
+                        config_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        chatbot_id TEXT UNIQUE REFERENCES companies(chatbot_id),
+                        chat_model TEXT DEFAULT 'gpt-4o',
+                        temperature NUMERIC(3,2) DEFAULT 0.7,
+                        max_tokens INTEGER DEFAULT 500,
+                        system_prompt TEXT,
+                        chat_title TEXT,
+                        chat_subtitle TEXT,
+                        lead_form_title TEXT DEFAULT 'Want us to reach out? Need to keep this chat going? Just fill out the info below.',
+                        primary_color TEXT DEFAULT '#0084ff',
+                        accent_color TEXT DEFAULT '#ffffff',
+                        icon_image_url TEXT DEFAULT NULL,
+                        show_lead_form TEXT DEFAULT 'Yes',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                    ''')
+                    
+                    return {
+                        'success': True,
+                        'message': "SQLite chatbot_config table recreated successfully"
+                    }
+                
+                except Exception as e:
+                    print(f"SQLite Error: {e}")
+                    conn.rollback()
+                    return {
+                        'success': False,
+                        'message': f"SQLite Error: {str(e)}"
+                    }
+    
+    except Exception as e:
+        print(f"Error cleaning chatbot_config table: {e}")
+        return {
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }
+
+# Add a new route to handle clean config table
+@admin_dashboard.route('/clean-config-table', methods=['POST'])
+def rebuild_config_table():
+    """Rebuild the chatbot_config table with the correct schema."""
+    result = clean_chatbot_config_table()
+    return jsonify(result)
 
 def inspect_database():
     """Inspect all tables in the database and generate a report."""
