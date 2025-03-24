@@ -1568,14 +1568,19 @@ def get_chatbot_config(chatbot_id):
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            # Determine placeholder style based on database type
+            # SQLite uses ? while PostgreSQL uses %s
+            db_type = os.getenv('DB_TYPE', 'sqlite')
+            placeholder = '?' if db_type.lower() == 'sqlite' else '%s'
+            
             # Query the chatbot_config table for the specified chatbot_id
-            query = """
+            query = f"""
                 SELECT 
                     config_id, chatbot_id, chat_model, temperature, max_tokens,
                     system_prompt, chat_title, chat_subtitle, lead_form_title, 
                     primary_color, accent_color, icon_image_url, show_lead_form
                 FROM chatbot_config
-                WHERE chatbot_id = %s
+                WHERE chatbot_id = {placeholder}
             """
             
             cursor.execute(query, (chatbot_id,))
@@ -1585,7 +1590,9 @@ def get_chatbot_config(chatbot_id):
             if not config:
                 return jsonify({
                     'status': 'default',
-                    'icon_image_url': None
+                    'icon_image_url': None,
+                    'chat_title': None,
+                    'chat_subtitle': None
                 }), 200
             
             # Convert the row to a dictionary
@@ -1598,14 +1605,18 @@ def get_chatbot_config(chatbot_id):
             return jsonify(config_dict), 200
             
     except Exception as e:
+        import traceback
         print(f"Error fetching chatbot config: {e}")
+        print(traceback.format_exc())  # Print full stack trace
         return jsonify({
             'status': 'error',
-            'message': 'Failed to fetch chatbot configuration',
-            'icon_image_url': None
+            'message': f'Failed to fetch chatbot configuration: {str(e)}',
+            'icon_image_url': None,
+            'chat_title': None,
+            'chat_subtitle': None
         }), 500
-
-
+    
+    
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces

@@ -116,35 +116,59 @@ function initializeChatbot() {
                 console.log('Fetching chatbot config for chatbot ID:', chatbotId);
                 const response = await fetch(`${baseUrl}/config/chatbot/${chatbotId}`);
                 
+                // Default values if API call fails or values are missing/invalid
+                const defaults = {
+                    icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
+                    chat_title: 'Agent d-A-v-I-d',
+                    chat_subtitle: 'Hi there! 👋 How can I help you?'
+                };
+                
                 if (!response.ok) {
-                    console.log('Chatbot config fetch failed, using default icon');
-                    return {
-                        icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png'
-                    };
+                    console.log('Chatbot config fetch failed, using defaults');
+                    return defaults;
                 }
                 
                 const config = await response.json();
                 console.log('Chatbot config received:', config);
+                
+                // Create a result with defaults that will be overridden if valid values exist
+                const result = { ...defaults };
                 
                 // Validate the icon URL - make sure it's a valid URL format and starts with https:// or http://
                 if (config.icon_image_url && 
                     typeof config.icon_image_url === 'string' && 
                     config.icon_image_url.trim() !== '' &&
                     (config.icon_image_url.startsWith('https://') || config.icon_image_url.startsWith('http://'))) {
-                    // Valid URL, use as is
-                    return config;
+                    result.icon_image_url = config.icon_image_url;
                 } else {
-                    // Return config with default icon URL
                     console.log('Using default icon: icon_image_url is missing or invalid');
-                    return {
-                        ...config,
-                        icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png'
-                    };
                 }
+                
+                // Validate chat_title - make sure it's a non-empty string
+                if (config.chat_title && 
+                    typeof config.chat_title === 'string' && 
+                    config.chat_title.trim() !== '') {
+                    result.chat_title = config.chat_title;
+                } else {
+                    console.log('Using default chat title: chat_title is missing or invalid');
+                }
+                
+                // Validate chat_subtitle - make sure it's a non-empty string
+                if (config.chat_subtitle && 
+                    typeof config.chat_subtitle === 'string' && 
+                    config.chat_subtitle.trim() !== '') {
+                    result.chat_subtitle = config.chat_subtitle;
+                } else {
+                    console.log('Using default chat subtitle: chat_subtitle is missing or invalid');
+                }
+                
+                return result;
             } catch (error) {
                 console.error('Error fetching chatbot config:', error);
                 return {
-                    icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png'
+                    icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
+                    chat_title: 'Agent d-A-v-I-d',
+                    chat_subtitle: 'Hi there! 👋 How can I help you?'
                 };
             }
         }
@@ -163,19 +187,25 @@ function initializeChatbot() {
         // Initial setup - fetch config and proceed with initialization
         fetchChatbotConfig().then(config => {
             chatbotConfig = config;
-            iconImageUrl = config.icon_image_url; // This will be default if invalid
-            console.log('Using icon URL:', iconImageUrl);
+            iconImageUrl = config.icon_image_url;
+            const chatTitle = config.chat_title;
+            const chatSubtitle = config.chat_subtitle;
+            console.log('Using chatbot config:', {
+                icon: iconImageUrl,
+                title: chatTitle,
+                subtitle: chatSubtitle
+            });
             
             // Continue with chat initialization
-            loadChatInterface();
+            loadChatInterface(chatTitle, chatSubtitle);
         }).catch(error => {
             console.error('Error initializing chatbot with config:', error);
             // Proceed with default config
-            loadChatInterface();
+            loadChatInterface('Agent d-A-v-I-d', 'Hi there! 👋 How can I help you?');
         });
 
         // Function to load the chat interface after config is loaded
-        function loadChatInterface() {
+        function loadChatInterface(chatTitle, chatSubtitle) {
             // Load main CSS
             const style = document.createElement('style');
             // Check if this is the demo page
@@ -562,10 +592,10 @@ function initializeChatbot() {
                 <div style="display: flex; align-items: center;">
                     <div style="width: 28px; height: 28px; margin-right: 8px;">
                         <img src="${iconImageUrl}" 
-                             alt="Agent d-A-v-I-d Avatar" 
+                             alt="${chatTitle} Avatar" 
                              style="width: 100%; height: 100%; border-radius: 50%;">
                     </div>
-                    <span>Agent d-A-v-I-d</span>
+                    <span>${chatTitle}</span>
                 </div>
                 <div style="border: 0px solid red;">
                     <button type="button" class="daves-button" id="daves-reset-chat" title="Start Fresh">
@@ -889,8 +919,8 @@ function showInitialPopup(delay = 2000) {
     // Only show if enabled in config (default to true if not specified)
     if (config.showInitialMessage === false) return;
     
-    // Default message or custom message from config
-    const initialMessage = config.initialMessage || "Hi there! 👋 How can I help you?";
+    // Use subtitle from config or default message
+    const initialMessage = config.initialMessage || chatSubtitle;
     
     // Create popup element
     const popup = document.createElement('div');
@@ -941,7 +971,7 @@ chatBubble.addEventListener('click', () => {
     }
     
     if (messages.length === 0) {
-        addMessage("Hi there! 👋 How can I help you?", 'assistant');
+        addMessage(chatSubtitle, 'assistant');
         console.log('Added initial assistant greeting');
     }
 });
@@ -1263,7 +1293,7 @@ resetButton.addEventListener('click', async () => {
         initialQuestion = null;
         console.log('Lead form state reset');
         messagesContainer.innerHTML = '';
-        addMessage("Hi there! 👋 How can I help you?", 'assistant');
+        addMessage(chatSubtitle, 'assistant');
     } catch (error) {
         console.error('Error resetting chat:', error);
         addMessage('Sorry, I couldn\'t reset our conversation. Please try again in a moment.', 'assistant');
