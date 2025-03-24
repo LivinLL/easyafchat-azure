@@ -677,7 +677,16 @@ document.addEventListener('DOMContentLoaded', function() {
     observer.observe(processingOverlay, { attributes: true });
 });
     </script>
-    <script src="/static/js/csrf.js"></script>
+
+<script>
+    window.davesEasyChatConfig = {
+        chatbotId: "8d3df74ea51443d898fe",
+        baseUrl: "https://easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net"
+    };
+    </script>
+    <script src="https://easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net/static/js/chatbot-embed.js" defer></script>
+
+<script src="/static/js/csrf.js"></script>
 
 </body>
 </html>

@@ -208,13 +208,13 @@
     </script>
     {% endif %}
 
-    <!-- Support Chatbot with namespace isolation -->
     <script>
-        window.davesEasySupportChatConfig = {
-            chatbotId: "95695d39883544f299ba"  // EasyAFChat support bot ID
+        window.davesEasyChatConfig = {
+            chatbotId: "8d3df74ea51443d898fe",
+            baseUrl: "https://easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net"
         };
-    </script>
-    <script src="{{ url_for('static', filename='js/chatbot-embed-support.js') }}"></script>
+        </script>
+        <script src="https://easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net/static/js/chatbot-embed.js" defer></script>
 
     <script src="/static/js/csrf.js"></script>
 </body>
