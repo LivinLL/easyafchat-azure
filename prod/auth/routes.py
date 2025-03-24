@@ -330,7 +330,7 @@ def microsoft_callback():
         redirect_uri = f"{base_url}/auth/microsoft/callback"
     else:
         # For local development
-        redirect_uri = f"{request.host_url.rstrip('/')}/auth/microsoft/callback"
+        redirect_uri = "http://localhost:8080/auth/microsoft/callback"
         
     token_data = {
         'client_id': MS_AUTH_CLIENT_ID,
