@@ -108,6 +108,46 @@ function initializeChatbot() {
         let isMobile = window.innerWidth <= 767;
         const desktopMountPoint = config.mountTo ? document.querySelector(config.mountTo) : document.body;
         let mountPoint = desktopMountPoint;
+        let chatbotConfig = null;
+        let iconImageUrl = 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png'; // Default
+
+        async function fetchChatbotConfig() {
+            try {
+                console.log('Fetching chatbot config for chatbot ID:', chatbotId);
+                const response = await fetch(`${baseUrl}/config/chatbot/${chatbotId}`);
+                
+                if (!response.ok) {
+                    console.log('Chatbot config fetch failed, using default icon');
+                    return {
+                        icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png'
+                    };
+                }
+                
+                const config = await response.json();
+                console.log('Chatbot config received:', config);
+                
+                // Validate the icon URL - make sure it's a valid URL format and starts with https:// or http://
+                if (config.icon_image_url && 
+                    typeof config.icon_image_url === 'string' && 
+                    config.icon_image_url.trim() !== '' &&
+                    (config.icon_image_url.startsWith('https://') || config.icon_image_url.startsWith('http://'))) {
+                    // Valid URL, use as is
+                    return config;
+                } else {
+                    // Return config with default icon URL
+                    console.log('Using default icon: icon_image_url is missing or invalid');
+                    return {
+                        ...config,
+                        icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png'
+                    };
+                }
+            } catch (error) {
+                console.error('Error fetching chatbot config:', error);
+                return {
+                    icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png'
+                };
+            }
+        }
 
         // First inject any mount-specific styles
         if (config.mountTo && !isMobile) {
@@ -120,12 +160,28 @@ function initializeChatbot() {
             document.head.appendChild(mountStyle);
         }
 
-        // Load main CSS
-        const style = document.createElement('style');
-        // Check if this is the demo page
-        const isDemoPage = window.location.pathname.includes('/demo/');
-        style.textContent = `
-            .daves-chat-window {
+        // Initial setup - fetch config and proceed with initialization
+        fetchChatbotConfig().then(config => {
+            chatbotConfig = config;
+            iconImageUrl = config.icon_image_url; // This will be default if invalid
+            console.log('Using icon URL:', iconImageUrl);
+            
+            // Continue with chat initialization
+            loadChatInterface();
+        }).catch(error => {
+            console.error('Error initializing chatbot with config:', error);
+            // Proceed with default config
+            loadChatInterface();
+        });
+
+        // Function to load the chat interface after config is loaded
+        function loadChatInterface() {
+            // Load main CSS
+            const style = document.createElement('style');
+            // Check if this is the demo page
+            const isDemoPage = window.location.pathname.includes('/demo/');
+            style.textContent = `
+                .daves-chat-window {
                 position: ${config.mountTo ? 'absolute' : 'fixed'};
                 bottom: 100px;
                 right: 20px;
@@ -248,7 +304,7 @@ function initializeChatbot() {
                 top: 0.5rem !important;
                 width: 24px !important;
                 height: 24px !important;
-                background-image: url('https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png');
+                background-image: url('${iconImageUrl}');
                 background-size: cover !important;
                 background-position: center !important;
                 border-radius: 50% !important;
@@ -505,7 +561,7 @@ function initializeChatbot() {
             <div class="card-header">
                 <div style="display: flex; align-items: center;">
                     <div style="width: 28px; height: 28px; margin-right: 8px;">
-                        <img src="https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png" 
+                        <img src="${iconImageUrl}" 
                              alt="Agent d-A-v-I-d Avatar" 
                              style="width: 100%; height: 100%; border-radius: 50%;">
                     </div>
@@ -1218,8 +1274,11 @@ resetButton.addEventListener('click', async () => {
 setTimeout(() => {
     showInitialPopup();
 }, 500); // Small initial delay to ensure everything is loaded
-};
+} // <-- Correctly closes loadChatInterface function
+
+} // <-- Correctly closes markedScript.onload function
 
 document.head.appendChild(markedScript);
-    }
-})();
+}; // <-- Correctly closes verifyDomain().then() callback
+
+})(); // End of IIFE

@@ -1558,6 +1558,54 @@ if 'leads.handle_lead_submission' in app.view_functions:
 if 'leads.get_lead_form_config' in app.view_functions:
     csrf.exempt(app.view_functions['leads.get_lead_form_config'])
 
+@app.route('/config/chatbot/<chatbot_id>', methods=['GET'])
+def get_chatbot_config(chatbot_id):
+    """
+    Get chatbot configuration for the specified chatbot ID.
+    This includes the icon_image_url and other settings.
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Query the chatbot_config table for the specified chatbot_id
+            query = """
+                SELECT 
+                    config_id, chatbot_id, chat_model, temperature, max_tokens,
+                    system_prompt, chat_title, chat_subtitle, lead_form_title, 
+                    primary_color, accent_color, icon_image_url, show_lead_form
+                FROM chatbot_config
+                WHERE chatbot_id = %s
+            """
+            
+            cursor.execute(query, (chatbot_id,))
+            config = cursor.fetchone()
+            
+            # If no config found, return a default configuration
+            if not config:
+                return jsonify({
+                    'status': 'default',
+                    'icon_image_url': None
+                }), 200
+            
+            # Convert the row to a dictionary
+            columns = [desc[0] for desc in cursor.description]
+            config_dict = dict(zip(columns, config))
+            
+            # Add a status field to indicate successful retrieval
+            config_dict['status'] = 'success'
+            
+            return jsonify(config_dict), 200
+            
+    except Exception as e:
+        print(f"Error fetching chatbot config: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to fetch chatbot configuration',
+            'icon_image_url': None
+        }), 500
+
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces
