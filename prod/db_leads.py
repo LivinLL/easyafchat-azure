@@ -23,7 +23,7 @@ def init_leads_blueprint(app_openai_client, app_pinecone_client):
 
 def save_lead(chatbot_id, thread_id, name, email, phone, initial_question):
     """
-    Save lead information to the database
+    Save lead information to the database or return existing lead ID if found
     
     Args:
         chatbot_id: The ID of the chatbot that captured the lead
@@ -34,14 +34,25 @@ def save_lead(chatbot_id, thread_id, name, email, phone, initial_question):
         initial_question: First question asked by the user
         
     Returns:
-        lead_id: The ID of the newly created lead
+        lead_id: The ID of the newly created or existing lead
     """
     try:
         with connect_to_db() as conn:
             cursor = conn.cursor()
             now = datetime.now()
             
-            # Use appropriate placeholders based on database type
+            # Check for existing lead by email first
+            if email:
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('SELECT lead_id FROM leads WHERE email = %s AND chatbot_id = %s', (email, chatbot_id))
+                else:
+                    cursor.execute('SELECT lead_id FROM leads WHERE email = ? AND chatbot_id = ?', (email, chatbot_id))
+                
+                existing = cursor.fetchone()
+                if existing:
+                    return existing[0]  # Return existing lead ID
+            
+            # Create new lead
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('''
                     INSERT INTO leads 
@@ -61,6 +72,8 @@ def save_lead(chatbot_id, thread_id, name, email, phone, initial_question):
             return lead_id
     except Exception as e:
         print(f"Error saving lead: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return None
 
 def get_leads_by_chatbot(chatbot_id, status=None, limit=100, offset=0):

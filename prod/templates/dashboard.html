@@ -760,10 +760,11 @@
                 embedCodeElement.innerHTML = 
                     '&lt;script&gt;\n' +
                     'window.davesEasyChatConfig = {\n' +
-                    '    chatbotId: "' + chatbotId + '"\n' +
+                    '    chatbotId: "' + chatbotId + '",\n' +
+                    '    baseUrl: "' + window.location.origin + '"\n' +
                     '};\n' +
                     '&lt;/script&gt;\n' +
-                    '&lt;script src="' + window.location.origin + '/static/js/chatbot-embed.js"&gt;&lt;/script&gt;';
+                    '&lt;script src="' + window.location.origin + '/static/js/chatbot-embed.js" defer&gt;&lt;/script&gt;';
             }
             
             // Load the selected chatbot

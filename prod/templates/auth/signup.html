@@ -95,10 +95,16 @@
                             </a>
                         </div>
                         
+                        {% if chatbot_id %}
+                        <div class="mb-3 mt-4 alert alert-info">
+                            Your chatbot will be automatically connected to your account after signing up with Google.
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Email/password form commented out for now
                         <div class="or-divider">or</div>
                         
                         <form class="form-signup" method="POST" action="{{ url_for('auth.signup') }}">
-                            <!-- Add CSRF token -->
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             
                             <div class="mb-3">
@@ -125,10 +131,13 @@
                             {% endif %}
                             <button class="btn btn-primary btn-lg w-100" type="submit">Sign Up</button>
                         </form>
+                        -->
                         
+                        <!-- Since we only have Google sign-in now, no need for this section
                         <div class="text-center mt-3">
                             <p>Already have an account? <a href="{{ url_for('auth.signin') }}">Sign In</a></p>
                         </div>
+                        -->
                     </div>
                 </div>
             </div>

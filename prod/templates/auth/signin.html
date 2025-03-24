@@ -95,10 +95,10 @@
                             </a>
                         </div>
                         
+                        <!-- Email/password form commented out for now
                         <div class="or-divider">or</div>
                         
                         <form class="form-signin" method="POST" action="{{ url_for('auth.signin') }}">
-                            <!-- Add CSRF token -->
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             
                             <div class="mb-3">
@@ -120,7 +120,15 @@
                             {% endif %}
                             <button class="btn btn-primary btn-lg w-100" type="submit">Sign In</button>
                         </form>
+                        -->
                         
+                        {% if chatbot_id %}
+                        <div class="mb-3 mt-4 alert alert-info">
+                            You'll be able to claim your chatbot after signing in with Google.
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Since we only have Google sign-in now, no need for this section
                         <div class="text-center mt-3">
                             <p>Don't have an account? 
                                 {% if chatbot_id %}
@@ -130,6 +138,7 @@
                                 {% endif %}
                             </p>
                         </div>
+                        -->
                     </div>
                 </div>
             </div>
