@@ -86,12 +86,21 @@
                         
                         <div class="social-login text-center">
                             {% if chatbot_id %}
-                            <a href="{{ url_for('auth.google_login', chatbot_id=chatbot_id) }}" class="btn btn-google btn-lg w-100">
+                            <a href="{{ url_for('auth.google_login', chatbot_id=chatbot_id) }}" class="btn btn-google btn-lg w-100 mb-2">
                             {% else %}
-                            <a href="{{ url_for('auth.google_login') }}" class="btn btn-google btn-lg w-100">
+                            <a href="{{ url_for('auth.google_login') }}" class="btn btn-google btn-lg w-100 mb-2">
                             {% endif %}
                                 <img src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/icons/google.svg" alt="Google" width="20" height="20" class="google-icon">
                                 Sign up with Google
+                            </a>
+                            
+                            {% if chatbot_id %}
+                            <a href="{{ url_for('auth.microsoft_login', chatbot_id=chatbot_id) }}" class="btn btn-google btn-lg w-100">
+                            {% else %}
+                            <a href="{{ url_for('auth.microsoft_login') }}" class="btn btn-google btn-lg w-100">
+                            {% endif %}
+                                <img src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/icons/microsoft.svg" alt="Microsoft" width="20" height="20" class="google-icon">
+                                Sign up with Microsoft
                             </a>
                         </div>
                         

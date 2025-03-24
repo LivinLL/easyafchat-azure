@@ -45,6 +45,13 @@ if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
     print("WARNING: Google OAuth credentials not set. Google sign-in will not work.")
     print("Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.")
 
+# Check for Microsoft OAuth credentials
+MS_AUTH_CLIENT_ID = os.environ.get('MS_AUTH_CLIENT_ID')
+MS_AUTH_CLIENT_SECRET = os.environ.get('MS_AUTH_CLIENT_SECRET')
+if not MS_AUTH_CLIENT_ID or not MS_AUTH_CLIENT_SECRET:
+    print("WARNING: Microsoft OAuth credentials not set. Microsoft sign-in will not work.")
+    print("Set MS_AUTH_CLIENT_ID and MS_AUTH_CLIENT_SECRET environment variables.")
+
 # Import database initialization and connection functions
 from database import initialize_database, connect_to_db
 
@@ -1616,7 +1623,7 @@ def get_chatbot_config(chatbot_id):
             'chat_subtitle': None
         }), 500
     
-    
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces
