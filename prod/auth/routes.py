@@ -281,7 +281,7 @@ def microsoft_login():
         redirect_uri = f"{base_url}/auth/microsoft/callback"
     else:
         # For local development
-        redirect_uri = f"{request.host_url.rstrip('/')}/auth/microsoft/callback"
+        redirect_uri = "http://localhost:8080/auth/microsoft/callback"
     
     # Debug logging
     print(f"Microsoft Client ID: {MS_AUTH_CLIENT_ID}")

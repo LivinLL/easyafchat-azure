@@ -178,10 +178,12 @@
                     claimButton.textContent = 'Claiming...';
                     
                     try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                         const response = await fetch(`/auth/claim-chatbot/${chatbotId}`, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
                             }
                         });
                         
