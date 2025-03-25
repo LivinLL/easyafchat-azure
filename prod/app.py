@@ -1500,7 +1500,9 @@ def verify_support_domain():
         authorized_domains = [
             'localhost',
             '127.0.0.1',
-            'easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net'
+            'easyafchat-v3-epbzeabngbb5dcek.centralus-01.azurewebsites.net',
+            'goeasychat.com',
+            'www.goeasychat.com'
             # Add any other domains you want to authorize here
         ]
         
