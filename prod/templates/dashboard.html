@@ -737,6 +737,11 @@
                     link.classList.add('active');
                 }
             });
+            
+            // If navigating to Sources tab, reload documents to apply the current chatbot filter
+            if (pageId === 'sources') {
+                loadDocuments();
+            }
         }
         
         // Copy embed code
@@ -769,6 +774,11 @@
             
             // Load the selected chatbot
             loadCustomerChatbot(chatbotId);
+            
+            // If the Sources tab is currently active, refresh its documents
+            if (document.getElementById('sources').classList.contains('active')) {
+                loadDocuments();
+            }
         }
         
         // Load the customer's chatbot in the playground
@@ -1002,6 +1012,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!documentsList) return;
         
+        // Get the currently selected chatbot ID
+        const selectedBotName = document.getElementById('selected-bot-name');
+        let activeChatbotId = '';
+        
+        if (selectedBotName) {
+            const chatbotOptions = document.querySelectorAll('.bot-dropdown-content a');
+            for (let option of chatbotOptions) {
+                if (option.textContent.trim() === selectedBotName.textContent.trim()) {
+                    const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
+                    if (match && match[1]) {
+                        activeChatbotId = match[1];
+                        break;
+                    }
+                }
+            }
+        }
+        
         // Show loading state
         documentsList.innerHTML = `
             <div style="text-align: center; padding: 30px;">
@@ -1019,20 +1046,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
+                // Filter documents to only show those for the active chatbot
+                let filteredDocuments = data.documents || [];
+                if (activeChatbotId) {
+                    filteredDocuments = filteredDocuments.filter(doc => doc.chatbot_id === activeChatbotId);
+                }
+                
                 // Update document stats
-                updateDocumentStats(data.documents || []);
+                updateDocumentStats(filteredDocuments);
                 
                 // Clear the container
                 documentsList.innerHTML = '';
                 
-                if (data.documents && data.documents.length > 0) {
+                if (filteredDocuments.length > 0) {
                     // Hide the "no documents" message
                     if (noDocumentsMessage) {
                         noDocumentsMessage.style.display = 'none';
                     }
                     
                     // Add each document to the list
-                    data.documents.forEach(doc => {
+                    filteredDocuments.forEach(doc => {
                         documentsList.appendChild(createDocumentElement(doc));
                     });
                 } else {
