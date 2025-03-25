@@ -1344,24 +1344,21 @@ function uploadFiles(files) {
         return;
     }
     
-    // Hide the dropzone and show the processing indicator with upload progress
+    // Hide the dropzone and show the processing indicator with unified UI
     const uploadBox = document.querySelector('.upload-box');
     if (uploadBox) uploadBox.style.display = 'none';
     
-    // Get the processing element and show it with upload progress UI
+    // Get the processing element and show simplified UI
     const processingEl = document.getElementById('document-processing');
     if (processingEl) {
         processingEl.innerHTML = `
             <div class="processing-indicator">
-                <div style="text-align: center;">
-                    <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></div>
-                    <div id="upload-status">
-                        <strong>Uploading ${files[0].name}...</strong>
-                    </div>
-                    <div style="height: 5px; background: #e9ecef; border-radius: 3px; margin: 15px auto; width: 200px;">
-                        <div id="upload-progress" style="height: 100%; width: 0%; background: #0d6efd; border-radius: 3px;"></div>
-                    </div>
-                    <p id="upload-percent">0%</p>
+                <div style="text-align: center; padding: 20px;">
+                    <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto 15px;"></div>
+                    <h4 style="margin-bottom: 15px;">${files[0].name}</h4>
+                    <div style="height: 1px; background: #cce5ff; margin: 15px auto; width: 80%;"></div>
+                    <p><strong>Retraining your bot, please stand by...</strong></p>
+                    <p style="color: #666;">This may take a minute.</p>
                 </div>
             </div>
         `;
@@ -1376,42 +1373,12 @@ function uploadFiles(files) {
     // Create and send request
     const xhr = new XMLHttpRequest();
     
-    // Track upload progress
-    xhr.upload.addEventListener('progress', function(e) {
-        if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            const progressBar = document.getElementById('upload-progress');
-            const percentText = document.getElementById('upload-percent');
-            if (progressBar) progressBar.style.width = percent + '%';
-            if (percentText) percentText.textContent = percent + '%';
-        }
-    });
-    
     // Handle completion
     xhr.onload = function() {
         if (xhr.status === 200) {
             try {
                 const response = JSON.parse(xhr.responseText);
                 if (response.success) {
-                    // Update the processing indicator to show upload complete and retraining
-                    if (processingEl) {
-                        processingEl.innerHTML = `
-                            <div class="processing-indicator">
-                                <div style="text-align: center;">
-                                    <div class="spinner" style="width: 20px; height: 20px; display: inline-block; margin-right: 8px;"></div>
-                                    <div id="upload-status">
-                                        <strong>Uploading ${files[0].name}...</strong>
-                                        <span style="display: inline; color: green; margin-left: 8px;">✓</span>
-                                    </div>
-                                    <div id="retraining-status" style="margin-top: 15px;">
-                                        <strong>Retraining your bot, please stand by...</strong>
-                                        <p>This may take a minute.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
                     // Start polling for processing completion
                     checkDocumentProcessingImproved(response.doc_id, uploadBox, files[0].name);
                 } else {
@@ -1452,7 +1419,7 @@ function uploadFiles(files) {
     xhr.send(formData);
 }
 
-// Check document processing status with improved UI flow
+// Check document processing status with simplified UI
 function checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts = 0, startTime = Date.now()) {
     const processingEl = document.getElementById('document-processing');
     
@@ -1476,15 +1443,6 @@ function checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts 
         .then(response => response.json())
         .then(data => {
             if (data.completed) {
-                // Processing complete - show the checkmark on retraining line first
-                const retrainingStatusEl = processingEl.querySelector('#retraining-status');
-                if (retrainingStatusEl) {
-                    const strongEl = retrainingStatusEl.querySelector('strong');
-                    if (strongEl && !strongEl.innerHTML.includes('✓')) {
-                        strongEl.innerHTML = strongEl.innerHTML + ' <span style="display: inline; color: green; margin-left: 8px;">✓</span>';
-                    }
-                }
-                
                 // Calculate elapsed time since start
                 const elapsedTime = Date.now() - startTime;
                 const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
@@ -1511,18 +1469,20 @@ function checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts 
                     }
                 }, remainingTime);
             } else {
-                // Still processing, check again after 5 seconds
+                // Still processing, check again - use more frequent checks initially
+                const checkInterval = attempts < 3 ? 1000 : 5000; // Check every 1s for first 3 attempts, then every 5s
                 setTimeout(() => {
                     checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts + 1, startTime);
-                }, 5000);
+                }, checkInterval);
             }
         })
         .catch(error => {
             console.error('Error checking processing status:', error);
-            // Continue polling even on error
+            // Continue polling even on error - use more frequent checks initially
+            const checkInterval = attempts < 3 ? 1000 : 5000; // Check every 1s for first 3 attempts, then every 5s
             setTimeout(() => {
                 checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts + 1, startTime);
-            }, 5000);
+            }, checkInterval);
         });
 }
 
