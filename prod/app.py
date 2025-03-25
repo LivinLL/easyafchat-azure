@@ -615,7 +615,7 @@ def home():
     return render_template('landing.html')
 
 @app.route('/process-url-async', methods=['POST'])
-@limiter.limit("5 per minute; 20 per hour")
+@limiter.limit("2 per minute; 4 per hour")
 def process_url_async():
     print(f"[process_url_async] Starting at {datetime.now().isoformat()}")
     print(f"[process_url_async] Form data: {request.form}")
@@ -915,7 +915,7 @@ def check_processing(chatbot_id):
     })
 
 @app.route('/', methods=['POST'])
-@limiter.limit("5 per minute; 20 per hour")
+@limiter.limit("2 per minute; 4 per hour")
 def process_url():
     print(f"[process_url] Starting POST request processing")
     website_url = request.form.get('url')
@@ -1098,7 +1098,7 @@ def demo(session_id):
         conn.close()
 
 @app.route('/embed-chat', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit("10 per minute")
 def embed_chat():
     try:
         data = request.json
@@ -1185,7 +1185,7 @@ def embed_chat():
     
 
 @app.route('/embed-reset-chat', methods=['POST'])
-@limiter.limit("15 per minute")
+@limiter.limit("2 per minute")
 def reset_chat():
     try:
         data = request.json
@@ -1483,7 +1483,7 @@ def verify_domain():
         return jsonify({'error': f'Server error: {str(e)}', 'authorized': False}), 500
 
 @app.route('/verify-support-domain', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit("10 per minute")
 def verify_support_domain():
     """Verify if a domain is authorized to use the support chatbot"""
     try:
