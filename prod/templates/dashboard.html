@@ -528,6 +528,104 @@
     background-color: #c82333;
 }
 
+/* ============================== */
+/* Leads Tab Styles */
+.leads-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+#leadsTable {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#leadsTable th {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+#leadsTable th, 
+#leadsTable td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: middle;
+}
+
+#leadsTable thead th {
+    background-color: #f9f9f9;
+    font-weight: 600;
+    color: #333;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+#leadsTable th:hover {
+    background-color: #f5f5f5;
+}
+
+#leadsTable th .sort-icon {
+    font-size: 12px;
+    margin-left: 5px;
+    opacity: 0.6;
+}
+
+#leadsTable th.sort-asc .sort-icon,
+#leadsTable th.sort-desc .sort-icon {
+    opacity: 1;
+}
+
+#leadsTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#leadsTable tbody tr:hover {
+    background-color: #f5f5f5;
+    transition: background-color 0.3s ease;
+}
+
+#leadsTable .delete-lead-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #007bff;
+    border-radius: 50%;
+    animation: spin 1s infinite linear;
+}
+
+/* Export button styling */
+#exportLeadsBtn {
+    white-space: nowrap;
+}
+
+/* Makes the table more responsive on small screens */
+@media (max-width: 768px) {
+    #leadsTable {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+    }
+    
+    .leads-container {
+        padding: 10px;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -702,9 +800,40 @@
 
         <!-- Leads Page -->
         <div id="leads" class="page-content">
-            <div class="placeholder-content">
-                <h2>Leads</h2>
-                <p>Manage leads captured by your chatbot.</p>
+            <div class="leads-container">
+                <div class="header-actions d-flex justify-content-between align-items-center mb-4">
+                    <h2>Leads</h2>
+                    <button id="exportLeadsBtn" class="btn btn-primary">
+                        Export to CSV
+                    </button>
+                </div>
+                
+                <div id="leadsErrorMessage" class="alert alert-danger" style="display: none;"></div>
+                
+                <div id="leadsLoadingIndicator" style="text-align: center; padding: 30px; display: none;">
+                    <div class="spinner" style="width: 40px; height: 40px; margin: 0 auto;"></div>
+                    <p class="mt-3">Loading leads...</p>
+                </div>
+                
+                <div id="noLeadsMessage" style="text-align: center; padding: 50px 20px; background-color: #f9f9f9; border-radius: 8px; display: none;">
+                    <h4>No leads found</h4>
+                    <p class="text-muted">When visitors fill out the lead form in your chatbot, their information will appear here.</p>
+                </div>
+                
+                <table id="leadsTable" class="table table-striped" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th data-sort="name">Name <span class="sort-icon">↕️</span></th>
+                            <th data-sort="email">Email <span class="sort-icon">↕️</span></th>
+                            <th data-sort="phone">Phone <span class="sort-icon">↕️</span></th>
+                            <th data-sort="created_at">Date <span class="sort-icon">↕️</span></th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leadsTableBody">
+                        <!-- Leads will be loaded dynamically here -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -1608,6 +1737,289 @@ function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, st
         });
     }
 
+});
+</script>
+
+<script>
+// Leads Tab JavaScript
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the dashboard page
+    if (!document.getElementById('leads')) return;
+    
+    // Table sorting functionality
+    function setupTableSorting(tableId) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        
+        const headers = table.querySelectorAll('th[data-sort]');
+        
+        headers.forEach(header => {
+            header.addEventListener('click', function() {
+                const sortKey = this.getAttribute('data-sort');
+                const sortDirection = this.classList.contains('sort-asc') ? 'desc' : 'asc';
+                
+                // Remove sort classes from all headers
+                headers.forEach(h => {
+                    h.classList.remove('sort-asc', 'sort-desc');
+                    h.querySelector('.sort-icon').textContent = '↕️';
+                });
+                
+                // Add sort class to clicked header
+                this.classList.add(`sort-${sortDirection}`);
+                this.querySelector('.sort-icon').textContent = sortDirection === 'asc' ? '↑' : '↓';
+                
+                // Load leads with sort parameter
+                loadLeads(sortKey, sortDirection);
+            });
+        });
+    }
+    
+    // Updated loadLeads function with more robust error handling
+    async function loadLeads(sortBy = 'created_at', sortDirection = 'desc') {
+        try {
+            const leadsTable = document.getElementById('leadsTable');
+            const leadsTableBody = document.getElementById('leadsTableBody');
+            const loadingIndicator = document.getElementById('leadsLoadingIndicator');
+            const noLeadsMessage = document.getElementById('noLeadsMessage');
+            const exportButton = document.getElementById('exportLeadsBtn');
+            const errorMessage = document.getElementById('leadsErrorMessage');
+            
+            if (!leadsTableBody || !loadingIndicator || !noLeadsMessage) return;
+            
+            // Clear any previous error message
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+                errorMessage.textContent = '';
+            }
+            
+            // Show loading indicator
+            leadsTableBody.style.display = 'none';
+            loadingIndicator.style.display = 'block';
+            noLeadsMessage.style.display = 'none';
+            
+            // Hide export button until we know we have leads
+            if (exportButton) {
+                exportButton.style.display = 'none';
+            }
+            
+            // Get the currently selected chatbot ID
+            const selectedBotElement = document.getElementById('selected-bot-name');
+            let chatbotId = '';
+            
+            if (selectedBotElement) {
+                const botDropdownOptions = document.querySelectorAll('.bot-dropdown-content a');
+                for (let option of botDropdownOptions) {
+                    if (option.textContent.trim() === selectedBotElement.textContent.trim()) {
+                        const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
+                        if (match && match[1]) {
+                            chatbotId = match[1];
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!chatbotId) {
+                // No chatbot selected, show empty state
+                leadsTableBody.innerHTML = '';
+                leadsTableBody.style.display = 'none';
+                loadingIndicator.style.display = 'none';
+                noLeadsMessage.style.display = 'block';
+                return;
+            }
+            
+            // Fetch leads for this chatbot
+            const response = await fetch(`/leads/list/${chatbotId}?sort=${sortBy}&direction=${sortDirection}`);
+            
+            // Check if the response is successful
+            if (!response.ok) {
+                // If response is not OK, throw an error with status
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Check for error in the response
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Clear table
+            leadsTableBody.innerHTML = '';
+            
+            // Hide loading indicator
+            loadingIndicator.style.display = 'none';
+            
+            if (!data.leads || data.leads.length === 0) {
+                // No leads found
+                noLeadsMessage.style.display = 'block';
+                leadsTable.style.display = 'none';
+                return;
+            }
+            
+            // Show table and add leads
+            leadsTable.style.display = 'table';
+            noLeadsMessage.style.display = 'none';
+            leadsTableBody.style.display = 'table-row-group';
+            
+            // Show export button when we have leads
+            if (exportButton) {
+                exportButton.style.display = 'block';
+            }
+            
+            data.leads.forEach((lead) => {
+                // Format date for display
+                let formattedDate = lead.created_at;
+                if (formattedDate && formattedDate.includes('T')) {
+                    formattedDate = new Date(formattedDate).toLocaleDateString('en-US', {
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                    });
+                }
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${lead.name || '-'}</td>
+                    <td>${lead.email || '-'}</td>
+                    <td>${lead.phone || '-'}</td>
+                    <td>${formattedDate}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-danger delete-lead-btn" data-lead-id="${lead.lead_id}">
+                            Delete
+                        </button>
+                    </td>
+                `;
+                
+                leadsTableBody.appendChild(row);
+            });
+            
+            // Add delete event listeners
+            setupDeleteButtons();
+        } catch (error) {
+            console.error('Error loading leads:', error);
+            
+            // Show detailed error message
+            const errorMessage = document.getElementById('leadsErrorMessage');
+            if (errorMessage) {
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = `Error loading leads: ${error.message}. Please try again.`;
+            }
+            
+            // If we still have leads displayed, show the export button
+            const leadsTableBody = document.getElementById('leadsTableBody');
+            const exportButton = document.getElementById('exportLeadsBtn');
+            if (leadsTableBody && leadsTableBody.children.length > 0 && exportButton) {
+                exportButton.style.display = 'block';
+            }
+        }
+    }
+    
+// Updated deleteLead function with correct API endpoint
+async function deleteLead(leadId) {
+        try {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            const response = await fetch(`/leads/delete/${leadId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Reload leads
+                loadLeads();
+            } else {
+                alert('Error deleting lead: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error deleting lead:', error);
+            alert('Error deleting lead. Please try again.');
+        }
+    }
+
+    // Function to set up delete buttons for leads
+    function setupDeleteButtons() {
+        const deleteButtons = document.querySelectorAll('.delete-lead-btn');
+        deleteButtons.forEach(button => {
+            // Remove existing listeners to prevent multiple bindings
+            button.removeEventListener('click', handleLeadDelete);
+            button.addEventListener('click', handleLeadDelete);
+        });
+    }
+
+    // Separate handler function for lead deletion
+    function handleLeadDelete(e) {
+        e.preventDefault();
+        const leadId = this.getAttribute('data-lead-id');
+        
+        if (leadId) {
+            if (confirm('Are you sure you want to delete this lead?')) {
+                deleteLead(leadId);
+            }
+        }
+    }
+    
+    // Updated exportLeads function with correct API endpoint
+    async function exportLeads() {
+        try {
+            // Get the currently selected chatbot ID
+            const selectedBotElement = document.getElementById('selected-bot-name');
+            let chatbotId = '';
+            
+            if (selectedBotElement) {
+                const botDropdownOptions = document.querySelectorAll('.bot-dropdown-content a');
+                for (let option of botDropdownOptions) {
+                    if (option.textContent.trim() === selectedBotElement.textContent.trim()) {
+                        const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
+                        if (match && match[1]) {
+                            chatbotId = match[1];
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!chatbotId) {
+                alert('No chatbot selected. Please select a chatbot first.');
+                return;
+            }
+            
+            // Trigger download by navigating to export URL
+            window.location.href = `/leads/export/${chatbotId}`;
+        } catch (error) {
+            console.error('Error exporting leads:', error);
+            alert('Error exporting leads. Please try again.');
+        }
+    }
+
+
+    // Set up event listeners
+    document.getElementById('exportLeadsBtn')?.addEventListener('click', exportLeads);
+    
+    // Setup table sorting
+    setupTableSorting('leadsTable');
+    
+    // Initialize leads tab
+    const leadsTabLink = document.querySelector('a[onclick="openPage(\'leads\')"]');
+    if (leadsTabLink) {
+        leadsTabLink.addEventListener('click', function() {
+            loadLeads();
+        });
+    }
+    
+    // If leads tab is active on page load, load leads
+    if (document.getElementById('leads').classList.contains('active')) {
+        loadLeads();
+    }
 });
 </script>
 

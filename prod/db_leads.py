@@ -409,6 +409,118 @@ def update_lead(lead_id):
         print(f"Error updating lead: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
+
+# Add these routes to the leads_blueprint in db_leads.py
+
+@leads_blueprint.route('/leads/list/<chatbot_id>', methods=['GET'])
+def get_leads_for_dashboard(chatbot_id):
+    try:
+        # Get sort parameters
+        sort_by = request.args.get('sort', 'created_at')
+        sort_direction = request.args.get('direction', 'desc')
+        
+        # Validate and sanitize sort parameters to prevent injection
+        allowed_sort_fields = ['name', 'email', 'phone', 'created_at', 'lead_id']
+        if sort_by not in allowed_sort_fields:
+            sort_by = 'created_at'
+            
+        if sort_direction.lower() not in ['asc', 'desc']:
+            sort_direction = 'desc'
+        
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Build query with proper ORDER BY
+            query = "SELECT * FROM leads WHERE chatbot_id = "
+            params = [chatbot_id]
+            
+            if sort_direction.lower() == 'desc':
+                direction_sql = "DESC"
+            else:
+                direction_sql = "ASC"
+                
+            if sort_by == 'name':
+                # Handle NULL values in name field
+                order_clause = f" ORDER BY CASE WHEN name IS NULL THEN 1 ELSE 0 END, name {direction_sql}"
+            elif sort_by == 'email':
+                # Handle NULL values in email field
+                order_clause = f" ORDER BY CASE WHEN email IS NULL THEN 1 ELSE 0 END, email {direction_sql}"
+            elif sort_by == 'phone':
+                # Handle NULL values in phone field
+                order_clause = f" ORDER BY CASE WHEN phone IS NULL THEN 1 ELSE 0 END, phone {direction_sql}"
+            else:
+                # Default sort by created_at
+                order_clause = f" ORDER BY {sort_by} {direction_sql}"
+            
+            # Adapt query for database type
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                query += "%s" + order_clause
+            else:
+                query += "?" + order_clause
+            
+            cursor.execute(query, params)
+            leads = cursor.fetchall()
+            
+            # Get column names
+            columns = [desc[0] for desc in cursor.description]
+            
+            # Convert to list of dictionaries
+            result = []
+            for lead in leads:
+                lead_dict = dict(zip(columns, lead))
+                # Convert datetime to ISO string for JSON serialization
+                if 'created_at' in lead_dict and hasattr(lead_dict['created_at'], 'isoformat'):
+                    lead_dict['created_at'] = lead_dict['created_at'].isoformat()
+                result.append(lead_dict)
+            
+            # Return an empty list if no leads found, not an error
+            return jsonify({
+                "leads": result, 
+                "count": len(result)
+            })
+    except Exception as e:
+        # Log the full error for server-side debugging
+        import traceback
+        print(f"Error getting leads: {e}")
+        print(traceback.format_exc())
+        
+        # Return a structured error response
+        return jsonify({
+            "leads": [],
+            "count": 0,
+            "error": str(e)
+        }), 200  # Use 200 OK to prevent triggering catch block
+
+@leads_blueprint.route('/leads/delete/<lead_id>', methods=['DELETE'])
+def delete_lead_item(lead_id):
+    """Delete a specific lead"""
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # First check if lead exists
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('SELECT COUNT(*) FROM leads WHERE lead_id = %s', (lead_id,))
+            else:
+                cursor.execute('SELECT COUNT(*) FROM leads WHERE lead_id = ?', (lead_id,))
+                
+            count = cursor.fetchone()[0]
+            
+            if count == 0:
+                return jsonify({"success": False, "error": "Lead not found"}), 404
+                
+            # Delete the lead
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM leads WHERE lead_id = %s', (lead_id,))
+            else:
+                cursor.execute('DELETE FROM leads WHERE lead_id = ?', (lead_id,))
+            
+            return jsonify({"success": True})
+    except Exception as e:
+        print(f"Error deleting lead: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @leads_blueprint.route('/config/lead-form/<chatbot_id>', methods=['GET'])
 def get_lead_form_config(chatbot_id):
     """
