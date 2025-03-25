@@ -73,7 +73,7 @@
             // Optional: Show a small error message instead of the chat
             const errorDiv = document.createElement('div');
             errorDiv.style.cssText = 'position:fixed; bottom:20px; right:20px; background-color:#f8d7da; color:#721c24; padding:10px; border-radius:4px; font-family:sans-serif; font-size:12px; z-index:9999; max-width:300px;';
-            errorDiv.textContent = 'This domain is not authorized to use the EasyAFChat support bot.';
+            errorDiv.textContent = 'This domain is not authorized to use the GoEasyChat support bot.';
             document.body.appendChild(errorDiv);
             
             // Remove error after 10 seconds
@@ -507,7 +507,7 @@ function initializeMarkedAndChatbot() {
                              alt="Agent d-A-v-I-d Avatar" 
                              style="width: 100%; height: 100%; border-radius: 50%;">
                     </div>
-                    <span>EasyAFChat Support</span>
+                    <span>GoEasyChat Support</span>
                 </div>
                 <div style="border: 0px solid red;">
                     <button type="button" class="support-button" id="support-reset-chat" title="Start Fresh">
@@ -832,7 +832,7 @@ function initializeMarkedAndChatbot() {
             if (config.showInitialMessage === false) return;
             
             // Default message or custom message from config
-            const initialMessage = config.initialMessage || "EasyAFChat here! 👋 How can I help you?";
+            const initialMessage = config.initialMessage || "GoEasyChat here! 👋 How can I help you?";
             
             // Create popup element
             const popup = document.createElement('div');
@@ -883,7 +883,7 @@ function initializeMarkedAndChatbot() {
             }
             
             if (messages.length === 0) {
-                addMessage("EasyAFChat here! 👋 How can I help you?", 'assistant');
+                addMessage("GoEasyChat here! 👋 How can I help you?", 'assistant');
                 console.log('Added initial assistant greeting');
             }
         });
@@ -1186,7 +1186,7 @@ function initializeMarkedAndChatbot() {
                 initialQuestion = null;
                 console.log('Lead form state reset');
                 messagesContainer.innerHTML = '';
-                addMessage("EasyAFChat here! 👋 How can I help you?", 'assistant');
+                addMessage("GoEasyChat here! 👋 How can I help you?", 'assistant');
             } catch (error) {
                 console.error('Error resetting chat:', error);
             }

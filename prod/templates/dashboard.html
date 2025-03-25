@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Dashboard - EasyAFChat</title>
+    <title>Dashboard - GoEasyChat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         body {
@@ -534,7 +534,7 @@
     <header>
         <div class="header-container">
             <div class="logo">
-                <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="EasyAF Logo">
+                <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="GoEasyChat Logo">
             </div>
             <div class="nav-container">
                 <ul class="nav-links">
@@ -844,7 +844,7 @@
         
         // Support chatbot setup
         function setupSupportChatbot() {
-            // Create a script element for EasyAFChat's support bot
+            // Create a script element for GoEasyChat support bot
             var supportScript = document.createElement('script');
             supportScript.innerHTML = `
                 window.davesEasyChatConfig = {
@@ -866,7 +866,7 @@
                 loadCustomerChatbot('{{ chatbots[0].chatbot_id }}');
             {% endif %}
             
-            // Setup the EasyAFChat support chatbot (commented out for now)
+            // Setup the GoEasyChat support chatbot (commented out for now)
             // Uncomment the line below to enable the support chatbot
             // setupSupportChatbot();
         });
