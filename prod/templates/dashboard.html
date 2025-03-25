@@ -1869,33 +1869,38 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             data.leads.forEach((lead) => {
-                // Format date for display
-                let formattedDate = lead.created_at;
-                if (formattedDate && formattedDate.includes('T')) {
-                    formattedDate = new Date(formattedDate).toLocaleDateString('en-US', {
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit'
-                    });
-                }
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${lead.name || '-'}</td>
-                    <td>${lead.email || '-'}</td>
-                    <td>${lead.phone || '-'}</td>
-                    <td>${formattedDate}</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-danger delete-lead-btn" data-lead-id="${lead.lead_id}">
-                            Delete
-                        </button>
-                    </td>
-                `;
-                
-                leadsTableBody.appendChild(row);
-            });
+            // Format date for display
+            let formattedDate = lead.created_at;
+            
+            // Parse the date string manually
+            const [datePart, timePart] = formattedDate.split(' ');
+            const [year, month, day] = datePart.split('-');
+            const [hours, minutes] = timePart.split(':');
+            
+            // Convert to 12-hour format
+            let hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'pm' : 'am';
+            hour = hour % 12;
+            hour = hour ? hour : 12; // handle midnight
+            
+            // Construct formatted date
+            formattedDate = `${month}-${day}-${year} ${hour}:${minutes.slice(0,2)}${ampm}`;
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${lead.name || '-'}</td>
+                <td>${lead.email || '-'}</td>
+                <td>${lead.phone || '-'}</td>
+                <td>${formattedDate}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-danger delete-lead-btn" data-lead-id="${lead.lead_id}">
+                        Delete
+                    </button>
+                </td>
+            `;
+            
+            leadsTableBody.appendChild(row);
+        });
             
             // Add delete event listeners
             setupDeleteButtons();

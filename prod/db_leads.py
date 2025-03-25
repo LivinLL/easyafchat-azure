@@ -203,29 +203,31 @@ def export_leads_to_csv(chatbot_id, status=None):
         writer = csv.writer(output)
         
         # Write header
-        header = ['ID', 'Name', 'Email', 'Phone', 'Initial Question', 'Date', 'Status', 'Notes']
+        header = ['ID', 'Name', 'Email', 'Phone', 'Date']
         writer.writerow(header)
         
         # Write data rows
         for lead in leads:
-            # Format date for better readability
+            # Format date for better readability and Excel compatibility
             created_at = lead.get('created_at')
-            if isinstance(created_at, datetime):
-                formatted_date = created_at.strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                formatted_date = str(created_at)
+            try:
+                if isinstance(created_at, datetime):
+                    dt = created_at
+                else:
+                    dt = datetime.fromisoformat(str(created_at))
+                formatted_date = "'" + dt.strftime('%m-%d-%Y %I:%M%p').lower()
+            except (TypeError, ValueError):
+                formatted_date = "'" + str(created_at) if created_at else ''
             
             row = [
                 lead.get('lead_id'),
                 lead.get('name', ''),
                 lead.get('email', ''),
                 lead.get('phone', ''),
-                lead.get('initial_question', ''),
-                formatted_date,
-                lead.get('status', ''),
-                lead.get('notes', '')
+                formatted_date
             ]
             writer.writerow(row)
+
         
         return output.getvalue()
     except Exception as e:
