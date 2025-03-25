@@ -1834,87 +1834,60 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Check if the response is successful
             if (!response.ok) {
-                // If response is not OK, throw an error with status
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
             const data = await response.json();
             
-            // Check for error in the response
             if (data.error) {
                 throw new Error(data.error);
             }
             
-            // Clear table
             leadsTableBody.innerHTML = '';
-            
-            // Hide loading indicator
             loadingIndicator.style.display = 'none';
             
             if (!data.leads || data.leads.length === 0) {
-                // No leads found
                 noLeadsMessage.style.display = 'block';
                 leadsTable.style.display = 'none';
                 return;
             }
             
-            // Show table and add leads
             leadsTable.style.display = 'table';
             noLeadsMessage.style.display = 'none';
             leadsTableBody.style.display = 'table-row-group';
             
-            // Show export button when we have leads
             if (exportButton) {
                 exportButton.style.display = 'block';
             }
             
             data.leads.forEach((lead) => {
-            // Format date for display
-            let formattedDate = lead.created_at;
+                const formattedDate = lead.created_at || '-';
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${lead.name || '-'}</td>
+                    <td>${lead.email || '-'}</td>
+                    <td>${lead.phone || '-'}</td>
+                    <td>${formattedDate}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-danger delete-lead-btn" data-lead-id="${lead.lead_id}">
+                            Delete
+                        </button>
+                    </td>
+                `;
+                
+                leadsTableBody.appendChild(row);
+            });
             
-            // Parse the date string manually
-            const [datePart, timePart] = formattedDate.split(' ');
-            const [year, month, day] = datePart.split('-');
-            const [hours, minutes] = timePart.split(':');
-            
-            // Convert to 12-hour format
-            let hour = parseInt(hours);
-            const ampm = hour >= 12 ? 'pm' : 'am';
-            hour = hour % 12;
-            hour = hour ? hour : 12; // handle midnight
-            
-            // Construct formatted date
-            formattedDate = `${month}-${day}-${year} ${hour}:${minutes.slice(0,2)}${ampm}`;
-            
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${lead.name || '-'}</td>
-                <td>${lead.email || '-'}</td>
-                <td>${lead.phone || '-'}</td>
-                <td>${formattedDate}</td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-danger delete-lead-btn" data-lead-id="${lead.lead_id}">
-                        Delete
-                    </button>
-                </td>
-            `;
-            
-            leadsTableBody.appendChild(row);
-        });
-            
-            // Add delete event listeners
             setupDeleteButtons();
         } catch (error) {
             console.error('Error loading leads:', error);
             
-            // Show detailed error message
-            const errorMessage = document.getElementById('leadsErrorMessage');
             if (errorMessage) {
                 errorMessage.style.display = 'block';
                 errorMessage.textContent = `Error loading leads: ${error.message}. Please try again.`;
             }
             
-            // If we still have leads displayed, show the export button
             const leadsTableBody = document.getElementById('leadsTableBody');
             const exportButton = document.getElementById('exportLeadsBtn');
             if (leadsTableBody && leadsTableBody.children.length > 0 && exportButton) {
@@ -1922,6 +1895,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
+
     
 // Updated deleteLead function with correct API endpoint
 async function deleteLead(leadId) {
