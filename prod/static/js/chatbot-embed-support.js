@@ -832,7 +832,7 @@ function initializeMarkedAndChatbot() {
             if (config.showInitialMessage === false) return;
             
             // Default message or custom message from config
-            const initialMessage = config.initialMessage || "GoEasyChat here! 👋 How can I help you?";
+            const initialMessage = config.initialMessage || "Agent Easy here! 👋 How can I help you?";
             
             // Create popup element
             const popup = document.createElement('div');
@@ -883,7 +883,7 @@ function initializeMarkedAndChatbot() {
             }
             
             if (messages.length === 0) {
-                addMessage("GoEasyChat here! 👋 How can I help you?", 'assistant');
+                addMessage("Hi there! 👋 How can I help you?", 'assistant');
                 console.log('Added initial assistant greeting');
             }
         });
@@ -1186,7 +1186,7 @@ function initializeMarkedAndChatbot() {
                 initialQuestion = null;
                 console.log('Lead form state reset');
                 messagesContainer.innerHTML = '';
-                addMessage("GoEasyChat here! 👋 How can I help you?", 'assistant');
+                addMessage("Hi there! 👋 How can I help you?", 'assistant');
             } catch (error) {
                 console.error('Error resetting chat:', error);
             }
