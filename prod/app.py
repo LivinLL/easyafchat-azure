@@ -642,7 +642,12 @@ def process_url_async():
     print(f"[process_url_async] Starting at {datetime.now().isoformat()}")
     print(f"[process_url_async] Form data: {request.form}")
     website_url = request.form.get('url')
-    print(f"[process_url_async] URL: {website_url}")
+    print(f"[process_url_async] Original URL: {website_url}")
+    
+    # Auto-correct URLs without protocol
+    if website_url and not website_url.startswith(('http://', 'https://')):
+        website_url = 'https://' + website_url
+        print(f"[process_url_async] Auto-corrected URL to: {website_url}")
     
     # Check honeypot field - silently succeed but don't process if filled
     if request.form.get('contact_email'):
@@ -941,7 +946,12 @@ def check_processing(chatbot_id):
 def process_url():
     print(f"[process_url] Starting POST request processing")
     website_url = request.form.get('url')
-    print(f"[process_url] URL: {website_url}")
+    print(f"[process_url] Original URL: {website_url}")
+    
+    # Auto-correct URLs without protocol
+    if website_url and not website_url.startswith(('http://', 'https://')):
+        website_url = 'https://' + website_url
+        print(f"[process_url] Auto-corrected URL to: {website_url}")
     
     # Check honeypot field - silently succeed but don't process if filled
     if request.form.get('contact_email'):
