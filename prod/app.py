@@ -552,34 +552,56 @@ def process_simple_content(home_data, about_data):
         return None
 
 def verify_recaptcha(token, remote_ip):
-    """Verify reCAPTCHA token with Google"""
+    """Verify reCAPTCHA token with Google with enhanced debugging"""
     print(f"[reCAPTCHA] Starting verification for IP: {remote_ip}")
     print(f"[reCAPTCHA] Token present: {bool(token)}")
+    print(f"[reCAPTCHA] Token length: {len(token) if token else 0}")
     
     if not token:
         print("[reCAPTCHA] No token provided, verification failed")
         return False
     
+    # During development/debugging, you can bypass verification
+    # Uncomment the next line to bypass reCAPTCHA during testing
+    # return True
+    
     try:
-        print(f"[reCAPTCHA] Using secret key (length): {len(app.config['CAPTCHA_SECRET_KEY']) if app.config['CAPTCHA_SECRET_KEY'] else 0}")
+        print(f"[reCAPTCHA] Using site key: {app.config.get('CAPTCHA_SITE_KEY', 'Not set')}")
+        print(f"[reCAPTCHA] Using secret key (length): {len(app.config.get('CAPTCHA_SECRET_KEY', '')) if app.config.get('CAPTCHA_SECRET_KEY') else 0}")
         
         data = {
-            'secret': app.config["CAPTCHA_SECRET_KEY"],
+            'secret': app.config.get("CAPTCHA_SECRET_KEY", ""),
             'response': token,
             'remoteip': remote_ip
         }
         
         print("[reCAPTCHA] Sending verification request to Google")
-        response = requests.post('https://www.google.com/recaptcha/api/siteverify', data=data)
+        response = requests.post('https://www.google.com/recaptcha/api/siteverify', data=data, timeout=5)
+        print(f"[reCAPTCHA] Response status code: {response.status_code}")
+        print(f"[reCAPTCHA] Response content: {response.text[:200]}...")  # Log first 200 chars
+        
         result = response.json()
         
         print(f"[reCAPTCHA] Verification response: {result}")
         success = result.get('success', False)
         score = result.get('score', 0)
+        error_codes = result.get('error-codes', [])
         
         print(f"[reCAPTCHA] Verification result - Success: {success}, Score: {score}")
+        if error_codes:
+            print(f"[reCAPTCHA] Error codes: {error_codes}")
         
         return success
+    except requests.exceptions.Timeout:
+        print(f"[reCAPTCHA] Verification timeout after 5 seconds")
+        return False
+    except requests.exceptions.RequestException as e:
+        print(f"[reCAPTCHA] Request error: {str(e)}")
+        return False
+    except ValueError as e:
+        print(f"[reCAPTCHA] JSON parsing error: {str(e)}")
+        print(f"[reCAPTCHA] Raw response: {response.text}")
+        return False
     except Exception as e:
         print(f"[reCAPTCHA] Verification error: {str(e)}")
         import traceback
