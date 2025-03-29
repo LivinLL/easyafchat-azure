@@ -351,32 +351,36 @@ def get_existing_record(url):
         normalized_domain = normalize_domain_for_comparison(url)
         print(f"[get_existing_record] Original URL: {url}, Normalized domain: {normalized_domain}")
         
-        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-            # Use LIKE with wildcards to match the domain regardless of protocol and subdomains
-            cursor.execute('''
-                SELECT chatbot_id, pinecone_namespace
-                FROM companies 
-                WHERE normalize_domain_for_comparison(company_url) = %s
-            ''', (normalized_domain,))
+        # Extract main parts for partial matching
+        domain_parts = normalized_domain.split('.')
+        if len(domain_parts) >= 2:
+            main_domain = domain_parts[-2]  # e.g., 'example' from 'example.com'
         else:
-            # SQLite doesn't have the function, so we need to fetch and filter
+            main_domain = domain_parts[0]
+            
+        # Use LIKE for partial matching to narrow down candidates
+        if os.getenv('DB_TYPE', '').lower() == 'postgresql':
             cursor.execute('''
                 SELECT chatbot_id, pinecone_namespace, company_url
                 FROM companies
-            ''')
+                WHERE company_url LIKE %s
+            ''', (f'%{main_domain}%',))
+        else:
+            cursor.execute('''
+                SELECT chatbot_id, pinecone_namespace, company_url
+                FROM companies
+                WHERE company_url LIKE ?
+            ''', (f'%{main_domain}%',))
             
-            # Process results to find matching normalized domains
-            all_rows = cursor.fetchall()
-            for row in all_rows:
-                company_url = row[2]
-                if normalize_domain_for_comparison(company_url) == normalized_domain:
-                    return (row[0], row[1])  # Return chatbot_id and namespace
-            
-            # If we get here, no match was found
-            return None
-            
-        row = cursor.fetchone()
-        return row
+        # Then filter the smaller set of results for exact normalized matches
+        candidates = cursor.fetchall()
+        for row in candidates:
+            company_url = row[2]
+            if normalize_domain_for_comparison(company_url) == normalized_domain:
+                return (row[0], row[1])  # Return chatbot_id and namespace
+        
+        # If we get here, no match was found
+        return None
 
 def normalize_domain_for_comparison(url):
     """Extract and normalize the core domain from a URL for comparison purposes.

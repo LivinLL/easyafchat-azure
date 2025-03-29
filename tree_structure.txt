@@ -19,7 +19,6 @@
         prompt_log.txt
         admin_dashboard.py
         chat_handler.py
-        db_leads.py
         documents_handler.py
         documents_blueprint.py
         vector_cache.py
@@ -29,6 +28,7 @@
         db_chk_results.txt
         app_utils.py
         app.py
+        db_leads.py
         static/
             css/
                 style.css
@@ -37,7 +37,11 @@
                 hero-2.png
                 how-it-works-main.png
                 logo.jpeg
+                hello-payments-icon.png
+                Bonnell-icon.png
+                logo_120x40_ORIG.png
                 logo_120x40.png
+                goeasychat-support-icon-200x200.png
                 screenshots/
                     08655900893b47609371.png
                     44475314f5d54848be36.png
@@ -53,6 +57,7 @@
                 script.js
                 chatbot-embed-support.js
                 chatbot-embed.js
+                csrf.js
         templates/
             chat_test.html
             chat_manual.html
@@ -80,21 +85,33 @@
             clean_db_companies_table.py
             clean_db_users_table_azure.py
             clean_db_users_table.py
-            admin_dashboard.py
             Knowldegebase_Menu_Planner.txt
             landing.html
-            app.py
             landing_b4_bots.html
             app_b4_bots.py
             app_bot-protect.py
             landing_bot-protect.html
-            chatbot-embed.js
             dashboard_partial_sources_done.html
+            admin_dashboard.py
+            chatbot-embed.js
+            chatbot-embed_b4_img_url.js
+            db_leads_add_cols.py
+            Bonnell-Olympian-Hook-Knowledge.txt
+            scrape_site.py
+            Central-IL-Gutters-Knowledge.txt
+            dashboard_sonnet.html
+            Scooters-Lawn-Care-Knowledge.txt
+            leads_691fa8dc53f5467dbf0e_20250325.csv
             dashboard.html
+            app.py
+            Zoho-SMTP.png
+            Zoho-Email-Settings.txt
+            trigger-n8n-webhook.ps1
         marketing/
             info.txt
             chatbase_signin.png
             chatbase_website_fetchlinks.mp4
+            easyafchat-knowledge-doc.txt
         auth/
             models.py
             __init__.py
@@ -107,9 +124,16 @@
             9dbde3501c5f4c2d353e1f54da6c5f04
             a076d0ae560a5e07afe5f014f37d560f
             fb5f5e03bd69ce8c71d7552174f67eb2
-            2029240f6d1128be89ddc32729463129
+            tmpror1o1t8.__wz_cache
+            f8a07dca5423d89a800449adb9d894e8
             43c1fb4c38d9ef78bf5c2daf7835e60d
-            725eee0552a13a67139e68cb4f9eb4a6
+            4e4249671ffde0f1fcc4d0cc18342a7f
+            f4e80265cb9aa86f02e2a518de0b1393
+            a528e6b779bd218692c8ad28d8aab2f9
+            2029240f6d1128be89ddc32729463129
+            82c82afaaf4a432c381bbd3ce351b474
+            cec4b2b7fecb4953cd73f96b62d1a0b9
+            20f0069f22e352c5cc68bc3f038baacc
     .github/
         workflows/
             main_easyafchat-v3.yml
