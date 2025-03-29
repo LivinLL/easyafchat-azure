@@ -737,6 +737,12 @@ def process_url_async():
         print(f"[process_url_async] Invalid URL: {website_url}")
         return jsonify({"error": "Please enter a valid URL"}), 400
     
+    # Check if domain is blocked
+    from blocked_domains import is_domain_blocked
+    if is_domain_blocked(website_url):
+        print(f"[process_url_async] Blocked domain detected: {website_url}")
+        return jsonify({"error": "Sorry, we can't process this website. Please try a different domain."}), 403
+    
     # Check if URL already exists in the database - will use our enhanced normalization
     existing_record = get_existing_record(website_url)
     
@@ -1037,6 +1043,13 @@ def process_url():
     if not validators.url(website_url):
         print(f"[process_url] Invalid URL: {website_url}")
         flash("Please enter a valid URL")
+        return redirect(url_for('home'))
+    
+    # Check if domain is blocked
+    from blocked_domains import is_domain_blocked
+    if is_domain_blocked(website_url):
+        print(f"[process_url] Blocked domain detected: {website_url}")
+        flash("Sorry, we can't process this website. Please try a different domain.")
         return redirect(url_for('home'))
     
     # Check if URL already exists in the database - will use our enhanced normalization

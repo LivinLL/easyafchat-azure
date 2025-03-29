@@ -166,8 +166,16 @@
             
             // Set error message with helpful suggestion
             processingMessage.textContent = 'Processing failed';
-            processingError.innerHTML = `<strong>Error:</strong> ${errorMessage}<br><br>
-                Please enter a full domain like "example.com" or "mywebsite.org"`;
+            
+            // Special case for blocked domains
+            if (errorMessage && errorMessage.includes("can't process this website")) {
+                processingError.innerHTML = `<strong>Restricted Domain:</strong> ${errorMessage}<br><br>
+                    We currently don't support creating chatbots for major platforms or competitors.`;
+            } else {
+                processingError.innerHTML = `<strong>Error:</strong> ${errorMessage}<br><br>
+                    Please enter a full domain like "example.com" or "mywebsite.org"`;
+            }
+            
             processingError.style.display = 'block';
             
             // Add try again button
@@ -310,7 +318,7 @@
     <main>
         <!-- Hero Section -->
         <section class="hero">
-            <h1>A Smart AI Agent Chatbot V155 for Your Website in Under a Minute</h1>
+            <h1>A Smart AI Agent Chatbot V157 for Your Website in Under a Minute</h1>
             <p>Simply enter your website URL below, and we'll create a smart AI chatbot for you instantly.</p>
             <div class="hero-input">
                 <form id="urlForm" action="/" method="POST">
