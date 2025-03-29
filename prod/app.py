@@ -342,28 +342,88 @@ def insert_company_data(data):
             ''', data + (None,))  # Add None for user_id
 
 def get_existing_record(url):
-    """Check if URL already exists in database and return its data"""
+    """Check if URL already exists in database and return its data.
+    Uses normalized domain to find matches regardless of protocol, subdomains, or case."""
     with connect_to_db() as conn:
         cursor = conn.cursor()
         
-        # Normalize URL by converting to lowercase
-        url_lower = url.lower()
+        # Normalize URL for comparison
+        normalized_domain = normalize_domain_for_comparison(url)
+        print(f"[get_existing_record] Original URL: {url}, Normalized domain: {normalized_domain}")
         
         if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            # Use LIKE with wildcards to match the domain regardless of protocol and subdomains
             cursor.execute('''
                 SELECT chatbot_id, pinecone_namespace
                 FROM companies 
-                WHERE LOWER(company_url) = %s
-            ''', (url_lower,))
+                WHERE normalize_domain_for_comparison(company_url) = %s
+            ''', (normalized_domain,))
         else:
+            # SQLite doesn't have the function, so we need to fetch and filter
             cursor.execute('''
-                SELECT chatbot_id, pinecone_namespace
-                FROM companies 
-                WHERE LOWER(company_url) = ?
-            ''', (url_lower,))
+                SELECT chatbot_id, pinecone_namespace, company_url
+                FROM companies
+            ''')
+            
+            # Process results to find matching normalized domains
+            all_rows = cursor.fetchall()
+            for row in all_rows:
+                company_url = row[2]
+                if normalize_domain_for_comparison(company_url) == normalized_domain:
+                    return (row[0], row[1])  # Return chatbot_id and namespace
+            
+            # If we get here, no match was found
+            return None
             
         row = cursor.fetchone()
         return row
+
+def normalize_domain_for_comparison(url):
+    """Extract and normalize the core domain from a URL for comparison purposes.
+    Removes protocols, www prefixes, and handles subdomains."""
+    try:
+        # Add protocol if missing for proper parsing
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            
+        # Extract the domain from the URL
+        domain = url.split('//')[-1].split('/')[0].lower()
+        
+        # Split the domain into parts
+        parts = domain.split('.')
+        
+        # Common TLDs and second-level domains we want to exclude
+        common_tlds = {'com', 'org', 'net', 'edu', 'gov', 'io', 'co', 'us', 'info', 'biz', 'app', 'dev'}
+        second_level_domains = {'co.uk', 'com.au', 'co.nz', 'co.jp', 'or.jp', 'ne.jp', 'ac.uk', 'gov.uk', 'org.uk', 'co.za'}
+        
+        # Check if we have a second-level domain
+        if len(parts) >= 3 and '.'.join(parts[-2:]) in second_level_domains:
+            # For domains like example.co.uk, use 'example'
+            main_domain = parts[-3]
+        elif len(parts) >= 2:
+            # For typical domains like example.com or subdomain.example.com
+            if parts[-1] in common_tlds:
+                # Handle example.com -> use 'example'
+                main_domain = parts[-2]
+            else:
+                # Fallback to second part for unknown patterns
+                main_domain = parts[1] if len(parts) > 1 else parts[0]
+        else:
+            # Fallback for unusual domains
+            main_domain = parts[0]
+        
+        # For consistency in matching, we'll include the TLD in the normalized form
+        if len(parts) >= 2:
+            tld = parts[-1]
+            normalized = f"{main_domain}.{tld}"
+        else:
+            normalized = main_domain
+            
+        return normalized.lower()
+    except Exception as e:
+        print(f"Error normalizing domain: {e}")
+        # In case of any error, return the lowercased input as fallback
+        return url.lower()
 
 def update_company_data(data, chatbot_id):
     """Update existing company record"""
@@ -644,7 +704,7 @@ def process_url_async():
     website_url = request.form.get('url')
     print(f"[process_url_async] Original URL: {website_url}")
     
-    # Auto-correct URLs without protocol
+    # Auto-correct URLs without protocol (needed for validation and processing)
     if website_url and not website_url.startswith(('http://', 'https://')):
         website_url = 'https://' + website_url
         print(f"[process_url_async] Auto-corrected URL to: {website_url}")
@@ -673,7 +733,7 @@ def process_url_async():
         print(f"[process_url_async] Invalid URL: {website_url}")
         return jsonify({"error": "Please enter a valid URL"}), 400
     
-    # Check if URL already exists in the database
+    # Check if URL already exists in the database - will use our enhanced normalization
     existing_record = get_existing_record(website_url)
     
     if existing_record:
@@ -948,7 +1008,7 @@ def process_url():
     website_url = request.form.get('url')
     print(f"[process_url] Original URL: {website_url}")
     
-    # Auto-correct URLs without protocol
+    # Auto-correct URLs without protocol (needed for validation and processing)
     if website_url and not website_url.startswith(('http://', 'https://')):
         website_url = 'https://' + website_url
         print(f"[process_url] Auto-corrected URL to: {website_url}")
@@ -975,7 +1035,7 @@ def process_url():
         flash("Please enter a valid URL")
         return redirect(url_for('home'))
     
-    # Check if URL already exists in the database
+    # Check if URL already exists in the database - will use our enhanced normalization
     existing_record = get_existing_record(website_url)
     
     if existing_record:
@@ -1047,7 +1107,7 @@ About Scrape
 
     try:
         print(f"[process_url] Updating database for chatbot_id: {chatbot_id}")
-        if existing_record:
+        if existing_record := get_existing_record(website_url):
             print(f"[process_url] Updating existing record")
             update_company_data(data, chatbot_id)
         else:
