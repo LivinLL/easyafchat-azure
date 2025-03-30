@@ -528,9 +528,22 @@ function onSubmitForm(e) {
         <section class="how-it-works">
             <div class="container">
                 <div class="how-it-works-content">
-                    <!-- Main Image on the Left -->
+                    <!-- MP4 Video on the Left -->
                     <div class="main-image">
-                        <img src="{{ url_for('static', filename='images/how-it-works-main.png') }}" alt="How It Works">
+                        <video 
+                            autoplay 
+                            muted 
+                            loop 
+                            playsinline
+                            loading="lazy"
+                            width="625"
+                            height="475"
+                            poster="{{ url_for('static', filename='images/how-it-works-main.png') }}"
+                        >
+                            <source src="{{ url_for('static', filename='images/Bot-Create-Demo-v1.mp4') }}" type="video/mp4">
+                            <!-- Fallback for browsers that don't support video -->
+                            <img src="{{ url_for('static', filename='images/how-it-works-main.png') }}" alt="How to create a chatbot">
+                        </video>
                     </div>
                     <!-- Steps and Button on the Right -->
                     <div class="steps-container">
