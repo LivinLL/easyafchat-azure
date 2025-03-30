@@ -672,7 +672,102 @@ def verify_recaptcha(token, remote_ip):
         print(f"[reCAPTCHA] Error trace: {traceback.format_exc()}")
         return False
 
-# Add this after your other app configurations but before the routes
+def validate_website_url(url, recaptcha_token, remote_ip, honeypot_value=None):
+    """
+    Comprehensive validation of website URL before processing.
+    Returns dictionary with validation results.
+    """
+    print(f"[validate_website_url] Starting validation for URL: {url}")
+    
+    # Results dictionary to track validation results
+    result = {
+        "is_valid": False,
+        "message": "",
+        "status_code": 400,
+        "existing_record": None,
+        "chatbot_id": None,
+        "namespace": None,
+        "validated_url": url  # Initialize with original URL
+    }
+    
+    # Check 4: Honeypot check (bot detection)
+    if honeypot_value:
+        print(f"[validate_website_url] Honeypot field filled, likely bot activity")
+        # Silently succeed but mark as invalid for processing
+        result["is_valid"] = False
+        result["status_code"] = 200  # Appear successful to bots
+        result["message"] = "Validation successful"  # Misleading message for bots
+        fake_chatbot_id = str(uuid.uuid4()).replace('-', '')[:20]
+        result["chatbot_id"] = fake_chatbot_id
+        return result
+    
+    # Auto-correct URLs without protocol (needed for validation and processing)
+    if url and not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+        result["validated_url"] = url
+        print(f"[validate_website_url] Auto-corrected URL to: {url}")
+    
+    # Check 5: reCAPTCHA verification
+    print(f"[validate_website_url] Verifying reCAPTCHA token")
+    if not verify_recaptcha(recaptcha_token, remote_ip):
+        print(f"[validate_website_url] reCAPTCHA verification failed")
+        result["message"] = "reCAPTCHA verification failed. Please try again."
+        return result
+    
+    # Check 6: URL validity check
+    print(f"[validate_website_url] Checking URL validity")
+    if not validators.url(url):
+        print(f"[validate_website_url] Invalid URL format: {url}")
+        result["message"] = "Please enter a valid URL that includes a domain name."
+        return result
+    
+    # Check 7: Blocked domain check
+    print(f"[validate_website_url] Checking for blocked domain")
+    from blocked_domains import is_domain_blocked
+    if is_domain_blocked(url):
+        print(f"[validate_website_url] Blocked domain detected: {url}")
+        result["message"] = "Sorry, we can't process this website. Please try a different domain."
+        result["status_code"] = 403
+        return result
+    
+    # Check 8: Domain accessibility check
+    print(f"[validate_website_url] Checking domain accessibility")
+    try:
+        response = requests.head(url, timeout=5, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        })
+        if response.status_code >= 400:
+            print(f"[validate_website_url] Domain not accessible: HTTP {response.status_code}")
+            result["message"] = f"We couldn't access this website (HTTP {response.status_code}). Please check the URL and try again."
+            return result
+    except requests.exceptions.RequestException as e:
+        print(f"[validate_website_url] Error accessing domain: {e}")
+        result["message"] = "We couldn't connect to this website. Please check the URL and try again."
+        return result
+    
+    # Check 10: Existing record check
+    print(f"[validate_website_url] Checking for existing record")
+    existing_record = get_existing_record(url)
+    if existing_record:
+        print(f"[validate_website_url] Found existing record: {existing_record}")
+        result["existing_record"] = existing_record
+        result["chatbot_id"] = existing_record[0]
+        result["namespace"] = existing_record[1]
+    else:
+        # Generate new IDs for new records
+        print(f"[validate_website_url] No existing record, generating new IDs")
+        result["chatbot_id"] = generate_chatbot_id()
+        result["namespace"], _ = check_namespace(url)
+        print(f"[validate_website_url] New chatbot_id: {result['chatbot_id']}, namespace: {result['namespace']}")
+    
+    # All checks passed
+    print(f"[validate_website_url] All validation checks passed")
+    result["is_valid"] = True
+    result["message"] = "Validation successful"
+    result["status_code"] = 200
+    
+    return result
+
 @app.errorhandler(429)
 def ratelimit_handler(e):
     """Custom handler for rate limit exceeded errors"""
@@ -700,6 +795,37 @@ def chat_test():
 def home():
     return render_template('landing.html')
 
+@app.route('/validate-url', methods=['POST'])
+@limiter.limit("5 per minute")
+def validate_url():
+    """Validate URL without starting processing"""
+    print(f"[validate_url] Starting validation at {datetime.now().isoformat()}")
+    print(f"[validate_url] Form data: {request.form}")
+    website_url = request.form.get('url')
+    print(f"[validate_url] Original URL: {website_url}")
+    
+    # Get reCAPTCHA token and honeypot value
+    recaptcha_token = request.form.get('g-recaptcha-response')
+    honeypot_value = request.form.get('contact_email')
+    
+    # Use the validation function to comprehensively validate the URL
+    validation_result = validate_website_url(website_url, recaptcha_token, request.remote_addr, honeypot_value)
+    
+    # If validation failed, return appropriate error response
+    if not validation_result["is_valid"]:
+        print(f"[validate_url] Validation failed: {validation_result['message']}")
+        return jsonify({"error": validation_result["message"]}), validation_result["status_code"]
+    
+    # If validation succeeded, return success with chatbot ID and other info
+    print(f"[validate_url] Validation successful for {website_url}")
+    return jsonify({
+        "status": "success",
+        "message": "URL validation successful",
+        "chatbot_id": validation_result["chatbot_id"],
+        "namespace": validation_result["namespace"],
+        "validated_url": validation_result.get("validated_url", website_url)
+    })
+
 @app.route('/process-url-async', methods=['POST'])
 @limiter.limit("2 per minute; 4 per hour")
 def process_url_async():
@@ -708,53 +834,38 @@ def process_url_async():
     website_url = request.form.get('url')
     print(f"[process_url_async] Original URL: {website_url}")
     
-    # Auto-correct URLs without protocol (needed for validation and processing)
-    if website_url and not website_url.startswith(('http://', 'https://')):
-        website_url = 'https://' + website_url
-        print(f"[process_url_async] Auto-corrected URL to: {website_url}")
-    
-    # Check honeypot field - silently succeed but don't process if filled
-    if request.form.get('contact_email'):
-        print("[process_url_async] Honeypot field filled, likely bot activity")
-        # Return success-like response but with a fake chatbot ID
-        fake_chatbot_id = str(uuid.uuid4()).replace('-', '')[:20]
-        return jsonify({
-            "status": "processing",
-            "chatbot_id": fake_chatbot_id
-        })
-    
-    # Verify reCAPTCHA
+    # Get reCAPTCHA token, honeypot value, and pre-validated flag
     recaptcha_token = request.form.get('g-recaptcha-response')
-    print(f"[process_url_async] reCAPTCHA token present: {bool(recaptcha_token)}")
+    honeypot_value = request.form.get('contact_email')
+    pre_validated = request.form.get('pre_validated') == 'true'
     
-    if not verify_recaptcha(recaptcha_token, request.remote_addr):
-        print("[process_url_async] reCAPTCHA verification failed")
-        return jsonify({"error": "reCAPTCHA verification failed. Please try again."}), 400
-    
-    print("[process_url_async] reCAPTCHA verification successful")
-    
-    if not validators.url(website_url):
-        print(f"[process_url_async] Invalid URL: {website_url}")
-        return jsonify({"error": "Please enter a valid URL"}), 400
-    
-    # Check if domain is blocked
-    from blocked_domains import is_domain_blocked
-    if is_domain_blocked(website_url):
-        print(f"[process_url_async] Blocked domain detected: {website_url}")
-        return jsonify({"error": "Sorry, we can't process this website. Please try a different domain."}), 403
-    
-    # Check if URL already exists in the database - will use our enhanced normalization
-    existing_record = get_existing_record(website_url)
-    
-    if existing_record:
-        print(f"[process_url_async] Found existing record: {existing_record}")
-        chatbot_id = existing_record[0]
-        namespace = existing_record[1]
+    # Skip validation if pre-validated flag is true
+    if pre_validated:
+        print(f"[process_url_async] URL is pre-validated, skipping validation checks")
+        # We still need chatbot_id and namespace
+        chatbot_id = request.form.get('chatbot_id')
+        namespace = request.form.get('namespace')
+        
+        if not chatbot_id or not namespace:
+            print(f"[process_url_async] Missing required fields for pre-validated request")
+            return jsonify({"error": "Missing chatbot_id or namespace for pre-validated request"}), 400
+            
+        print(f"[process_url_async] Using pre-validated data: chatbot_id={chatbot_id}, namespace={namespace}")
     else:
-        print("[process_url_async] No existing record, generating new chatbot ID")
-        chatbot_id = generate_chatbot_id()
-        namespace, _ = check_namespace(website_url)
-        print(f"[process_url_async] New chatbot ID: {chatbot_id}, namespace: {namespace}")
+        # Use the validation function to comprehensively validate the URL
+        validation_result = validate_website_url(website_url, recaptcha_token, request.remote_addr, honeypot_value)
+        
+        # If validation failed, return appropriate error response
+        if not validation_result["is_valid"]:
+            print(f"[process_url_async] Validation failed: {validation_result['message']}")
+            return jsonify({"error": validation_result["message"]}), validation_result["status_code"]
+        
+        # Get validated data from validation result
+        chatbot_id = validation_result["chatbot_id"]
+        namespace = validation_result["namespace"]
+        website_url = validation_result.get("validated_url", website_url)  # Use validated URL if available
+        
+        print(f"[process_url_async] Validation successful. Using chatbot_id: {chatbot_id}, namespace: {namespace}")
     
     # Generate APIFlash screenshot URL immediately
     screenshot_url = ""
@@ -793,12 +904,8 @@ def process_url_async():
     print(f"[process_url_async] Current processing_status keys: {list(processing_status.keys())}")
     
     # Start the processing in the background
-    # This is important - we need to make sure processing starts
-    # before returning to the client
     try:
         print(f"[process_url_async] Starting processing execution for {chatbot_id}")
-        # We'll execute processing here directly instead of waiting for the client to call
-        # This ensures processing starts even if client-side polling fails
         
         # Simplified scraping of the website and its About page
         home_data = simple_scrape_page(website_url)
@@ -845,10 +952,19 @@ About Scrape
         )
 
         try:
-            if existing_record := get_existing_record(website_url):
-                update_company_data(data, chatbot_id)
+            # If this is a pre-validated request, we need to check explicitly
+            if pre_validated:
+                existing_record = get_existing_record(website_url)
+                if existing_record and existing_record[0] == chatbot_id:
+                    update_company_data(data, chatbot_id)
+                else:
+                    insert_company_data(data)
             else:
-                insert_company_data(data)
+                # Use validation result to determine if record exists
+                if validation_result["existing_record"]:
+                    update_company_data(data, chatbot_id)
+                else:
+                    insert_company_data(data)
         except Exception as e:
             processing_status[chatbot_id]["error"] = f"Failed to save company data: {str(e)}"
             return jsonify({"error": "Failed to save company data"}), 400

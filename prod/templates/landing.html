@@ -107,117 +107,239 @@
         }
     </style>
 
+<script>
+    // Client-side URL validation with detailed logging
+    function validateUrlInput(url) {
+        console.log('[URLValidation] Starting validation for input:', url);
+        
+        // Check 1: Empty input
+        if (!url || url.trim() === '') {
+            console.log('[URLValidation] Failed: Empty input');
+            return { valid: false, message: "Please enter a website URL" };
+        }
+        
+        // Check 2: Basic format check with simple regex
+        const urlPattern = /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+        console.log('[URLValidation] Checking against regex pattern');
+        if (!urlPattern.test(url)) {
+            console.log('[URLValidation] Failed: Invalid URL format');
+            return { valid: false, message: "Please enter a valid website URL (e.g., example.com)" };
+        }
+        
+        // Check 3: Add protocol if missing
+        let validatedUrl = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            console.log('[URLValidation] Adding https:// prefix');
+            validatedUrl = 'https://' + url;
+        }
+        
+        console.log('[URLValidation] Validation successful:', validatedUrl);
+        return { valid: true, url: validatedUrl };
+    }
+</script>
+
+<script>
+    // Error handling functions for URL validation
+    function showError(message) {
+        console.log('[ErrorDisplay] Showing error:', message);
+        const errorElement = document.getElementById('urlErrorMessage');
+        const errorTextElement = document.getElementById('errorText');
+        
+        errorTextElement.textContent = message;
+        errorElement.style.display = 'block';
+        
+        // Hide processing overlay if it's visible
+        const processingOverlay = document.getElementById('processingOverlay');
+        if (processingOverlay.style.display === 'flex') {
+            processingOverlay.style.display = 'none';
+        }
+    }
+    
+    function dismissError() {
+        console.log('[ErrorDisplay] Dismissing error message');
+        document.getElementById('urlErrorMessage').style.display = 'none';
+    }
+</script>
+
 <!-- Google reCAPTCHA v3 -->
 <script src="https://www.google.com/recaptcha/api.js?render={{ config.CAPTCHA_SITE_KEY }}"></script>
 <script>
-    function onSubmitForm(e) {
-        console.log('[reCAPTCHA] Form submission intercepted');
-        e.preventDefault();
-        
-        // Get the URL value
-        const urlInput = document.querySelector('input[name="url"]');
-        const websiteUrl = urlInput.value.trim();
-        
-        // Show processing overlay immediately
-        const processingOverlay = document.getElementById('processingOverlay');
-        const processingContent = document.querySelector('.processing-content');
-        const processingMessage = document.getElementById('processingMessage');
-        const processingTime = document.getElementById('processingTime');
-        const processingError = document.getElementById('processingError');
-        const spinner = document.querySelector('.spinner');
-        const processingSteps = document.querySelector('.processing-steps');
-        let timerInterval;
-        
-        // Function to reset everything to initial state
-        function resetProcessingModal() {
-            // Reset UI elements
-            processingMessage.textContent = 'Initializing chatbot creation...';
-            processingTime.textContent = 'Time elapsed: 0 seconds';
-            processingError.style.display = 'none';
+function onSubmitForm(e) {
+    console.log('[FormSubmit] Form submission intercepted');
+    e.preventDefault();
+    
+    // Get the URL value
+    const urlInput = document.querySelector('input[name="url"]');
+    const websiteUrl = urlInput.value.trim();
+    console.log('[FormSubmit] URL input value:', websiteUrl);
+    
+    // Validate the URL with our client-side validation
+    const validationResult = validateUrlInput(websiteUrl);
+    if (!validationResult.valid) {
+        console.log('[FormSubmit] Validation failed:', validationResult.message);
+        showError(validationResult.message);
+        return; // Stop form processing
+    }
+    
+    // Use validated URL
+    const validatedUrl = validationResult.url;
+    console.log('[FormSubmit] Using validated URL:', validatedUrl);
+    
+    // Clear any existing error messages
+    dismissError();
+    
+    // Change button text to indicate validation is happening
+    const submitButton = document.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.textContent;
+    submitButton.textContent = "Validating...";
+    submitButton.disabled = true;
+    
+    // First, perform server-side validation
+    grecaptcha.ready(function() {
+        console.log('[FormSubmit] reCAPTCHA ready, executing');
+        grecaptcha.execute('{{ config.CAPTCHA_SITE_KEY }}', {action: 'submit'})
+        .then(function(token) {
+            console.log('[FormSubmit] reCAPTCHA token received');
             
-            // Show spinner and steps again
-            spinner.style.display = 'block';
-            processingSteps.style.display = 'block';
-            processingTime.style.display = 'block'; // Ensure timer is visible
+            // Get form data and add token
+            const urlForm = document.getElementById('urlForm');
+            const formData = new FormData(urlForm);
             
-            // Reset and set active state for first step
-            document.getElementById('step1').classList.remove('active', 'completed');
-            document.getElementById('step2').classList.remove('active', 'completed');
-            document.getElementById('step3').classList.remove('active', 'completed');
-            document.getElementById('step4').classList.remove('active', 'completed');
+            // Replace the original URL with our validated URL
+            formData.set('url', validatedUrl);
             
-            // Make first step active
-            document.getElementById('step1').classList.add('active');
+            // Add reCAPTCHA token
+            formData.append('g-recaptcha-response', token);
             
-            // Remove any buttons we added
-            const addedButton = processingContent.querySelector('button');
-            if (addedButton) addedButton.remove();
-        }
-        
-        // Function to show clean error screen
-        function showError(errorMessage) {
-            // Stop timer
-            clearInterval(timerInterval);
-            
-            // Clear modal completely and show only error
-            spinner.style.display = 'none';
-            processingSteps.style.display = 'none';
-            processingTime.style.display = 'none';
-            
-            // Set error message with helpful suggestion
-            processingMessage.textContent = 'Processing failed';
-            
-            // Special case for blocked domains
-            if (errorMessage && errorMessage.includes("can't process this website")) {
-                processingError.innerHTML = `<strong>Restricted Domain:</strong> ${errorMessage}<br><br>
-                    We currently don't support creating chatbots for major platforms or competitors.`;
-            } else {
-                processingError.innerHTML = `<strong>Error:</strong> ${errorMessage}<br><br>
-                    Please enter a full domain like "example.com" or "mywebsite.org"`;
-            }
-            
-            processingError.style.display = 'block';
-            
-            // Add try again button
-            const tryAgainButton = document.createElement('button');
-            tryAgainButton.textContent = 'Try Again';
-            tryAgainButton.className = 'btn btn-primary mt-3';
-            tryAgainButton.onclick = function() {
-                processingOverlay.style.display = 'none';
-                resetProcessingModal();
-            };
-            
-            processingContent.appendChild(tryAgainButton);
-        }
-        
-        // Show fresh processing modal
-        resetProcessingModal();
-        processingOverlay.style.display = 'flex';
-        
-        // Start timer
-        let startTime = Date.now();
-        timerInterval = setInterval(function() {
-            const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-            processingTime.textContent = `Time elapsed: ${elapsedSeconds} seconds`;
-        }, 1000);
-        
-        grecaptcha.ready(function() {
-            grecaptcha.execute('{{ config.CAPTCHA_SITE_KEY }}', {action: 'submit'})
-            .then(function(token) {
-                // Get form data and add token
-                const urlForm = document.getElementById('urlForm');
-                const formData = new FormData(urlForm);
-                formData.append('g-recaptcha-response', token);
+            console.log('[FormSubmit] Submitting to /validate-url first');
+            // Submit form to validation endpoint
+            fetch('/validate-url', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                }
+            })
+            .then(response => {
+                console.log('[FormSubmit] Validation response received:', response.status);
                 
-                // Submit form
+                // Reset button state
+                submitButton.textContent = originalButtonText;
+                submitButton.disabled = false;
+                
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Server error');
+                    });
+                }
+                return response.json();
+            })
+            .then(validationData => {
+                console.log('[FormSubmit] Validation successful:', validationData);
+                
+                // Now show processing overlay as we're about to start actual processing
+                const processingOverlay = document.getElementById('processingOverlay');
+                const processingContent = document.querySelector('.processing-content');
+                const processingMessage = document.getElementById('processingMessage');
+                const processingTime = document.getElementById('processingTime');
+                const processingError = document.getElementById('processingError');
+                const spinner = document.querySelector('.spinner');
+                const processingSteps = document.querySelector('.processing-steps');
+                let timerInterval;
+                
+                // Function to reset everything to initial state
+                function resetProcessingModal() {
+                    console.log('[FormSubmit] Resetting processing modal');
+                    // Reset UI elements
+                    processingMessage.textContent = 'Initializing chatbot creation...';
+                    processingTime.textContent = 'Time elapsed: 0 seconds';
+                    processingError.style.display = 'none';
+                    
+                    // Show spinner and steps again
+                    spinner.style.display = 'block';
+                    processingSteps.style.display = 'block';
+                    processingTime.style.display = 'block'; // Ensure timer is visible
+                    
+                    // Reset and set active state for first step
+                    document.getElementById('step1').classList.remove('active', 'completed');
+                    document.getElementById('step2').classList.remove('active', 'completed');
+                    document.getElementById('step3').classList.remove('active', 'completed');
+                    document.getElementById('step4').classList.remove('active', 'completed');
+                    
+                    // Make first step active
+                    document.getElementById('step1').classList.add('active');
+                    
+                    // Remove any buttons we added
+                    const addedButton = processingContent.querySelector('button');
+                    if (addedButton) addedButton.remove();
+                }
+                
+                // Function to show clean error screen
+                function showProcessingError(errorMessage) {
+                    console.log('[FormSubmit] Showing processing error:', errorMessage);
+                    // Stop timer
+                    clearInterval(timerInterval);
+                    
+                    // Clear modal completely and show only error
+                    spinner.style.display = 'none';
+                    processingSteps.style.display = 'none';
+                    processingTime.style.display = 'none';
+                    
+                    // Set error message with helpful suggestion
+                    processingMessage.textContent = 'Processing failed';
+                    
+                    // Special case for blocked domains
+                    if (errorMessage && errorMessage.includes("can't process this website")) {
+                        processingError.innerHTML = `<strong>Restricted Domain:</strong> ${errorMessage}<br><br>
+                            We currently don't support creating chatbots for major platforms or competitors.`;
+                    } else {
+                        processingError.innerHTML = `<strong>Error:</strong> ${errorMessage}<br><br>
+                            Please enter a full domain like "example.com" or "mywebsite.org"`;
+                    }
+                    
+                    processingError.style.display = 'block';
+                    
+                    // Add try again button
+                    const tryAgainButton = document.createElement('button');
+                    tryAgainButton.textContent = 'Try Again';
+                    tryAgainButton.className = 'btn btn-primary mt-3';
+                    tryAgainButton.onclick = function() {
+                        processingOverlay.style.display = 'none';
+                        resetProcessingModal();
+                    };
+                    
+                    processingContent.appendChild(tryAgainButton);
+                }
+                
+                // Show fresh processing modal
+                resetProcessingModal();
+                processingOverlay.style.display = 'flex';
+                
+                // Start timer
+                let startTime = Date.now();
+                timerInterval = setInterval(function() {
+                    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                    processingTime.textContent = `Time elapsed: ${elapsedSeconds} seconds`;
+                }, 1000);
+                
+                // Create new form data for processing request
+                const processingFormData = new FormData();
+                processingFormData.append('url', validatedUrl);
+                processingFormData.append('pre_validated', 'true');
+                processingFormData.append('chatbot_id', validationData.chatbot_id);
+                processingFormData.append('namespace', validationData.namespace);
+                
+                // Now call processing endpoint with pre-validated flag
+                console.log('[FormSubmit] Starting actual processing with /process-url-async');
                 fetch('/process-url-async', {
                     method: 'POST',
-                    body: formData,
+                    body: processingFormData,
                     headers: {
                         'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
                     }
                 })
                 .then(response => {
+                    console.log('[FormSubmit] Processing response received:', response.status);
                     if (!response.ok) {
                         return response.json().then(data => {
                             throw new Error(data.error || 'Server error');
@@ -226,49 +348,64 @@
                     return response.json();
                 })
                 .then(data => {
+                    console.log('[FormSubmit] Processing data:', data);
                     // Success! We have a chatbot ID
                     if (data.chatbot_id) {
                         // Now it's safe to start polling for status
-                        console.log('[reCAPTCHA] Successfully got chatbot ID:', data.chatbot_id);
+                        console.log('[FormSubmit] Successfully got chatbot ID:', data.chatbot_id);
                         
                         // Set up polling for status
                         let pollingInterval = setInterval(async function() {
                             try {
+                                console.log('[FormSubmit] Polling for status update');
                                 const statusResponse = await fetch(`/check-processing/${data.chatbot_id}`);
                                 
                                 if (!statusResponse.ok) {
                                     clearInterval(pollingInterval);
-                                    showError('Could not check processing status');
+                                    showProcessingError('Could not check processing status');
                                     return;
                                 }
                                 
                                 const statusData = await statusResponse.json();
+                                console.log('[FormSubmit] Status update:', statusData);
                                 
                                 if (statusData.status === 'error') {
                                     clearInterval(pollingInterval);
-                                    showError(statusData.message || 'An error occurred during processing');
+                                    showProcessingError(statusData.message || 'An error occurred during processing');
                                 } else if (statusData.status === 'complete') {
                                     clearInterval(pollingInterval);
                                     clearInterval(timerInterval);
+                                    console.log('[FormSubmit] Processing complete, redirecting to demo');
                                     window.location.href = `/demo/${data.chatbot_id}`;
                                 }
                                 // else: still processing, continue polling
                             } catch (error) {
+                                console.error('[FormSubmit] Error checking progress:', error);
                                 clearInterval(pollingInterval);
-                                showError('Error checking progress');
+                                showProcessingError('Error checking progress');
                             }
                         }, 1000);
                     }
                 })
                 .catch(function(error) {
-                    showError(error.message);
+                    console.error('[FormSubmit] Processing error:', error);
+                    showProcessingError(error.message);
                 });
             })
             .catch(function(error) {
-                showError('reCAPTCHA verification failed');
+                console.error('[FormSubmit] Validation error:', error);
+                showError(error.message);
             });
+        })
+        .catch(function(error) {
+            console.error('[FormSubmit] reCAPTCHA error:', error);
+            // Reset button state
+            submitButton.textContent = originalButtonText;
+            submitButton.disabled = false;
+            showError('reCAPTCHA verification failed');
         });
-    }
+    });
+}
     
     // Add event listener once DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
@@ -324,6 +461,12 @@
                 <form id="urlForm" action="/" method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" name="url" placeholder="Enter your website URL (e.g., https://yourwebsite.com)" required>
+
+                    <div class="error-message" id="urlErrorMessage" style="display: none; color: #dc3545; margin-top: 10px; padding: 8px 15px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">
+                        <span id="errorText"></span>
+                        <button type="button" class="close-error" onclick="dismissError()" style="background: none; border: none; float: right; font-weight: bold; cursor: pointer;">&times;</button>
+                    </div>
+
                     <!-- Honeypot field - hidden from real users but attractive to bots -->
                     <div class="contact-field" style="opacity: 0; position: absolute; top: -9999px; left: -9999px;">
                         <input type="text" name="contact_email" autocomplete="off" tabindex="-1">
