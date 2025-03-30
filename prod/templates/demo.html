@@ -76,6 +76,65 @@
             font-size: 16px;
             color: #555;
         }
+
+        .chat-pointer {
+            position: absolute;
+            bottom: 30px;
+            right: 100px;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .chat-pointer-container {
+            position: relative;
+            text-align: center;
+        }
+
+        .chat-pointer-text {
+            background-color: #ff0000;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-block;
+            margin-right: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: pulse 2s infinite;
+        }
+
+        .chat-pointer-arrow {
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='30' viewBox='0 0 60 30'%3E%3Cpath d='M0,15 L50,15 M40,5 L55,15 L40,25' stroke='%23ff0000' stroke-width='6' fill='none' /%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            vertical-align: middle;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Responsive adjustments for mobile */
+        @media (max-width: 768px) {
+            .chat-pointer {
+                bottom: 30px;
+                right: 100px;
+                z-index: 9999; /* Higher z-index to ensure it's at the front */
+            }
+            
+            .chat-pointer-text {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+            
+            .chat-pointer-arrow {
+                width: 60px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -111,6 +170,12 @@
                 </div>
                 <div class="preview-content" id="preview-content">
                     <img src="{{ screenshot_url }}" alt="Website Preview" id="websiteScreenshot">
+                    <div class="chat-pointer" id="chatPointer">
+                        <div class="chat-pointer-container">
+                            <span class="chat-pointer-text">Your bot is ready, try it out!</span>
+                            <span class="chat-pointer-arrow"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -146,6 +211,7 @@
                 {% endif %}
             </div>
         </section>
+
     </main>
 
     <footer>
@@ -209,6 +275,35 @@
         });
     </script>
     {% endif %}
+
+<!-- Chat pointer for demo bubble -->
+<script>
+    // Control the chat pointer visibility
+    document.addEventListener('DOMContentLoaded', function() {
+        // Wait for the chatbot to load
+        setTimeout(function() {
+            const chatPointer = document.getElementById('chatPointer');
+            
+            // Find the chat button within the preview content
+            const previewContent = document.getElementById('preview-content');
+            const chatButton = previewContent.querySelector('.easy-chat-button');
+            
+            if (chatButton && chatPointer) {
+                // Hide pointer when chat button is clicked
+                chatButton.addEventListener('click', function() {
+                    chatPointer.style.display = 'none';
+                });
+            }
+            
+            // Hide pointer after 30 seconds anyway
+            setTimeout(function() {
+                if (chatPointer) {
+                    chatPointer.style.display = 'none';
+                }
+            }, 30000);
+        }, 2000); // Allow time for chatbot to load
+    });
+</script>
 
     <script>
         window.davesEasySupportChatConfig = {
