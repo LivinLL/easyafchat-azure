@@ -1,5 +1,4 @@
     .gitignore
-    README.md
     tree_create.py
     tree_structure.txt
     startup.txt
@@ -8,6 +7,7 @@
     .deployment
     easyafchat_v3.code-workspace
     requirements.txt
+    README.md
     prod/
         .env
         db_mgr.py
@@ -29,6 +29,7 @@
         app_utils.py
         app.py
         db_leads.py
+        blocked_domains.py
         static/
             css/
                 style.css
@@ -85,28 +86,23 @@
             clean_db_companies_table.py
             clean_db_users_table_azure.py
             clean_db_users_table.py
-            Knowldegebase_Menu_Planner.txt
             landing.html
             landing_b4_bots.html
             app_b4_bots.py
             app_bot-protect.py
             landing_bot-protect.html
-            dashboard_partial_sources_done.html
             admin_dashboard.py
             chatbot-embed.js
             chatbot-embed_b4_img_url.js
             db_leads_add_cols.py
-            Bonnell-Olympian-Hook-Knowledge.txt
             scrape_site.py
-            Central-IL-Gutters-Knowledge.txt
-            dashboard_sonnet.html
-            Scooters-Lawn-Care-Knowledge.txt
             leads_691fa8dc53f5467dbf0e_20250325.csv
             dashboard.html
             app.py
             Zoho-SMTP.png
             Zoho-Email-Settings.txt
             trigger-n8n-webhook.ps1
+            README-03282025.md
         marketing/
             info.txt
             chatbase_signin.png
@@ -130,10 +126,11 @@
             4e4249671ffde0f1fcc4d0cc18342a7f
             f4e80265cb9aa86f02e2a518de0b1393
             a528e6b779bd218692c8ad28d8aab2f9
-            2029240f6d1128be89ddc32729463129
+            c7a4abcd6cc214cdd229da1e28cd6e48
             82c82afaaf4a432c381bbd3ce351b474
             cec4b2b7fecb4953cd73f96b62d1a0b9
             20f0069f22e352c5cc68bc3f038baacc
+            2029240f6d1128be89ddc32729463129
     .github/
         workflows/
             main_easyafchat-v3.yml

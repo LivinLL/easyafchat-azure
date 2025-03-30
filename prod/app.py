@@ -1130,142 +1130,14 @@ def check_processing(chatbot_id):
 @app.route('/', methods=['POST'])
 @limiter.limit("2 per minute; 4 per hour")
 def process_url():
-    print(f"[process_url] Starting POST request processing")
-    website_url = request.form.get('url')
-    print(f"[process_url] Original URL: {website_url}")
+    """Simplified catch-all route for direct form submissions when JavaScript is disabled"""
+    print(f"[process_url] Received direct form submission - JavaScript might be disabled")
     
-    # Auto-correct URLs without protocol (needed for validation and processing)
-    if website_url and not website_url.startswith(('http://', 'https://')):
-        website_url = 'https://' + website_url
-        print(f"[process_url] Auto-corrected URL to: {website_url}")
+    # Flash a friendly message explaining JavaScript is required
+    flash("JavaScript is required to create a chatbot. Please enable JavaScript in your browser settings and try again.", "error")
     
-    # Check honeypot field - silently succeed but don't process if filled
-    if request.form.get('contact_email'):
-        print("[process_url] Honeypot field filled, likely bot activity")
-        # Redirect to home as if something went wrong, but don't show an error
-        return redirect(url_for('home'))
-    
-    # Verify reCAPTCHA
-    recaptcha_token = request.form.get('g-recaptcha-response')
-    print(f"[process_url] reCAPTCHA token present: {bool(recaptcha_token)}")
-    
-    if not verify_recaptcha(recaptcha_token, request.remote_addr):
-        print("[process_url] reCAPTCHA verification failed")
-        flash("reCAPTCHA verification failed. Please try again.")
-        return redirect(url_for('home'))
-    
-    print("[process_url] reCAPTCHA verification successful")
-    
-    if not validators.url(website_url):
-        print(f"[process_url] Invalid URL: {website_url}")
-        flash("Please enter a valid URL")
-        return redirect(url_for('home'))
-    
-    # Check if domain is blocked
-    from blocked_domains import is_domain_blocked
-    if is_domain_blocked(website_url):
-        print(f"[process_url] Blocked domain detected: {website_url}")
-        flash("Sorry, we can't process this website. Please try a different domain.")
-        return redirect(url_for('home'))
-    
-    # Check if URL already exists in the database - will use our enhanced normalization
-    existing_record = get_existing_record(website_url)
-    
-    if existing_record:
-        print(f"[process_url] Found existing record: {existing_record}")
-        chatbot_id = existing_record[0]
-        namespace = existing_record[1]
-    else:
-        print("[process_url] No existing record, generating new chatbot ID")
-        chatbot_id = generate_chatbot_id()
-        namespace, _ = check_namespace(website_url)
-        print(f"[process_url] New chatbot ID: {chatbot_id}, namespace: {namespace}")
-
-    # Simplified scraping of the website and its About page
-    print(f"[process_url] Starting website scraping")
-    home_data = simple_scrape_page(website_url)
-    print(f"[process_url] Home page scraped, content length: {len(home_data.get('all_text', ''))}")
-    
-    about_url = find_about_page(website_url)
-    print(f"[process_url] About page URL: {about_url}")
-    
-    about_data = simple_scrape_page(about_url) if about_url else None
-    print(f"[process_url] About page scraped: {about_data is not None}")
-    
-    if not home_data.get("all_text"):
-        print(f"[process_url] Failed to scrape website content")
-        flash("Failed to scrape website content")
-        return redirect(url_for('home'))
-
-    # Process the content with OpenAI - returns both content and prompt
-    print(f"[process_url] Processing content with OpenAI")
-    result = process_simple_content(home_data, about_data)
-    if not result:
-        print(f"[process_url] Failed to process content with OpenAI")
-        flash("Failed to process content")
-        return redirect(url_for('home'))
-        
-    # Unpack the result - processed_content is the OpenAI response, full_prompt is what was sent to OpenAI
-    processed_content, full_prompt = result
-    print(f"[process_url] OpenAI processing complete, content length: {len(processed_content)}")
-    
-    # Store the about page text (if it was found)
-    about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
-    
-    # Combine into a single scraped_text field with clear sections
-    scraped_text = f"""OpenAI Prompt
-{full_prompt}
-
-About Scrape
-{about_text}"""
-    
-    # Chunk the content and create embeddings
-    print(f"[process_url] Chunking content and creating embeddings")
-    chunks = chunk_text(processed_content)
-    print(f"[process_url] Created {len(chunks)} chunks")
-    
-    embeddings = get_embeddings(chunks)
-    print(f"[process_url] Created {len(embeddings)} embeddings")
-    
-    if not update_pinecone_index(namespace, chunks, embeddings):
-        print(f"[process_url] Failed to update Pinecone index")
-        flash("Failed to update knowledge base")
-        return redirect(url_for('home'))
-
-    now = datetime.now(UTC)
-    data = (
-        chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
-        namespace, now, now, scraped_text, processed_content
-    )
-
-    try:
-        print(f"[process_url] Updating database for chatbot_id: {chatbot_id}")
-        if existing_record := get_existing_record(website_url):
-            print(f"[process_url] Updating existing record")
-            update_company_data(data, chatbot_id)
-        else:
-            print(f"[process_url] Inserting new record")
-            insert_company_data(data)
-    except Exception as e:
-        print(f"[process_url] Database error: {e}")
-        flash("Failed to save company data")
-        return redirect(url_for('home'))
-
-    # Generate APIFlash screenshot URL
-    try:
-        # Format the URL for APIFlash
-        base_url = "https://api.apiflash.com/v1/urltoimage"
-        
-        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
-        print(f"[process_url] Screenshot URL generated: {screenshot_url}")
-    except Exception as e:
-        print(f"[process_url] Error generating screenshot URL: {e}")
-        flash("Failed to generate screenshot URL")
-        return redirect(url_for('home'))
-    
-    print(f"[process_url] Processing complete, redirecting to demo page for: {chatbot_id}")
-    # Add this line to redirect to the demo page after processing
-    return redirect(url_for('demo', session_id=chatbot_id))
+    # Redirect back to the home page (landing.html)
+    return redirect(url_for('home'))
 
 @app.route('/demo/<session_id>')
 def demo(session_id):

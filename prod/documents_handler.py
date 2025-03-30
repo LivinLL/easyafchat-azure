@@ -3,6 +3,7 @@ import uuid
 import docx
 import io
 from datetime import datetime
+import PyPDF2
 
 class DocumentsHandler:
     """
@@ -40,6 +41,8 @@ class DocumentsHandler:
             extracted_text = self.extract_text_from_docx(file_data)
         elif filename.lower().endswith('.txt'):
             extracted_text = file_data.decode('utf-8')
+        elif filename.lower().endswith('.pdf'):
+            extracted_text = self.extract_text_from_pdf(file_data)
         else:
             raise ValueError(f"Unsupported file type: {filename}")
         
@@ -95,6 +98,28 @@ class DocumentsHandler:
             return "\n\n".join(full_text)
         except Exception as e:
             print(f"Error extracting text from DOCX: {e}")
+            return ""
+    
+    def extract_text_from_pdf(self, file_data):
+        """Extract text from a PDF file"""
+        try:
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_data))
+            full_text = []
+            
+            # Get the number of pages in the PDF
+            num_pages = len(pdf_reader.pages)
+            
+            # Extract text from each page
+            for page_num in range(num_pages):
+                page = pdf_reader.pages[page_num]
+                text = page.extract_text()
+                
+                if text.strip():  # Skip empty pages
+                    full_text.append(text)
+            
+            return "\n\n".join(full_text)
+        except Exception as e:
+            print(f"Error extracting text from PDF: {e}")
             return ""
     
     def chunk_text(self, text, chunk_size=500):
