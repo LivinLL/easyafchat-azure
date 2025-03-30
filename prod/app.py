@@ -358,14 +358,16 @@ def get_existing_record(url):
         else:
             main_domain = domain_parts[0]
             
-        # Use LIKE for partial matching to narrow down candidates
+        # Get all potential matching records first
         if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+            # PostgreSQL - use ILIKE for case-insensitive matching
             cursor.execute('''
                 SELECT chatbot_id, pinecone_namespace, company_url
                 FROM companies
-                WHERE company_url LIKE %s
+                WHERE company_url ILIKE %s
             ''', (f'%{main_domain}%',))
         else:
+            # SQLite - it doesn't have ILIKE, but LIKE is case-insensitive by default
             cursor.execute('''
                 SELECT chatbot_id, pinecone_namespace, company_url
                 FROM companies
@@ -376,10 +378,16 @@ def get_existing_record(url):
         candidates = cursor.fetchall()
         for row in candidates:
             company_url = row[2]
-            if normalize_domain_for_comparison(company_url) == normalized_domain:
+            company_normalized = normalize_domain_for_comparison(company_url)
+            print(f"[get_existing_record] Comparing: '{normalized_domain}' with '{company_normalized}'")
+            
+            # Case-insensitive comparison using lower() on both sides
+            if company_normalized.lower() == normalized_domain.lower():
+                print(f"[get_existing_record] Match found: {row[0]}")
                 return (row[0], row[1])  # Return chatbot_id and namespace
         
         # If we get here, no match was found
+        print(f"[get_existing_record] No match found for {normalized_domain}")
         return None
 
 def normalize_domain_for_comparison(url):
