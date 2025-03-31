@@ -12,6 +12,7 @@ from flask_cors import CORS
 from db_leads import leads_blueprint, init_leads_blueprint
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_mail import Mail, Message  # Add Flask-Mail imports
 import time
 import os
 import validators
@@ -61,6 +62,9 @@ initialize_database(verbose=True)
 # Initialize Flask app
 app = Flask(__name__)
 
+# Initialize Flask-Mail
+mail = Mail()
+
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
 
@@ -87,6 +91,20 @@ app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_FILE_DIR"] = os.path.join(os.getcwd(), "flask_session")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-for-session")
 Session(app)
+
+# Email configuration for Flask-Mail
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.zoho.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() in ['true', 'yes', '1']
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = ('GoEasyChat', os.environ.get('MAIL_USERNAME', 'agenteasy@goeasychat.com'))
+mail.init_app(app)
+
+# Check if mail credentials are configured
+if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+    print("WARNING: Email credentials not set. Email verification will not work.")
+    print("Set MAIL_USERNAME and MAIL_PASSWORD environment variables.")
 
 CORS(app)  # Add this line
 app.secret_key = os.getenv("SECRET_KEY", "default_secret_key")
@@ -1730,6 +1748,31 @@ def get_chatbot_config(chatbot_id):
             'chat_subtitle': None
         }), 500
     
+# Zoho SMTP Email Test
+@app.route('/test-email', methods=['GET'])
+def test_email():
+    try:
+        recipient = request.args.get('to', 'david@lluniversity.com')
+        
+        msg = Message(
+            subject="GoEasyChat - Test Email",
+            recipients=[recipient],
+            body=f"""
+Hello,
+
+This is a test email from GoEasyChat to verify that our email system is working correctly.
+
+The time is now: {datetime.now()}
+
+Thanks,
+The GoEasyChat Team
+            """
+        )
+        
+        mail.send(msg)
+        return f"Test email sent to {recipient}. Please check your inbox."
+    except Exception as e:
+        return f"Error sending email: {str(e)}"
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this

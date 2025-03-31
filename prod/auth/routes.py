@@ -1,7 +1,7 @@
 import os
 from flask import render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from . import auth_bp
-from .utils import generate_password_hash, check_password_hash, generate_token, generate_user_id, generate_google_state_token, is_token_valid
+from .utils import generate_password_hash, check_password_hash, generate_token, generate_user_id, generate_google_state_token, is_token_valid, generate_verification_token, send_verification_email, is_token_expired
 from datetime import datetime
 import requests
 import json
@@ -386,6 +386,9 @@ def microsoft_callback():
             
             now = datetime.utcnow()
             
+            # Generate verification token
+            verification_token = generate_verification_token()
+            
             if user:
                 # User exists, update Microsoft info if needed
                 columns = [desc[0] for desc in cursor.description]
@@ -404,68 +407,101 @@ def microsoft_callback():
                             "UPDATE users SET microsoft_id = ?, is_microsoft_account = ?, name = ?, updated_at = ? WHERE user_id = ?",
                             (microsoft_id, True, name, now, user_id)
                         )
+                
+                # Check if email already verified
+                if not user_dict.get('email_verify_status'):
+                    # Update verification token
+                    if os.environ.get('DB_TYPE') == 'postgresql':
+                        cursor.execute(
+                            "UPDATE users SET email_verify_token = %s, updated_at = %s WHERE user_id = %s",
+                            (verification_token, now, user_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "UPDATE users SET email_verify_token = ?, updated_at = ? WHERE user_id = ?",
+                            (verification_token, now, user_id)
+                        )
                     conn.commit()
+                    
+                    # Send verification email
+                    send_verification_email(email, name, verification_token)
+                else:
+                    # Email already verified, no need for verification
+                    verification_token = None
             else:
                 # Create new user
                 user_id = generate_user_id()
                 if os.environ.get('DB_TYPE') == 'postgresql':
                     cursor.execute(
-                        "INSERT INTO users (user_id, email, microsoft_id, is_microsoft_account, name, created_at, updated_at) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (user_id, email, microsoft_id, True, name, now, now)
+                        "INSERT INTO users (user_id, email, microsoft_id, is_microsoft_account, name, created_at, updated_at, email_verify_token, email_verify_status) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                        (user_id, email, microsoft_id, True, name, now, now, verification_token, False)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO users (user_id, email, microsoft_id, is_microsoft_account, name, created_at, updated_at) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (user_id, email, microsoft_id, True, name, now, now)
+                        "INSERT INTO users (user_id, email, microsoft_id, is_microsoft_account, name, created_at, updated_at, email_verify_token, email_verify_status) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (user_id, email, microsoft_id, True, name, now, now, verification_token, False)
                     )
                 conn.commit()
+                
+                # Send verification email
+                send_verification_email(email, name, verification_token)
             
             # Set session variables
             session['user_id'] = user_id
             session['email'] = email
             session['name'] = name
             
-            flash('Microsoft login successful!', 'success')
-            
-            # If there's a chatbot_id, claim it and redirect to dashboard
+            # If there's a chatbot_id, keep it in session for claiming after verification
             if chatbot_id:
-                # Check if chatbot exists and isn't claimed
-                if os.environ.get('DB_TYPE') == 'postgresql':
-                    cursor.execute("SELECT * FROM companies WHERE chatbot_id = %s", (chatbot_id,))
-                else:
-                    cursor.execute("SELECT * FROM companies WHERE chatbot_id = ?", (chatbot_id,))
-                    
-                chatbot = cursor.fetchone()
-                
-                if chatbot:
-                    columns = [desc[0] for desc in cursor.description]
-                    chatbot_dict = dict(zip(columns, chatbot))
-                    
-                    if chatbot_dict.get('user_id') and chatbot_dict.get('user_id') != user_id:
-                        flash('This chatbot has already been claimed by another user', 'error')
-                    elif not chatbot_dict.get('user_id'):
-                        # Update chatbot with user_id
-                        if os.environ.get('DB_TYPE') == 'postgresql':
-                            cursor.execute(
-                                "UPDATE companies SET user_id = %s, updated_at = %s WHERE chatbot_id = %s",
-                                (user_id, datetime.utcnow(), chatbot_id)
-                            )
-                        else:
-                            cursor.execute(
-                                "UPDATE companies SET user_id = ?, updated_at = ? WHERE chatbot_id = ?",
-                                (user_id, datetime.utcnow(), chatbot_id)
-                            )
-                        conn.commit()
-                        flash('Chatbot claimed successfully!', 'success')
-                
-                # Clear chatbot_id from session
-                session.pop('chatbot_id', None)
+                session['chatbot_id'] = chatbot_id
             
-            # Always redirect to dashboard after successful authentication
-            return redirect(url_for('dashboard'))
-            
+            # Check if verification is needed
+            if verification_token is not None:
+                # Redirect to verification page
+                return redirect(url_for('auth.pending_verification'))
+            else:
+                # Already verified, redirect to dashboard
+                flash('Microsoft login successful!', 'success')
+                
+                # If there's a chatbot_id, claim it
+                if chatbot_id:
+                    # Check if chatbot exists and isn't claimed
+                    if os.environ.get('DB_TYPE') == 'postgresql':
+                        cursor.execute("SELECT * FROM companies WHERE chatbot_id = %s", (chatbot_id,))
+                    else:
+                        cursor.execute("SELECT * FROM companies WHERE chatbot_id = ?", (chatbot_id,))
+                        
+                    chatbot = cursor.fetchone()
+                    
+                    if chatbot:
+                        columns = [desc[0] for desc in cursor.description]
+                        chatbot_dict = dict(zip(columns, chatbot))
+                        
+                        if chatbot_dict.get('user_id') and chatbot_dict.get('user_id') != user_id:
+                            flash('This chatbot has already been claimed by another user', 'error')
+                        elif not chatbot_dict.get('user_id'):
+                            # Update chatbot with user_id
+                            if os.environ.get('DB_TYPE') == 'postgresql':
+                                cursor.execute(
+                                    "UPDATE companies SET user_id = %s, updated_at = %s WHERE chatbot_id = %s",
+                                    (user_id, datetime.utcnow(), chatbot_id)
+                                )
+                            else:
+                                cursor.execute(
+                                    "UPDATE companies SET user_id = ?, updated_at = ? WHERE chatbot_id = ?",
+                                    (user_id, datetime.utcnow(), chatbot_id)
+                                )
+                            conn.commit()
+                            flash('Chatbot claimed successfully!', 'success')
+                    
+                    # Clear chatbot_id from session
+                    session.pop('chatbot_id', None)
+                
+                # Redirect to dashboard
+                return redirect(url_for('dashboard'))
+                
         except (sqlite3.Error, psycopg2.Error) as e:
             conn.rollback()
             flash(f'Database error: {e}', 'error')
@@ -559,6 +595,9 @@ def google_callback():
             
             now = datetime.utcnow()
             
+            # Generate verification token
+            verification_token = generate_verification_token()
+            
             if user:
                 # User exists, update Google info if needed
                 columns = [desc[0] for desc in cursor.description]
@@ -577,68 +616,101 @@ def google_callback():
                             "UPDATE users SET google_id = ?, is_google_account = ?, name = ?, updated_at = ? WHERE user_id = ?",
                             (google_id, True, name, now, user_id)
                         )
+                
+                # Check if email already verified
+                if not user_dict.get('email_verify_status'):
+                    # Update verification token
+                    if os.environ.get('DB_TYPE') == 'postgresql':
+                        cursor.execute(
+                            "UPDATE users SET email_verify_token = %s, updated_at = %s WHERE user_id = %s",
+                            (verification_token, now, user_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "UPDATE users SET email_verify_token = ?, updated_at = ? WHERE user_id = ?",
+                            (verification_token, now, user_id)
+                        )
                     conn.commit()
+                    
+                    # Send verification email
+                    send_verification_email(email, name, verification_token)
+                else:
+                    # Email already verified, no need for verification
+                    verification_token = None
             else:
                 # Create new user
                 user_id = generate_user_id()
                 if os.environ.get('DB_TYPE') == 'postgresql':
                     cursor.execute(
-                        "INSERT INTO users (user_id, email, google_id, is_google_account, name, created_at, updated_at) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (user_id, email, google_id, True, name, now, now)
+                        "INSERT INTO users (user_id, email, google_id, is_google_account, name, created_at, updated_at, email_verify_token, email_verify_status) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                        (user_id, email, google_id, True, name, now, now, verification_token, False)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO users (user_id, email, google_id, is_google_account, name, created_at, updated_at) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (user_id, email, google_id, True, name, now, now)
+                        "INSERT INTO users (user_id, email, google_id, is_google_account, name, created_at, updated_at, email_verify_token, email_verify_status) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (user_id, email, google_id, True, name, now, now, verification_token, False)
                     )
                 conn.commit()
+                
+                # Send verification email
+                send_verification_email(email, name, verification_token)
             
             # Set session variables
             session['user_id'] = user_id
             session['email'] = email
             session['name'] = name
             
-            flash('Google login successful!', 'success')
-            
-            # If there's a chatbot_id, claim it and redirect to dashboard
+            # If there's a chatbot_id, keep it in session for claiming after verification
             if chatbot_id:
-                # Check if chatbot exists and isn't claimed
-                if os.environ.get('DB_TYPE') == 'postgresql':
-                    cursor.execute("SELECT * FROM companies WHERE chatbot_id = %s", (chatbot_id,))
-                else:
-                    cursor.execute("SELECT * FROM companies WHERE chatbot_id = ?", (chatbot_id,))
-                    
-                chatbot = cursor.fetchone()
-                
-                if chatbot:
-                    columns = [desc[0] for desc in cursor.description]
-                    chatbot_dict = dict(zip(columns, chatbot))
-                    
-                    if chatbot_dict.get('user_id') and chatbot_dict.get('user_id') != user_id:
-                        flash('This chatbot has already been claimed by another user', 'error')
-                    elif not chatbot_dict.get('user_id'):
-                        # Update chatbot with user_id
-                        if os.environ.get('DB_TYPE') == 'postgresql':
-                            cursor.execute(
-                                "UPDATE companies SET user_id = %s, updated_at = %s WHERE chatbot_id = %s",
-                                (user_id, datetime.utcnow(), chatbot_id)
-                            )
-                        else:
-                            cursor.execute(
-                                "UPDATE companies SET user_id = ?, updated_at = ? WHERE chatbot_id = ?",
-                                (user_id, datetime.utcnow(), chatbot_id)
-                            )
-                        conn.commit()
-                        flash('Chatbot claimed successfully!', 'success')
-                
-                # Clear chatbot_id from session
-                session.pop('chatbot_id', None)
+                session['chatbot_id'] = chatbot_id
             
-            # Always redirect to dashboard after successful authentication
-            return redirect(url_for('dashboard'))
-            
+            # Check if verification is needed
+            if verification_token is not None:
+                # Redirect to verification page
+                return redirect(url_for('auth.pending_verification'))
+            else:
+                # Already verified, redirect to dashboard
+                flash('Google login successful!', 'success')
+                
+                # If there's a chatbot_id, claim it
+                if chatbot_id:
+                    # Check if chatbot exists and isn't claimed
+                    if os.environ.get('DB_TYPE') == 'postgresql':
+                        cursor.execute("SELECT * FROM companies WHERE chatbot_id = %s", (chatbot_id,))
+                    else:
+                        cursor.execute("SELECT * FROM companies WHERE chatbot_id = ?", (chatbot_id,))
+                        
+                    chatbot = cursor.fetchone()
+                    
+                    if chatbot:
+                        columns = [desc[0] for desc in cursor.description]
+                        chatbot_dict = dict(zip(columns, chatbot))
+                        
+                        if chatbot_dict.get('user_id') and chatbot_dict.get('user_id') != user_id:
+                            flash('This chatbot has already been claimed by another user', 'error')
+                        elif not chatbot_dict.get('user_id'):
+                            # Update chatbot with user_id
+                            if os.environ.get('DB_TYPE') == 'postgresql':
+                                cursor.execute(
+                                    "UPDATE companies SET user_id = %s, updated_at = %s WHERE chatbot_id = %s",
+                                    (user_id, datetime.utcnow(), chatbot_id)
+                                )
+                            else:
+                                cursor.execute(
+                                    "UPDATE companies SET user_id = ?, updated_at = ? WHERE chatbot_id = ?",
+                                    (user_id, datetime.utcnow(), chatbot_id)
+                                )
+                            conn.commit()
+                            flash('Chatbot claimed successfully!', 'success')
+                    
+                    # Clear chatbot_id from session
+                    session.pop('chatbot_id', None)
+                
+                # Redirect to dashboard
+                return redirect(url_for('dashboard'))
+                
         except (sqlite3.Error, psycopg2.Error) as e:
             conn.rollback()
             flash(f'Database error: {e}', 'error')
@@ -649,6 +721,192 @@ def google_callback():
         flash(f'Authentication failed: {e}', 'error')
     
     return redirect(url_for('auth.signin'))
+
+# =======================================================================
+# Email verification routes
+# 
+# These routes manage the email verification process that occurs between
+# OAuth authentication and dashboard access to ensure account security.
+# =======================================================================
+
+@auth_bp.route('/pending-verification', methods=['GET'])
+def pending_verification():
+    """Show pending verification page after OAuth login."""
+    if 'email' not in session or 'name' not in session:
+        flash('Please log in first', 'error')
+        return redirect(url_for('auth.signin'))
+        
+    # Check if the user is already verified
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            cursor.execute("SELECT * FROM users WHERE email = %s", (session['email'],))
+        else:
+            cursor.execute("SELECT * FROM users WHERE email = ?", (session['email'],))
+            
+        user = cursor.fetchone()
+        
+        if user:
+            columns = [desc[0] for desc in cursor.description]
+            user_dict = dict(zip(columns, user))
+            
+            # If email is already verified, redirect to dashboard
+            if user_dict.get('email_verify_status'):
+                return redirect(url_for('dashboard'))
+    except Exception as e:
+        print(f"Error checking verification status: {e}")
+    finally:
+        conn.close()
+        
+    return render_template(
+        'auth/verify_email.html', 
+        email=session.get('email', 'your email')
+    )
+
+@auth_bp.route('/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Verify email with token and complete account setup."""
+    if not token:
+        flash('Invalid verification link', 'error')
+        return redirect(url_for('auth.signin'))
+        
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        # Find user by token
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            cursor.execute("SELECT * FROM users WHERE email_verify_token = %s", (token,))
+        else:
+            cursor.execute("SELECT * FROM users WHERE email_verify_token = ?", (token,))
+            
+        user = cursor.fetchone()
+        
+        if not user:
+            flash('Invalid or expired verification token', 'error')
+            return redirect(url_for('auth.signin'))
+            
+        columns = [desc[0] for desc in cursor.description]
+        user_dict = dict(zip(columns, user))
+        
+        # Check if token is expired (24 hours) using updated_at as a proxy for token creation time
+        if is_token_expired(user_dict.get('updated_at'), 24):
+            flash('Verification link has expired. Please request a new one.', 'error')
+            return redirect(url_for('auth.pending_verification'))
+        
+        # Mark email as verified
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            cursor.execute(
+                "UPDATE users SET email_verify_status = TRUE, email_verify_token = NULL, updated_at = %s WHERE user_id = %s",
+                (datetime.utcnow(), user_dict.get('user_id'))
+            )
+        else:
+            cursor.execute(
+                "UPDATE users SET email_verify_status = 1, email_verify_token = NULL, updated_at = ? WHERE user_id = ?",
+                (datetime.utcnow(), user_dict.get('user_id'))
+            )
+        conn.commit()
+        
+        # Check if there's a chatbot waiting to be claimed in the session
+        chatbot_id = session.get('chatbot_id')
+        if chatbot_id:
+            # Claim the chatbot for the user
+            if os.environ.get('DB_TYPE') == 'postgresql':
+                cursor.execute(
+                    "UPDATE companies SET user_id = %s, updated_at = %s WHERE chatbot_id = %s AND (user_id IS NULL OR user_id = %s)",
+                    (user_dict.get('user_id'), datetime.utcnow(), chatbot_id, user_dict.get('user_id'))
+                )
+            else:
+                cursor.execute(
+                    "UPDATE companies SET user_id = ?, updated_at = ? WHERE chatbot_id = ? AND (user_id IS NULL OR user_id = ?)",
+                    (user_dict.get('user_id'), datetime.utcnow(), chatbot_id, user_dict.get('user_id'))
+                )
+            conn.commit()
+            
+            # Clear chatbot_id from session
+            session.pop('chatbot_id', None)
+            
+        # Set user session
+        session['user_id'] = user_dict.get('user_id')
+        session['email'] = user_dict.get('email')
+        session['name'] = user_dict.get('name')
+        
+        flash('Email verified successfully!', 'success')
+        return redirect(url_for('dashboard'))
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error verifying email: {e}', 'error')
+        return redirect(url_for('auth.signin'))
+    finally:
+        conn.close()
+
+@auth_bp.route('/resend-verification', methods=['POST'])
+def resend_verification():
+    """Resend verification email."""
+    if 'email' not in session or 'name' not in session:
+        flash('Please log in first', 'error')
+        return redirect(url_for('auth.signin'))
+        
+    email = session['email']
+    name = session['name']
+    
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        
+        # Find user by email
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        else:
+            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            
+        user = cursor.fetchone()
+        
+        if not user:
+            flash('Account not found', 'error')
+            return redirect(url_for('auth.signin'))
+            
+        columns = [desc[0] for desc in cursor.description]
+        user_dict = dict(zip(columns, user))
+        
+        # If email is already verified, redirect to dashboard
+        if user_dict.get('email_verify_status'):
+            return redirect(url_for('dashboard'))
+            
+        # Generate new verification token
+        token = generate_verification_token()
+        now = datetime.utcnow()
+        
+        # Update user with new token
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            cursor.execute(
+                "UPDATE users SET email_verify_token = %s, updated_at = %s WHERE user_id = %s",
+                (token, now, user_dict.get('user_id'))
+            )
+        else:
+            cursor.execute(
+                "UPDATE users SET email_verify_token = ?, updated_at = ? WHERE user_id = ?",
+                (token, now, user_dict.get('user_id'))
+            )
+        conn.commit()
+        
+        # Send verification email
+        if send_verification_email(email, name, token):
+            flash('Verification email sent successfully!', 'success')
+        else:
+            flash('Error sending verification email. Please try again later.', 'error')
+            
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error resending verification email: {e}', 'error')
+    finally:
+        conn.close()
+        
+    return redirect(url_for('auth.pending_verification'))
+
 
 @auth_bp.route('/logout', methods=['GET'])
 def logout():
@@ -881,3 +1139,4 @@ def claim_chatbot(chatbot_id):
         return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
     finally:
         conn.close()
+

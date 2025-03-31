@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Verify Your Email - GoEasyChat</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 40px auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background-color: #0084ff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .card-header h3 {
+            margin: 0;
+            font-weight: 500;
+        }
+        
+        .card-body {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .email-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        button {
+            background-color: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #0073e6;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .resend-timer {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+            display: none;
+        }
+        
+        .support-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: left;
+        }
+        
+        .support-section h5 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        ul {
+            padding-left: 20px;
+        }
+        
+        strong {
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h3>Verify Your Email</h3>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
+                
+                <div class="email-icon">✉️</div>
+                <h4>Check Your Email</h4>
+                <p>We've sent a verification link to:</p>
+                <p><strong>{{ email }}</strong></p>
+                <p>Please click the link in that email to verify your account and continue to your dashboard.</p>
+                
+                <div style="margin-top: 24px;">
+                    <p>Didn't receive the email?</p>
+                    <form id="resendForm" method="POST" action="{{ url_for('auth.resend_verification') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" id="resendBtn">Resend Verification Email</button>
+                    </form>
+                    <div class="resend-timer" id="resendTimer">
+                        You can request another email in <span id="countdownTimer">60</span> seconds
+                    </div>
+                </div>
+                
+                <div class="support-section">
+                    <h5>Need Help?</h5>
+                    <p>If you're having trouble receiving the verification email, please:</p>
+                    <ul>
+                        <li>Check your spam/junk folder</li>
+                        <li>Make sure you entered the correct email address</li>
+                        <li>Try using a different email address</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/csrf.js"></script>
+    <script>
+        // Countdown timer for resend button
+        document.addEventListener('DOMContentLoaded', function() {
+            const resendBtn = document.getElementById('resendBtn');
+            const resendTimer = document.getElementById('resendTimer');
+            const countdownTimer = document.getElementById('countdownTimer');
+            
+            // Check if there's a stored timestamp
+            const canResendAfter = localStorage.getItem('canResendAfter');
+            
+            if (canResendAfter) {
+                const now = Date.now();
+                const timeLeft = Math.max(0, Math.floor((parseInt(canResendAfter) - now) / 1000));
+                
+                if (timeLeft > 0) {
+                    // Disable button and show timer
+                    resendBtn.disabled = true;
+                    resendTimer.style.display = 'block';
+                    countdownTimer.textContent = timeLeft;
+                    
+                    startCountdown(timeLeft);
+                }
+            }
+            
+            // Handle form submission
+            document.getElementById('resendForm').addEventListener('submit', function(e) {
+                // Set cooldown period (60 seconds)
+                const cooldownPeriod = 60 * 1000; // 60 seconds in milliseconds
+                const canResendAfter = Date.now() + cooldownPeriod;
+                
+                // Store timestamp in localStorage
+                localStorage.setItem('canResendAfter', canResendAfter);
+                
+                // Disable button and show timer
+                resendBtn.disabled = true;
+                resendTimer.style.display = 'block';
+                countdownTimer.textContent = '60';
+                
+                startCountdown(60);
+                
+                // Allow form submission to continue
+            });
+            
+            function startCountdown(seconds) {
+                let timeLeft = seconds;
+                
+                const interval = setInterval(function() {
+                    timeLeft--;
+                    countdownTimer.textContent = timeLeft;
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(interval);
+                        resendBtn.disabled = false;
+                        resendTimer.style.display = 'none';
+                        localStorage.removeItem('canResendAfter');
+                    }
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
