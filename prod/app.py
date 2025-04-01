@@ -1314,9 +1314,12 @@ def embed_chat():
         user_message = data.get("message")
         thread_id = data.get("thread_id")  # Get the thread_id from the request
 
-        # Get IP address and user agent for metrics
+        # Get IP address and user agent for metrics - Updated approach
         ip_address = request.remote_addr
-        user_agent = request.user_agent.string if request.user_agent else None
+        user_agent = request.headers.get('User-Agent')  # Direct access from headers
+        
+        # Log the user agent for debugging
+        print(f"Captured user agent: {user_agent}")
 
         if not chatbot_id or not user_message:
             print(f"Missing fields - chatbot_id: {chatbot_id}, message: {user_message}")
