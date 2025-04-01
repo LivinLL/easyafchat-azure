@@ -132,11 +132,30 @@ def upgrade_database(verbose=False):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     scraped_text TEXT,
-                    processed_content TEXT
+                    processed_content TEXT,
+                    active_status TEXT DEFAULT 'live'
                 )
                 """)
             else:
-                # Table exists, check if scraped_text column exists
+                # Check if active_status column exists
+                cursor.execute(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_schema = '{DB_SCHEMA}' 
+                AND table_name = 'companies' 
+                AND column_name = 'active_status'
+                """)
+                
+                if not cursor.fetchone():
+                    # active_status column doesn't exist, so add it
+                    if verbose:
+                        print(f"Adding active_status column to existing companies table")
+                    cursor.execute(f"""
+                    ALTER TABLE {DB_SCHEMA}.companies 
+                    ADD COLUMN active_status TEXT DEFAULT 'live'
+                    """)
+                    
+                # Check if scraped_text column exists
                 cursor.execute(f"""
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -406,9 +425,19 @@ def upgrade_database(verbose=False):
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 scraped_text TEXT,
-                processed_content TEXT
+                processed_content TEXT,
+                active_status TEXT DEFAULT 'live'
             )
             ''')
+            
+            # Check if active_status column exists in companies table
+            cursor.execute("PRAGMA table_info(companies)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'active_status' not in columns:
+                cursor.execute('ALTER TABLE companies ADD COLUMN active_status TEXT DEFAULT "live"')
+                if verbose:
+                    print("Added active_status column to companies table")
             
             # Create users table if not exists
             cursor.execute('''
@@ -537,7 +566,8 @@ def upgrade_database(verbose=False):
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         scraped_text TEXT,
                         processed_content TEXT,
-                        user_id TEXT REFERENCES users(user_id)
+                        user_id TEXT REFERENCES users(user_id),
+                        active_status TEXT DEFAULT 'live'
                     )
                     ''')
                     
@@ -545,7 +575,8 @@ def upgrade_database(verbose=False):
                     cursor.execute('''
                     INSERT INTO companies_new (
                         chatbot_id, company_url, pinecone_host_url, pinecone_index,
-                        pinecone_namespace, created_at, updated_at, scraped_text, processed_content
+                        pinecone_namespace, created_at, updated_at, scraped_text, processed_content,
+                        user_id, active_status
                     )
                     SELECT 
                         chatbot_id, company_url, pinecone_host_url, pinecone_index,
@@ -555,7 +586,7 @@ def upgrade_database(verbose=False):
 
 About Scrape
 ' || COALESCE(about_text, 'About page not found'), 
-                        processed_content
+                        processed_content, user_id, 'live'
                     FROM companies
                     ''')
                     
