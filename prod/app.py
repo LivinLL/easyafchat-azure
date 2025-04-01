@@ -1309,10 +1309,10 @@ def embed_chat():
         user_message = data.get("message")
         thread_id = data.get("thread_id")  # Get the thread_id from the request
 
-        # TEST CODE - REMOVE AFTER TESTING
-        if chatbot_id == 'bab6a1b86fb341c69295':
-            print("[TEST] Simulating rate limit exceeded for test chatbot")
-            return ratelimit_handler(None)  # Simulate rate limit error
+        # TEST IF RATE LIMITS ADDS TO INCIDENTS AND SETS ACTIVE_STATUS IN COMPANIES TO PAUSED
+        #if chatbot_id == 'bab6a1b86fb341c69295':
+        #    print("[TEST] Simulating rate limit exceeded for test chatbot")
+        #    return ratelimit_handler(None)  # Simulate rate limit error
         # END TEST CODE
 
         if not chatbot_id or not user_message:
