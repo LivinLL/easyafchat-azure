@@ -321,7 +321,37 @@ def upgrade_database(verbose=False):
                     notes TEXT
                 )
                 """)
-                
+
+                # Check if chatbot_incidents table exists
+                cursor.execute(f"""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = '{DB_SCHEMA}'
+                    AND table_name = 'chatbot_incidents'
+                )
+                """)
+                incidents_table_exists = cursor.fetchone()[0]
+
+                if not incidents_table_exists:
+                    # Create the chatbot_incidents table if it doesn't exist yet
+                    if verbose:
+                        print(f"Creating new chatbot_incidents table in {DB_SCHEMA} schema")
+                    cursor.execute(f"""
+                    CREATE TABLE {DB_SCHEMA}.chatbot_incidents (
+                        incident_id SERIAL PRIMARY KEY,
+                        chatbot_id TEXT REFERENCES {DB_SCHEMA}.companies(chatbot_id),
+                        incident_type TEXT NOT NULL,
+                        incident_details TEXT,
+                        ip_address TEXT,
+                        user_agent TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        resolved_at TIMESTAMP,
+                        resolved_by TEXT,
+                        resolution_notes TEXT
+                    )
+                    """)
+
+
             # Check if chatbot_config table exists
             cursor.execute(f"""
             SELECT EXISTS (
@@ -356,6 +386,35 @@ def upgrade_database(verbose=False):
                 )
                 """)
             
+            # Check if chatbot_incidents table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'chatbot_incidents'
+            )
+            """)
+            incidents_table_exists = cursor.fetchone()[0]
+
+            if not incidents_table_exists:
+                # Create the chatbot_incidents table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new chatbot_incidents table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.chatbot_incidents (
+                    incident_id SERIAL PRIMARY KEY,
+                    chatbot_id TEXT REFERENCES {DB_SCHEMA}.companies(chatbot_id),
+                    incident_type TEXT NOT NULL,
+                    incident_details TEXT,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    resolved_at TIMESTAMP,
+                    resolved_by TEXT,
+                    resolution_notes TEXT
+                )
+                """)
+
             # Check if documents table exists
             cursor.execute(f"""
             SELECT EXISTS (
@@ -517,6 +576,22 @@ def upgrade_database(verbose=False):
             )
             ''')
             
+            # Create chatbot_incidents table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chatbot_incidents (
+                incident_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chatbot_id TEXT REFERENCES companies(chatbot_id),
+                incident_type TEXT NOT NULL,
+                incident_details TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resolved_at DATETIME,
+                resolved_by TEXT,
+                resolution_notes TEXT
+            )
+            ''')
+
             # Create documents table if not exists
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS documents (
