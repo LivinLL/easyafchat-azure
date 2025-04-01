@@ -471,6 +471,57 @@ def upgrade_database(verbose=False):
                     user_id TEXT
                 )
                 """)
+                
+            # Check if chat_messages table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'chat_messages'
+            )
+            """)
+            chat_messages_table_exists = cursor.fetchone()[0]
+            
+            if not chat_messages_table_exists:
+                # Create the chat_messages table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new chat_messages table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.chat_messages (
+                    message_id SERIAL PRIMARY KEY,
+                    chatbot_id TEXT NOT NULL REFERENCES {DB_SCHEMA}.companies(chatbot_id),
+                    thread_id TEXT NOT NULL,
+                    user_message TEXT NOT NULL,
+                    assistant_response TEXT NOT NULL,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    prompt_tokens INTEGER DEFAULT 0,
+                    completion_tokens INTEGER DEFAULT 0,
+                    total_tokens INTEGER DEFAULT 0,
+                    user_feedback TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """)
+                
+                # Create indexes for efficient querying
+                cursor.execute(f"""
+                CREATE INDEX idx_chat_messages_chatbot 
+                ON {DB_SCHEMA}.chat_messages(chatbot_id)
+                """)
+                
+                cursor.execute(f"""
+                CREATE INDEX idx_chat_messages_thread 
+                ON {DB_SCHEMA}.chat_messages(thread_id)
+                """)
+                
+                cursor.execute(f"""
+                CREATE INDEX idx_chat_messages_created_at 
+                ON {DB_SCHEMA}.chat_messages(created_at)
+                """)
+                
+                if verbose:
+                    print(f"Created indexes for chat_messages table")
+                
         else:
             # SQLite handling
             # Create companies table if not exists
@@ -622,6 +673,44 @@ def upgrade_database(verbose=False):
                 user_id TEXT
             )
             ''')
+            
+            # Create chat_messages table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chatbot_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL,
+                user_message TEXT NOT NULL,
+                assistant_response TEXT NOT NULL,
+                ip_address TEXT,
+                user_agent TEXT,
+                prompt_tokens INTEGER DEFAULT 0,
+                completion_tokens INTEGER DEFAULT 0,
+                total_tokens INTEGER DEFAULT 0,
+                user_feedback TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chatbot_id) REFERENCES companies(chatbot_id)
+            )
+            ''')
+            
+            # Create indexes for chat_messages table
+            cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_chatbot 
+            ON chat_messages(chatbot_id)
+            ''')
+            
+            cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_thread 
+            ON chat_messages(thread_id)
+            ''')
+            
+            cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at 
+            ON chat_messages(created_at)
+            ''')
+            
+            if verbose:
+                print("Created chat_messages table and indexes in SQLite")
 
             # Check if the old fields exist and migrate data if needed
             try:
