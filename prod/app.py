@@ -800,17 +800,96 @@ def ratelimit_handler(e):
     # Log the rate limit exceeded event
     print(f"[RATE LIMIT] Rate limit exceeded for IP: {request.remote_addr}")
     
+    # Extract chatbot_id from the request if available
+    chatbot_id = None
+    try:
+        # Check if this was from embed-chat endpoint
+        if request.path == '/embed-chat' and request.is_json:
+            data = request.get_json(silent=True)
+            if data and isinstance(data, dict):
+                chatbot_id = data.get('chatbot_id')
+                
+                if chatbot_id:
+                    # Log the incident and update active_status
+                    log_chatbot_incident(
+                        chatbot_id=chatbot_id,
+                        incident_type='rate_limit_exceeded',
+                        incident_details=f"Rate limit exceeded for endpoint: {request.path}",
+                        ip_address=request.remote_addr,
+                        user_agent=request.user_agent.string if request.user_agent else None
+                    )
+                    
+                    # Update active_status to 'paused'
+                    with connect_to_db() as conn:
+                        cursor = conn.cursor()
+                        
+                        # Different placeholder based on database type
+                        placeholder = '%s' if os.getenv('DB_TYPE', '').lower() == 'postgresql' else '?'
+                        table_name = 'companies' if os.getenv('DB_TYPE', '').lower() != 'postgresql' else f"{DB_SCHEMA}.companies"
+                        
+                        query = f"""
+                            UPDATE {table_name}
+                            SET active_status = 'paused'
+                            WHERE chatbot_id = {placeholder}
+                        """
+                        
+                        cursor.execute(query, (chatbot_id,))
+                        conn.commit()
+                        
+                        print(f"[RATE LIMIT] Chatbot {chatbot_id} paused due to rate limit violation")
+    except Exception as incident_error:
+        print(f"[RATE LIMIT] Error handling rate limit incident: {str(incident_error)}")
+    
     # Check if it's an AJAX/JSON request
     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         # For AJAX requests, return a JSON response
         return jsonify({
-            "error": "Too many requests. Please try again later.",
-            "rate_limit_exceeded": True
+            "error": "Too many requests. This chatbot has been paused due to excessive usage.",
+            "rate_limit_exceeded": True,
+            "chatbot_paused": chatbot_id is not None
         }), 429
     else:
         # For regular form submissions, flash a message and redirect
         flash("Too many requests. Please try again later.")
         return redirect(url_for('home'))
+
+def log_chatbot_incident(chatbot_id, incident_type, incident_details=None, ip_address=None, user_agent=None):
+    """
+    Log an incident for a chatbot in the chatbot_incidents table
+    
+    Args:
+        chatbot_id (str): The ID of the affected chatbot
+        incident_type (str): Type of incident (e.g., 'rate_limit_exceeded')
+        incident_details (str, optional): Additional details about the incident
+        ip_address (str, optional): IP address associated with the incident
+        user_agent (str, optional): User agent string associated with the incident
+    
+    Returns:
+        bool: True if logging was successful, False otherwise
+    """
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Different syntax based on database type
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute("""
+                    INSERT INTO chatbot_incidents 
+                    (chatbot_id, incident_type, incident_details, ip_address, user_agent)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (chatbot_id, incident_type, incident_details, ip_address, user_agent))
+            else:
+                cursor.execute("""
+                    INSERT INTO chatbot_incidents 
+                    (chatbot_id, incident_type, incident_details, ip_address, user_agent)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (chatbot_id, incident_type, incident_details, ip_address, user_agent))
+            
+            print(f"[INCIDENT] Logged {incident_type} incident for chatbot {chatbot_id}")
+            return True
+    except Exception as e:
+        print(f"[INCIDENT] Error logging incident: {str(e)}")
+        return False
 
 # Flask routes
 @app.route('/chat-test')
@@ -1229,6 +1308,12 @@ def embed_chat():
         chatbot_id = data.get("chatbot_id")
         user_message = data.get("message")
         thread_id = data.get("thread_id")  # Get the thread_id from the request
+
+        # TEST CODE - REMOVE AFTER TESTING
+        if chatbot_id == 'bab6a1b86fb341c69295':
+            print("[TEST] Simulating rate limit exceeded for test chatbot")
+            return ratelimit_handler(None)  # Simulate rate limit error
+        # END TEST CODE
 
         if not chatbot_id or not user_message:
             print(f"Missing fields - chatbot_id: {chatbot_id}, message: {user_message}")
