@@ -67,7 +67,32 @@
         }
     };
 
-    // Begin initialization by first verifying domain
+    // Check if the chatbot is active - Only display if active_status is "live"
+    const checkActiveStatus = async function() {
+        try {
+            console.log('DavesEasyChat: Checking if chatbot is active');
+            
+            // Call the active status endpoint
+            const response = await fetch(`${baseUrl}/check-active-status/${config.chatbotId}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`DavesEasyChat: Status check failed - ${errorData.message || response.statusText}`);
+                return false;
+            }
+            
+            const result = await response.json();
+            console.log(`DavesEasyChat: Chatbot status - ${result.status} (active: ${result.active})`);
+            
+            return result.active === true;
+            
+        } catch (error) {
+            console.error('DavesEasyChat: Status check error -', error);
+            return false;
+        }
+    };
+
+    // Begin initialization by first verifying domain, then checking active status
     verifyDomain().then(isAuthorized => {
         if (!isAuthorized) {
             console.error('DavesEasyChat: This domain is not authorized to use this chatbot');
@@ -88,8 +113,16 @@
             return;
         }
         
-        // Domain is authorized - continue with normal initialization
-        initializeChatbot();
+        // Domain is authorized - now check if the chatbot is active
+        checkActiveStatus().then(isActive => {
+            if (!isActive) {
+                console.error('DavesEasyChat: This chatbot is not currently active');
+                return;
+            }
+            
+            // Chatbot is authorized and active - continue with normal initialization
+            initializeChatbot();
+        });
     });
 
 // Load marked library and initialize chatbot

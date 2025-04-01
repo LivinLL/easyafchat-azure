@@ -1774,6 +1774,57 @@ The GoEasyChat Team
     except Exception as e:
         return f"Error sending email: {str(e)}"
 
+@app.route('/check-active-status/<chatbot_id>', methods=['GET'])
+@limiter.limit("10 per minute")
+def check_active_status(chatbot_id):
+    """Check if a chatbot is active and can be displayed"""
+    try:
+        # Get database connection
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Different placeholder based on database type
+            placeholder = '%s' if os.getenv('DB_TYPE', '').lower() == 'postgresql' else '?'
+            
+            # Query to get active_status from companies table
+            query = f"""
+                SELECT active_status
+                FROM {'companies' if os.getenv('DB_TYPE', '').lower() != 'postgresql' else DB_SCHEMA + '.companies'}
+                WHERE chatbot_id = {placeholder}
+            """
+            
+            cursor.execute(query, (chatbot_id,))
+            result = cursor.fetchone()
+            
+            if not result:
+                print(f"[check_active_status] Chatbot ID not found: {chatbot_id}")
+                return jsonify({
+                    "active": False,
+                    "status": "not_found",
+                    "message": "Chatbot not found"
+                }), 404
+            
+            active_status = result[0]
+            print(f"[check_active_status] Chatbot {chatbot_id} status: {active_status}")
+            
+            # Only consider 'live' as active
+            is_active = active_status == 'live'
+            
+            return jsonify({
+                "active": is_active,
+                "status": active_status
+            })
+            
+    except Exception as e:
+        import traceback
+        print(f"[check_active_status] Error checking status: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            "active": False,
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces
