@@ -28,6 +28,7 @@ import sqlite3
 import psycopg2
 from psycopg2 import sql
 from flask_wtf.csrf import CSRFProtect
+from db_metrics import metrics_blueprint, init_metrics_blueprint, save_chat_message
 
 
 # Import the admin dashboard blueprint
@@ -147,6 +148,9 @@ SQLITE_DB_NAME = "easyafchat.db"
 
 # Register the authorization blueprint
 app.register_blueprint(auth_bp, url_prefix='/auth')
+
+# Register the db_metrics.py blueprint
+app.register_blueprint(metrics_blueprint, url_prefix='/metrics')
 
 # Dictionary to track processing status
 processing_status = {}
@@ -1299,6 +1303,7 @@ def demo(session_id):
     finally:
         conn.close()
 
+# Modify the /embed-chat route to save message data
 @app.route('/embed-chat', methods=['POST'])
 @limiter.limit("10 per minute")
 def embed_chat():
@@ -1309,11 +1314,9 @@ def embed_chat():
         user_message = data.get("message")
         thread_id = data.get("thread_id")  # Get the thread_id from the request
 
-        # TEST IF RATE LIMITS ADDS TO INCIDENTS AND SETS ACTIVE_STATUS IN COMPANIES TO PAUSED
-        #if chatbot_id == 'bab6a1b86fb341c69295':
-        #    print("[TEST] Simulating rate limit exceeded for test chatbot")
-        #    return ratelimit_handler(None)  # Simulate rate limit error
-        # END TEST CODE
+        # Get IP address and user agent for metrics
+        ip_address = request.remote_addr
+        user_agent = request.user_agent.string if request.user_agent else None
 
         if not chatbot_id or not user_message:
             print(f"Missing fields - chatbot_id: {chatbot_id}, message: {user_message}")
@@ -1378,7 +1381,47 @@ def embed_chat():
         
         # Debugging information - add this to see what's happening
         print(f"Conversation state: {conversation_state}")
-
+        
+        # Extract token usage from OpenAI response
+        prompt_tokens = 0
+        completion_tokens = 0
+        total_tokens = 0
+        
+        # Check if usage information is available in the response
+        if hasattr(response, 'usage') and response.usage:
+            try:
+                prompt_tokens = response.usage.prompt_tokens
+                completion_tokens = response.usage.completion_tokens
+                total_tokens = response.usage.total_tokens
+                print(f"Token usage: prompt={prompt_tokens}, completion={completion_tokens}, total={total_tokens}")
+            except Exception as token_error:
+                print(f"Error extracting token usage: {str(token_error)}")
+        
+        # Save message to database
+        try:
+            # If thread_id is missing, use the one from conversation state
+            if not thread_id and conversation_state.get("thread_id"):
+                thread_id = conversation_state["thread_id"]
+                
+            # Save the message exchange
+            save_result = save_chat_message(
+                chatbot_id=chatbot_id,
+                thread_id=thread_id,
+                user_message=user_message,
+                assistant_response=assistant_response,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+            
+            if not save_result:
+                print(f"Warning: Failed to save chat message to database")
+        except Exception as save_error:
+            print(f"Error saving chat message: {str(save_error)}")
+            # Continue with response even if saving fails
+        
         return jsonify({
             "response": assistant_response,
             "thread_id": conversation_state["thread_id"],
