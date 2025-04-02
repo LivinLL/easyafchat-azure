@@ -122,24 +122,124 @@ class DocumentsHandler:
             print(f"Error extracting text from PDF: {e}")
             return ""
     
-    def chunk_text(self, text, chunk_size=500):
-        """Split text into smaller chunks for processing"""
-        words = text.split()
+    def chunk_text(self, text, target_size=700, extended_size=1200):
+        """
+        Split text into chunks based on semantic boundaries rather than pure character count.
+        Preserves structure, keeps URLs with their context, and maintains semantic coherence.
+        
+        Args:
+            text (str): Text to be chunked
+            target_size (int): Target size for chunks (default: 700 characters)
+            extended_size (int): Extended size limit for special cases (default: 1200 characters)
+        
+        Returns:
+            list: List of text chunks
+        """
+        # If the entire text is smaller than target_size, return it as a single chunk
+        if len(text) <= target_size:
+            return [text]
+        
+        # Split text into initial sections based on double line breaks
+        sections = [s.strip() for s in text.split('\n\n') if s.strip()]
+        
         chunks = []
-        current_chunk = []
+        current_chunk = ""
         current_size = 0
         
-        for word in words:
-            current_size += len(word) + 1
-            if current_size > chunk_size:
-                chunks.append(' '.join(current_chunk))
-                current_chunk = [word]
-                current_size = len(word)
-            else:
-                current_chunk.append(word)
+        for section in sections:
+            section_size = len(section)
+            contains_url = ('http://' in section or 'https://' in section or 
+                            'www.' in section or '.com' in section or '.org' in section)
+            
+            # Check for list patterns at the start of lines
+            list_pattern = any(line.strip().startswith(('- ', '• ', '* ', '· ')) or 
+                            (line.strip() and line.strip()[0].isdigit() and line.strip()[1:].startswith('. ')) 
+                            for line in section.split('\n'))
+            
+            # Special handling for sections with URLs or list patterns
+            is_special_section = contains_url or list_pattern
+            
+            # Identify section as a heading (likely to be shorter and be a title/subtitle)
+            is_heading = (section_size < 100 and '\n' not in section and 
+                        (section.isupper() or section.rstrip().endswith(':') or 
+                        (len(section.split()) < 10 and section[-1] not in '.?!')))
+            
+            # Check if section would put current chunk over extended limit
+            if current_size + section_size + 1 > extended_size and current_size > 0:
+                # Add current chunk to list and reset
+                chunks.append(current_chunk)
+                current_chunk = ""
+                current_size = 0
+            
+            # Check if section would fit within target size or deserves extended size
+            if (current_size + section_size + 1 <= target_size or 
+                (is_special_section and current_size + section_size + 1 <= extended_size) or
+                current_size == 0):  # Always include at least one section in a chunk
                 
+                # Add a separator if not starting a new chunk
+                if current_size > 0:
+                    current_chunk += "\n\n"
+                    current_size += 2
+                
+                current_chunk += section
+                current_size += section_size
+            else:
+                # Section doesn't fit in current chunk, check if it needs further splitting
+                if section_size > extended_size:
+                    # Split long section by sentences if possible
+                    sentences = []
+                    # Simple but relatively effective sentence splitting
+                    for sentence in section.replace('!', '.').replace('?', '.').split('.'):
+                        if sentence.strip():
+                            sentences.append(sentence.strip() + '.')
+                    
+                    # If we can't split by sentences, fall back to splitting by lines
+                    if not sentences:
+                        sentences = [line.strip() for line in section.split('\n') if line.strip()]
+                    
+                    # Add current chunk if we have one
+                    if current_chunk:
+                        chunks.append(current_chunk)
+                        current_chunk = ""
+                        current_size = 0
+                    
+                    # Process sentences to create new chunks
+                    temp_chunk = ""
+                    temp_size = 0
+                    
+                    for sentence in sentences:
+                        if temp_size + len(sentence) + 1 <= extended_size or temp_size == 0:
+                            if temp_size > 0:
+                                temp_chunk += " "
+                                temp_size += 1
+                            temp_chunk += sentence
+                            temp_size += len(sentence)
+                        else:
+                            chunks.append(temp_chunk)
+                            temp_chunk = sentence
+                            temp_size = len(sentence)
+                    
+                    if temp_chunk:
+                        # If current_chunk is not empty, try to append temp_chunk to it
+                        if current_chunk and current_size + temp_size + 2 <= extended_size:
+                            current_chunk += "\n\n" + temp_chunk
+                            current_size += temp_size + 2
+                        else:
+                            # Start a new chunk with temp_chunk
+                            if current_chunk:
+                                chunks.append(current_chunk)
+                            current_chunk = temp_chunk
+                            current_size = temp_size
+                else:
+                    # Section is too big for current chunk but not needing further splitting
+                    chunks.append(current_chunk)
+                    current_chunk = section
+                    current_size = section_size
+        
+        # Add the last chunk if it's not empty
         if current_chunk:
-            chunks.append(' '.join(current_chunk))
+            chunks.append(current_chunk)
+        
         return chunks
     
     def get_embeddings(self, text_chunks):
