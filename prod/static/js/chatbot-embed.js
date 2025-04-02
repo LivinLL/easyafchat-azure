@@ -713,11 +713,7 @@ async function fetchLeadFormConfig() {
 function createLeadForm() {
     console.log('createLeadForm called - fetching lead form config');
     
-    // Disable the chat form while lead form is active
-    const chatForm = document.getElementById('daves-chat-form');
-    chatForm.classList.add('d-none');
-    
-    // Fetch the lead form title from config
+    // Fetch the lead form title from config first
     fetchLeadFormConfig().then(config => {
         console.log('Lead form config received:', config);
         
@@ -726,8 +722,12 @@ function createLeadForm() {
             console.log('Lead form disabled by configuration');
             hasShownLeadForm = true;
             hasSubmittedLead = true; // Prevent showing the form later
-            return; // Exit without creating form
+            return; // Exit without creating form or hiding chat input
         }
+        
+        // Only hide the chat form if we're actually going to show the lead form
+        const chatForm = document.getElementById('daves-chat-form');
+        chatForm.classList.add('d-none');
         
         const leadFormDiv = document.createElement('div');
         leadFormDiv.className = 'daves-lead-form';
@@ -777,6 +777,7 @@ function createLeadForm() {
     }).catch(error => {
         console.error('Error in fetchLeadFormConfig:', error);
         // Re-enable chat form in case of error
+        const chatForm = document.getElementById('daves-chat-form');
         chatForm.classList.remove('d-none');
     });
 }
