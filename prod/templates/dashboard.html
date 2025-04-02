@@ -848,75 +848,6 @@
 
     <script>
 
-
-// Create a document element with debug console logs
-function createDocumentElement(doc) {
-    const elem = document.createElement('div');
-    elem.className = 'document-card';
-    
-    // Format the date
-    const createdDate = new Date(doc.created_at);
-    const formattedDate = createdDate.toLocaleDateString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric'
-    });
-    
-    elem.innerHTML = `
-        <div style="padding: 15px; border-bottom: 1px solid #eee;">
-            <div style="display: flex; justify-content: space-between;">
-                <h5 style="margin: 0;">${doc.doc_name}</h5>
-                <span style="background: #e7f3ff; color: #0d6efd; padding: 2px 8px; border-radius: 10px; font-size: 12px;">
-                    ${doc.doc_type === 'scraped_content' ? 'Website Content' : 'Uploaded Document'}
-                </span>
-            </div>
-        </div>
-        <div style="padding: 15px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #666; font-size: 14px;">
-                <span>Added: ${formattedDate}</span>
-                <span>Vectors: ${doc.vectors_count || 0}</span>
-            </div>
-            <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 13px; max-height: 100px; overflow: hidden;">
-                ${doc.content ? doc.content.substring(0, 300) + (doc.content.length > 300 ? '...' : '') : 'No preview available'}
-            </div>
-        </div>
-        <div style="padding: 10px 15px; border-top: 1px solid #eee; display: flex; justify-content: space-between;">
-            <button class="view-doc-btn" style="background: #0d6efd; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                View Content
-            </button>
-            <button class="delete-doc-btn" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                Delete
-            </button>
-        </div>
-    `;
-    
-    // Add event listeners to buttons
-    const viewBtn = elem.querySelector('.view-doc-btn');
-    const deleteBtn = elem.querySelector('.delete-doc-btn');
-    
-    if (viewBtn) {
-        viewBtn.addEventListener('click', function() {
-            console.log("View button clicked for doc:", doc.doc_id);
-            viewDocument(doc.doc_id);
-        });
-    }
-    
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', function(e) {
-            console.log("Delete button clicked for doc:", doc.doc_id);
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Set the active document for deletion
-            activeDocId = doc.doc_id;
-            activeChatbotId = doc.chatbot_id;
-            
-            // Show our custom modal
-            showDeleteModal();
-        });
-    }
-    
-    return elem;
-}
-    
     // Update document stats
     function updateDocumentStats(documents) {
         const totalFilesEl = document.getElementById('total-files');
@@ -1151,23 +1082,7 @@ function createDocumentElement(doc) {
             };
         }
         
-        // Support chatbot setup
-        function setupSupportChatbot() {
-            // Create a script element for GoEasyChat support bot
-            var supportScript = document.createElement('script');
-            supportScript.innerHTML = `
-                window.davesEasyChatConfig = {
-                    chatbotId: "8d3df74ea51443d898fe"
-                };
-            `;
-            document.head.appendChild(supportScript);
-            
-            // Load the chatbot script
-            var chatbotScript = document.createElement('script');
-            chatbotScript.src = "{{ url_for('static', filename='js/chatbot-embed.js') }}";
-            document.body.appendChild(chatbotScript);
-        }
-        
+       
         // Initialize when the page loads
         document.addEventListener('DOMContentLoaded', function() {
         // Load and select the first chatbot by default
@@ -1175,10 +1090,7 @@ function createDocumentElement(doc) {
             // Use selectBot instead of just loadCustomerChatbot to properly set it as active
             selectBot('{{ chatbots[0].chatbot_id }}', '{{ chatbots[0].company_url }}');
         {% endif %}
-            
-            // Setup the GoEasyChat support chatbot (commented out for now)
-            // Uncomment the line below to enable the support chatbot
-            // setupSupportChatbot();
+
         });
     </script>
 
@@ -1567,93 +1479,6 @@ function checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts 
         });
 }
 
-// Check document processing status (using dropzone version)
-function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, startTime = Date.now()) {
-    // Maximum number of attempts (5 minutes)
-    const maxAttempts = 60;
-    // Minimum display time for processing indicator (4 seconds)
-    const minDisplayTime = 4000;
-    
-    if (attempts >= maxAttempts) {
-        // Restore the original dropzone on timeout
-        const originalContent = dropzoneEl.getAttribute('data-original-content');
-        if (originalContent) {
-            dropzoneEl.innerHTML = originalContent;
-            // Reattach event listener to the select files button
-            const newSelectBtn = document.getElementById('select-files-btn');
-            if (newSelectBtn) {
-                newSelectBtn.addEventListener('click', function() {
-                    fileInput.value = ''; // Clear the input
-                    fileInput.click();
-                });
-            }
-        }
-        
-        alert('Error: Document processing timed out. Please check back later.');
-        loadDocuments();
-        return;
-    }
-    
-    // Check status
-    fetch(`/documents/processing-status/${docId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.completed) {
-                // Processing complete, but ensure minimum display time
-                const elapsedTime = Date.now() - startTime;
-                const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
-                
-                if (remainingTime > 0) {
-                    // Wait for the remaining time before restoring
-                    setTimeout(() => {
-                        // Restore the original dropzone
-                        const originalContent = dropzoneEl.getAttribute('data-original-content');
-                        if (originalContent) {
-                            dropzoneEl.innerHTML = originalContent;
-                            // Reattach event listener to the select files button
-                            const newSelectBtn = document.getElementById('select-files-btn');
-                            if (newSelectBtn) {
-                                newSelectBtn.addEventListener('click', function() {
-                                    fileInput.value = ''; // Clear the input
-                                    fileInput.click();
-                                });
-                            }
-                        }
-                        loadDocuments();
-                    }, remainingTime);
-                } else {
-                    // Minimum time already passed, restore immediately
-                    // Restore the original dropzone
-                    const originalContent = dropzoneEl.getAttribute('data-original-content');
-                    if (originalContent) {
-                        dropzoneEl.innerHTML = originalContent;
-                        // Reattach event listener to the select files button
-                        const newSelectBtn = document.getElementById('select-files-btn');
-                        if (newSelectBtn) {
-                            newSelectBtn.addEventListener('click', function() {
-                                fileInput.value = ''; // Clear the input
-                                fileInput.click();
-                            });
-                        }
-                    }
-                    loadDocuments();
-                }
-            } else {
-                // Still processing, check again after 5 seconds
-                setTimeout(() => {
-                    checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts + 1, startTime);
-                }, 5000);
-            }
-        })
-        .catch(error => {
-            console.error('Error checking processing status:', error);
-            // Continue polling even on error
-            setTimeout(() => {
-                checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts + 1, startTime);
-            }, 5000);
-        });
-}
-    
 });
 
 // View document
