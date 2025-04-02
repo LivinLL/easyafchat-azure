@@ -847,6 +847,186 @@
     </main>
 
     <script>
+
+
+// Create a document element with debug console logs
+function createDocumentElement(doc) {
+    const elem = document.createElement('div');
+    elem.className = 'document-card';
+    
+    // Format the date
+    const createdDate = new Date(doc.created_at);
+    const formattedDate = createdDate.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+    });
+    
+    elem.innerHTML = `
+        <div style="padding: 15px; border-bottom: 1px solid #eee;">
+            <div style="display: flex; justify-content: space-between;">
+                <h5 style="margin: 0;">${doc.doc_name}</h5>
+                <span style="background: #e7f3ff; color: #0d6efd; padding: 2px 8px; border-radius: 10px; font-size: 12px;">
+                    ${doc.doc_type === 'scraped_content' ? 'Website Content' : 'Uploaded Document'}
+                </span>
+            </div>
+        </div>
+        <div style="padding: 15px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #666; font-size: 14px;">
+                <span>Added: ${formattedDate}</span>
+                <span>Vectors: ${doc.vectors_count || 0}</span>
+            </div>
+            <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 13px; max-height: 100px; overflow: hidden;">
+                ${doc.content ? doc.content.substring(0, 300) + (doc.content.length > 300 ? '...' : '') : 'No preview available'}
+            </div>
+        </div>
+        <div style="padding: 10px 15px; border-top: 1px solid #eee; display: flex; justify-content: space-between;">
+            <button class="view-doc-btn" style="background: #0d6efd; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                View Content
+            </button>
+            <button class="delete-doc-btn" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                Delete
+            </button>
+        </div>
+    `;
+    
+    // Add event listeners to buttons
+    const viewBtn = elem.querySelector('.view-doc-btn');
+    const deleteBtn = elem.querySelector('.delete-doc-btn');
+    
+    if (viewBtn) {
+        viewBtn.addEventListener('click', function() {
+            console.log("View button clicked for doc:", doc.doc_id);
+            viewDocument(doc.doc_id);
+        });
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function(e) {
+            console.log("Delete button clicked for doc:", doc.doc_id);
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Set the active document for deletion
+            activeDocId = doc.doc_id;
+            activeChatbotId = doc.chatbot_id;
+            
+            // Show our custom modal
+            showDeleteModal();
+        });
+    }
+    
+    return elem;
+}
+    
+    // Update document stats
+    function updateDocumentStats(documents) {
+        const totalFilesEl = document.getElementById('total-files');
+        const totalSizeEl = document.getElementById('total-size');
+        
+        if (!totalFilesEl || !totalSizeEl) return;
+        
+        const count = documents.length;
+        totalFilesEl.textContent = count;
+        
+        if (count > 0) {
+            // Calculate total size (rough estimate)
+            let totalSize = 0;
+            documents.forEach(doc => {
+                totalSize += doc.content ? doc.content.length : 0;
+            });
+            
+            // Format size
+            if (totalSize > 1024 * 1024) {
+                totalSizeEl.textContent = Math.round(totalSize / (1024 * 1024) * 10) / 10 + ' MB';
+            } else {
+                totalSizeEl.textContent = Math.round(totalSize / 1024) + ' KB';
+            }
+        } else {
+            totalSizeEl.textContent = '0 KB';
+        }
+    }
+    
+
+        // Main function to load documents
+        function loadDocuments() {
+            const documentsList = document.getElementById('documents-list');
+            const noDocumentsMessage = document.getElementById('no-documents-message');
+            
+            if (!documentsList) return;
+            
+            // Get the currently selected chatbot ID
+            const selectedBotName = document.getElementById('selected-bot-name');
+            let activeChatbotId = '';
+            
+            if (selectedBotName) {
+                const chatbotOptions = document.querySelectorAll('.bot-dropdown-content a');
+                for (let option of chatbotOptions) {
+                    if (option.textContent.trim() === selectedBotName.textContent.trim()) {
+                        const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
+                        if (match && match[1]) {
+                            activeChatbotId = match[1];
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Show loading state
+            documentsList.innerHTML = `
+                <div style="text-align: center; padding: 30px;">
+                    <div class="spinner" style="width: 30px; height: 30px;"></div>
+                    <p>Loading your documents...</p>
+                </div>
+            `;
+            
+            // Fetch documents from the server
+            fetch('/documents/user-documents')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Filter documents to only show those for the active chatbot
+                    let filteredDocuments = data.documents || [];
+                    if (activeChatbotId) {
+                        filteredDocuments = filteredDocuments.filter(doc => doc.chatbot_id === activeChatbotId);
+                    }
+                    
+                    // Update document stats
+                    updateDocumentStats(filteredDocuments);
+                    
+                    // Clear the container
+                    documentsList.innerHTML = '';
+                    
+                    if (filteredDocuments.length > 0) {
+                        // Hide the "no documents" message
+                        if (noDocumentsMessage) {
+                            noDocumentsMessage.style.display = 'none';
+                        }
+                        
+                        // Add each document to the list
+                        filteredDocuments.forEach(doc => {
+                            documentsList.appendChild(createDocumentElement(doc));
+                        });
+                    } else {
+                        // Show the "no documents" message
+                        if (noDocumentsMessage) {
+                            noDocumentsMessage.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading documents:', error);
+                    documentsList.innerHTML = `
+                        <div style="text-align: center; padding: 30px;">
+                            <p style="color: red;">Error loading documents. Please try again.</p>
+                        </div>
+                    `;
+                });
+        }
+
+
         // Page navigation
         function openPage(pageId) {
             // Hide all pages
@@ -1005,6 +1185,11 @@
 <script>
 
 // Custom Modal Functions
+// Global variables for document management
+let activeDocId = null;
+let activeChatbotId = null;
+
+// Custom Modal Functions
 function showDeleteModal() {
     const modal = document.getElementById('deleteConfirmModal');
     if (modal) {
@@ -1037,184 +1222,6 @@ function closeDocumentModal() {
     }
 }
 
-
-// Sources Tab JavaScript
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if we're on the Sources tab
-    const sourcesTab = document.getElementById('sources');
-    if (!sourcesTab) return;
-    
-    // Document tracking variables
-    let activeDocId = null;
-    let activeChatbotId = null;
-    
-    // File upload elements
-    const fileInput = document.getElementById('file-upload-input');
-    const selectFilesBtn = document.getElementById('select-files-btn');
-    const dropzone = document.getElementById('dropzone');
-    const uploadBox = document.querySelector('.upload-box');
-    
-    // Initialize the file upload button
-    if (selectFilesBtn && fileInput) {
-        selectFilesBtn.addEventListener('click', function() {
-            fileInput.click();
-        });
-    }
-    
-    // File input change handler
-    if (fileInput) {
-        fileInput.addEventListener('change', function() {
-            if (fileInput.files && fileInput.files.length > 0) {
-                uploadFiles(fileInput.files);
-            }
-        });
-    }
-    
-    // Drag and drop handlers
-    if (uploadBox) {
-        uploadBox.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            this.style.borderColor = '#0d6efd';
-            this.style.backgroundColor = '#f0f8ff';
-        });
-        
-        uploadBox.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            this.style.borderColor = '#ccc';
-            this.style.backgroundColor = '#f9f9f9';
-        });
-        
-        uploadBox.addEventListener('drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            this.style.borderColor = '#ccc';
-            this.style.backgroundColor = '#f9f9f9';
-            
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                uploadFiles(e.dataTransfer.files);
-            }
-        });
-    }
-    
-    // Retrain agent button
-    const retrainBtn = document.getElementById('retrain-agent-btn');
-    if (retrainBtn) {
-        retrainBtn.addEventListener('click', function() {
-            retrainAgent();
-        });
-    }
-    
-    // Delete confirmation button
-    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-    if (confirmDeleteBtn) {
-        confirmDeleteBtn.addEventListener('click', function() {
-            if (activeDocId && activeChatbotId) {
-                deleteDocument(activeDocId, activeChatbotId);
-                closeDeleteModal();
-            }
-        });
-    }
-    
-    // Load documents when the tab is shown
-    loadDocumentsWhenVisible();
-    
-    // Add listener for tab navigation
-    document.addEventListener('click', function(e) {
-        const sourcesTabLink = document.querySelector('a[onclick="openPage(\'sources\')"]');
-        if (e.target === sourcesTabLink || (sourcesTabLink && sourcesTabLink.contains(e.target))) {
-            loadDocumentsWhenVisible();
-        }
-    });
-    
-    // Function to load documents when tab becomes visible
-    function loadDocumentsWhenVisible() {
-        if (sourcesTab.classList.contains('active')) {
-            loadDocuments();
-        }
-    }
-    
-    // Main function to load documents
-    function loadDocuments() {
-        const documentsList = document.getElementById('documents-list');
-        const noDocumentsMessage = document.getElementById('no-documents-message');
-        
-        if (!documentsList) return;
-        
-        // Get the currently selected chatbot ID
-        const selectedBotName = document.getElementById('selected-bot-name');
-        let activeChatbotId = '';
-        
-        if (selectedBotName) {
-            const chatbotOptions = document.querySelectorAll('.bot-dropdown-content a');
-            for (let option of chatbotOptions) {
-                if (option.textContent.trim() === selectedBotName.textContent.trim()) {
-                    const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
-                    if (match && match[1]) {
-                        activeChatbotId = match[1];
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // Show loading state
-        documentsList.innerHTML = `
-            <div style="text-align: center; padding: 30px;">
-                <div class="spinner" style="width: 30px; height: 30px;"></div>
-                <p>Loading your documents...</p>
-            </div>
-        `;
-        
-        // Fetch documents from the server
-        fetch('/documents/user-documents')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Filter documents to only show those for the active chatbot
-                let filteredDocuments = data.documents || [];
-                if (activeChatbotId) {
-                    filteredDocuments = filteredDocuments.filter(doc => doc.chatbot_id === activeChatbotId);
-                }
-                
-                // Update document stats
-                updateDocumentStats(filteredDocuments);
-                
-                // Clear the container
-                documentsList.innerHTML = '';
-                
-                if (filteredDocuments.length > 0) {
-                    // Hide the "no documents" message
-                    if (noDocumentsMessage) {
-                        noDocumentsMessage.style.display = 'none';
-                    }
-                    
-                    // Add each document to the list
-                    filteredDocuments.forEach(doc => {
-                        documentsList.appendChild(createDocumentElement(doc));
-                    });
-                } else {
-                    // Show the "no documents" message
-                    if (noDocumentsMessage) {
-                        noDocumentsMessage.style.display = 'block';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error loading documents:', error);
-                documentsList.innerHTML = `
-                    <div style="text-align: center; padding: 30px;">
-                        <p style="color: red;">Error loading documents. Please try again.</p>
-                    </div>
-                `;
-            });
-    }
-    
 // Create a document element with debug console logs
 function createDocumentElement(doc) {
     const elem = document.createElement('div');
@@ -1282,35 +1289,101 @@ function createDocumentElement(doc) {
     
     return elem;
 }
+
+// Sources Tab JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the Sources tab
+    const sourcesTab = document.getElementById('sources');
+    if (!sourcesTab) return;
     
-    // Update document stats
-    function updateDocumentStats(documents) {
-        const totalFilesEl = document.getElementById('total-files');
-        const totalSizeEl = document.getElementById('total-size');
-        
-        if (!totalFilesEl || !totalSizeEl) return;
-        
-        const count = documents.length;
-        totalFilesEl.textContent = count;
-        
-        if (count > 0) {
-            // Calculate total size (rough estimate)
-            let totalSize = 0;
-            documents.forEach(doc => {
-                totalSize += doc.content ? doc.content.length : 0;
-            });
-            
-            // Format size
-            if (totalSize > 1024 * 1024) {
-                totalSizeEl.textContent = Math.round(totalSize / (1024 * 1024) * 10) / 10 + ' MB';
-            } else {
-                totalSizeEl.textContent = Math.round(totalSize / 1024) + ' KB';
-            }
-        } else {
-            totalSizeEl.textContent = '0 KB';
-        }
+    // File upload elements
+    const fileInput = document.getElementById('file-upload-input');
+    const selectFilesBtn = document.getElementById('select-files-btn');
+    const dropzone = document.getElementById('dropzone');
+    const uploadBox = document.querySelector('.upload-box');
+    
+    // Initialize the file upload button
+    if (selectFilesBtn && fileInput) {
+        selectFilesBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
     }
     
+    // File input change handler
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files && fileInput.files.length > 0) {
+            uploadFiles(fileInput.files);
+            // Reset the file input value
+            fileInput.value = '';
+        }
+    });
+
+    
+    // Drag and drop handlers
+    if (uploadBox) {
+        uploadBox.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.style.borderColor = '#0d6efd';
+            this.style.backgroundColor = '#f0f8ff';
+        });
+        
+        uploadBox.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.style.borderColor = '#ccc';
+            this.style.backgroundColor = '#f9f9f9';
+        });
+        
+        uploadBox.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.style.borderColor = '#ccc';
+            this.style.backgroundColor = '#f9f9f9';
+            
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                uploadFiles(e.dataTransfer.files);
+            }
+        });
+    }
+    
+    // Retrain agent button
+    const retrainBtn = document.getElementById('retrain-agent-btn');
+    if (retrainBtn) {
+        retrainBtn.addEventListener('click', function() {
+            retrainAgent();
+        });
+    }
+    
+    // Delete confirmation button
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', function() {
+            if (activeDocId && activeChatbotId) {
+                deleteDocument(activeDocId, activeChatbotId);
+                closeDeleteModal();
+            }
+        });
+    }
+    
+    // Load documents when the tab is shown
+    loadDocumentsWhenVisible();
+    
+    // Add listener for tab navigation
+    document.addEventListener('click', function(e) {
+        const sourcesTabLink = document.querySelector('a[onclick="openPage(\'sources\')"]');
+        if (e.target === sourcesTabLink || (sourcesTabLink && sourcesTabLink.contains(e.target))) {
+            loadDocumentsWhenVisible();
+        }
+    });
+    
+    // Function to load documents when tab becomes visible
+    function loadDocumentsWhenVisible() {
+        if (sourcesTab.classList.contains('active')) {
+            loadDocuments();
+        }
+    }
+
 // Upload files
 function uploadFiles(files) {
     if (!files || files.length === 0) return;
@@ -1371,6 +1444,9 @@ function uploadFiles(files) {
     formData.append('document', files[0]);
     formData.append('chatbot_id', chatbotId);
     
+    // Store the file name
+    const fileName = files[0].name;
+    
     // Create and send request
     const xhr = new XMLHttpRequest();
     
@@ -1379,9 +1455,12 @@ function uploadFiles(files) {
         if (xhr.status === 200) {
             try {
                 const response = JSON.parse(xhr.responseText);
+                console.log('Server response:', response); // Debugging statement
                 if (response.success) {
                     // Start polling for processing completion
-                    checkDocumentProcessingImproved(response.doc_id, uploadBox, files[0].name);
+                    checkDocumentProcessingImproved(response.doc_id, uploadBox, fileName);
+                    // Reset the file input value after successful upload
+                    document.getElementById('file-upload-input').value = '';
                 } else {
                     alert('Error: ' + (response.error || 'Upload failed'));
                     // Restore the original state
@@ -1389,6 +1468,7 @@ function uploadFiles(files) {
                     if (processingEl) processingEl.style.display = 'none';
                 }
             } catch (e) {
+                console.error('Error parsing server response:', e); // Debugging statement
                 alert('Error: Invalid server response');
                 // Restore the original state
                 if (uploadBox) uploadBox.style.display = 'block';
@@ -1487,7 +1567,6 @@ function checkDocumentProcessingImproved(docId, uploadBoxEl, fileName, attempts 
         });
 }
 
-
 // Check document processing status (using dropzone version)
 function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, startTime = Date.now()) {
     // Maximum number of attempts (5 minutes)
@@ -1575,130 +1654,131 @@ function checkDocumentProcessingWithDropzone(docId, dropzoneEl, attempts = 0, st
         });
 }
     
-    // View document
-    function viewDocument(docId) {
-        fetch(`/documents/document/${docId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(doc => {
-                const titleEl = document.getElementById('documentTitle');
-                const contentEl = document.getElementById('documentContent');
-                
-                if (titleEl) titleEl.textContent = doc.doc_name;
-                if (contentEl) contentEl.textContent = doc.content || 'No content available';
-                
-                // Show document modal
-                showDocumentModal();
-            })
-            .catch(error => {
-                console.error('Error viewing document:', error);
-                alert('Error loading document content. Please try again.');
-            });
-    }
-    
-    // Delete document
-    function deleteDocument(docId, chatbotId) {
-        // Get CSRF token from meta tag
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        
-        fetch(`/documents/document/${docId}`, {
-            method: 'DELETE',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({ chatbot_id: chatbotId })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(result => {
-            if (result.success) {
-                loadDocuments();
-            } else {
-                alert('Error deleting document: ' + (result.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error deleting document:', error);
-            alert('Error deleting document. Please try again.');
-        });
-    }
-    
-    // Retrain agent
-    function retrainAgent() {
-        const selectedBotName = document.getElementById('selected-bot-name');
-        if (!selectedBotName) {
-            alert('No chatbot selected for retraining.');
-            return;
-        }
-        
-        // Find the chatbot ID
-        let chatbotId = '';
-        const chatbotOptions = document.querySelectorAll('.bot-dropdown-content a');
-        
-        for (let option of chatbotOptions) {
-            if (option.textContent.trim() === selectedBotName.textContent.trim()) {
-                const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
-                if (match && match[1]) {
-                    chatbotId = match[1];
-                    break;
-                }
-            }
-        }
-        
-        if (!chatbotId) {
-            alert('Error: Could not determine which chatbot to retrain.');
-            return;
-        }
-        
-        // Show loading state
-        const originalBtnText = retrainBtn.textContent;
-        retrainBtn.disabled = true;
-        retrainBtn.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; margin-right: 5px;"></span> Retraining...';
-        
-        // Get CSRF token from meta tag
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        
-        // Send retraining request
-        fetch(`/documents/retrain-agent/${chatbotId}`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(result => {
-            if (result.success) {
-                alert('Agent retrained successfully');
-            } else {
-                alert('Error retraining agent: ' + (result.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error retraining agent:', error);
-            alert('Error retraining agent. Please try again.');
-        })
-        .finally(() => {
-            // Reset button state
-            retrainBtn.disabled = false;
-            retrainBtn.textContent = originalBtnText;
-        });
-    }
-
 });
+
+// View document
+function viewDocument(docId) {
+    fetch(`/documents/document/${docId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(doc => {
+            const titleEl = document.getElementById('documentTitle');
+            const contentEl = document.getElementById('documentContent');
+            
+            if (titleEl) titleEl.textContent = doc.doc_name;
+            if (contentEl) contentEl.textContent = doc.content || 'No content available';
+            
+            // Show document modal
+            showDocumentModal();
+        })
+        .catch(error => {
+            console.error('Error viewing document:', error);
+            alert('Error loading document content. Please try again.');
+        });
+}
+
+// Delete document
+function deleteDocument(docId, chatbotId) {
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    fetch(`/documents/document/${docId}`, {
+        method: 'DELETE',
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ chatbot_id: chatbotId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(result => {
+        if (result.success) {
+            loadDocuments();
+        } else {
+            alert('Error deleting document: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting document:', error);
+        alert('Error deleting document. Please try again.');
+    });
+}
+
+// Retrain agent
+function retrainAgent() {
+    const selectedBotName = document.getElementById('selected-bot-name');
+    if (!selectedBotName) {
+        alert('No chatbot selected for retraining.');
+        return;
+    }
+    
+    // Find the chatbot ID
+    let chatbotId = '';
+    const chatbotOptions = document.querySelectorAll('.bot-dropdown-content a');
+    
+    for (let option of chatbotOptions) {
+        if (option.textContent.trim() === selectedBotName.textContent.trim()) {
+            const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
+            if (match && match[1]) {
+                chatbotId = match[1];
+                break;
+            }
+        }
+    }
+    
+    if (!chatbotId) {
+        alert('Error: Could not determine which chatbot to retrain.');
+        return;
+    }
+    
+    // Show loading state
+    const retrainBtn = document.getElementById('retrain-agent-btn');
+    const originalBtnText = retrainBtn.textContent;
+    retrainBtn.disabled = true;
+    retrainBtn.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; margin-right: 5px;"></span> Retraining...';
+    
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Send retraining request
+    fetch(`/documents/retrain-agent/${chatbotId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(result => {
+        if (result.success) {
+            alert('Agent retrained successfully');
+        } else {
+            alert('Error retraining agent: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error retraining agent:', error);
+        alert('Error retraining agent. Please try again.');
+    })
+    .finally(() => {
+        // Reset button state
+        retrainBtn.disabled = false;
+        retrainBtn.textContent = originalBtnText;
+    });
+}
 </script>
 
 <script>
