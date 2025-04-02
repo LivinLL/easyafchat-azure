@@ -533,7 +533,8 @@ def get_lead_form_config(chatbot_id):
         
         # Return only lead form related configuration
         lead_form_config = {
-            'lead_form_title': config.get('lead_form_title', 'Want us to reach out? Need to keep this chat going? Just fill out the info below.')
+            'lead_form_title': config.get('lead_form_title', 'Want us to reach out? Need to keep this chat going? Just fill out the info below.'),
+            'show_lead_form': config.get('show_lead_form', 'Yes')  # Default to 'Yes' if not set
         }
         
         return jsonify(lead_form_config)
