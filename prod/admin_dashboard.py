@@ -2518,31 +2518,43 @@ def nuclear_reset(id):
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('BEGIN')
             
-            # 1. Delete all documents for this chatbot
+            # 1. Delete all chat messages for this chatbot (added this step)
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM chat_messages WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('DELETE FROM chat_messages WHERE chatbot_id = ?', (id,))
+            
+            # 2. Delete all documents for this chatbot
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('DELETE FROM documents WHERE chatbot_id = %s', (id,))
             else:
                 cursor.execute('DELETE FROM documents WHERE chatbot_id = ?', (id,))
                 
-            # 2. Delete all leads for this chatbot
+            # 3. Delete all leads for this chatbot
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('DELETE FROM leads WHERE chatbot_id = %s', (id,))
             else:
                 cursor.execute('DELETE FROM leads WHERE chatbot_id = ?', (id,))
                 
-            # 3. Delete any chatbot configurations
+            # 4. Delete any chatbot configurations
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('DELETE FROM chatbot_config WHERE chatbot_id = %s', (id,))
             else:
                 cursor.execute('DELETE FROM chatbot_config WHERE chatbot_id = ?', (id,))
             
-            # 4. Remove the company record first (break the foreign key relationship)
+            # 5. Delete any chatbot incidents
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM chatbot_incidents WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('DELETE FROM chatbot_incidents WHERE chatbot_id = ?', (id,))
+            
+            # 6. Remove the company record (break the foreign key relationship)
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('DELETE FROM companies WHERE chatbot_id = %s', (id,))
             else:
                 cursor.execute('DELETE FROM companies WHERE chatbot_id = ?', (id,))
             
-            # 5. Now see if we need to delete the user (if they don't have any other chatbots)
+            # 7. Now see if we need to delete the user (if they don't have any other chatbots)
             if user_id:
                 if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                     # Check if this user has other chatbots
