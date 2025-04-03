@@ -145,3 +145,7 @@ goeasychat/
 - **Multi-language Support**: Expand to additional languages
 - **Integration API**: Connect with CRM and marketing tools
 - **Advanced Chatbot Logic**: Custom workflows and decision trees
+
+## Google Privacy and Terms of Service
+https://policies.google.com/privacy
+https://policies.google.com/terms

@@ -1024,7 +1024,8 @@ chatForm.addEventListener('submit', async (e) => {
     // If this is the first user message, store it and create a thread ID
     if (messages.length <= 1) {
         initialQuestion = message;
-        threadId = `thread_${Date.now()}`;
+        // Generate UUID instead of timestamp-based ID
+        threadId = crypto.randomUUID ? crypto.randomUUID() : `thread_${Date.now()}`;
         console.log('First user message. Thread ID:', threadId, 'Initial question:', initialQuestion);
     }
 

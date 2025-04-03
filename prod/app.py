@@ -1521,11 +1521,24 @@ def embed_chat():
             # Ensure first message includes system prompt by forcing conversation reset
             chat_handlers[chatbot_id].reset_conversation()
             
-            # If a thread_id was provided, set it in the handler
+            # Always set the thread_id in the handler to the one provided by frontend
             if thread_id:
+                # Ensure we're using the frontend-provided thread_id
                 chat_handlers[chatbot_id].thread_id = thread_id
+                print(f"Using frontend-provided thread_id: {thread_id}")
+            else:
+                # Log a warning if no thread_id was provided
+                print(f"Warning: No thread_id provided in request, using generated: {chat_handlers[chatbot_id].thread_id}")
 
         handler = chat_handlers[chatbot_id]
+        
+        # Ensure handler is using the frontend thread_id for every message in the conversation
+        if thread_id and handler.thread_id != thread_id:
+            print(f"Thread ID mismatch - Request: {thread_id}, Handler: {handler.thread_id}")
+            # Always use the frontend-provided thread_id for consistency
+            handler.thread_id = thread_id
+            print(f"Updated handler thread_id to match request: {thread_id}")
+        
         messages = handler.format_messages(user_message, namespace=namespace)
         
         response = openai_client.chat.completions.create(
@@ -1542,7 +1555,7 @@ def embed_chat():
         # Get the current conversation state for the frontend
         conversation_state = handler.get_conversation_state()
         
-        # Debugging information - add this to see what's happening
+        # Debugging information
         print(f"Conversation state: {conversation_state}")
         
         # Extract token usage from OpenAI response
@@ -1560,16 +1573,15 @@ def embed_chat():
             except Exception as token_error:
                 print(f"Error extracting token usage: {str(token_error)}")
         
-        # Save message to database
+        # Save message to database - ALWAYS use the frontend-provided thread_id
         try:
-            # If thread_id is missing, use the one from conversation state
-            if not thread_id and conversation_state.get("thread_id"):
-                thread_id = conversation_state["thread_id"]
-                
+            # Always use the thread_id from request if available
+            current_thread_id = thread_id or handler.thread_id
+            
             # Save the message exchange
             save_result = save_chat_message(
                 chatbot_id=chatbot_id,
-                thread_id=thread_id,
+                thread_id=current_thread_id,  # Use consistent thread_id
                 user_message=user_message,
                 assistant_response=assistant_response,
                 prompt_tokens=prompt_tokens,
@@ -1585,9 +1597,10 @@ def embed_chat():
             print(f"Error saving chat message: {str(save_error)}")
             # Continue with response even if saving fails
         
+        # Return the same thread_id that was provided in the request
         return jsonify({
             "response": assistant_response,
-            "thread_id": conversation_state["thread_id"],
+            "thread_id": thread_id or handler.thread_id,  # Return consistent thread_id
             "is_first_interaction": conversation_state["is_first_interaction"],
             "message_count": conversation_state["message_count"],
             "initial_question": conversation_state.get("initial_question")
