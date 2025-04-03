@@ -626,6 +626,152 @@
     }
 }
 
+
+/* Chat Logs Styles */
+.chat-logs-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.chat-logs-content {
+    display: flex;
+    height: 650px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: white;
+}
+
+.chat-logs-threads {
+    width: 35%;
+    border-right: 1px solid #e0e0e0;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+}
+
+.chat-logs-messages {
+    width: 65%;
+    overflow-y: auto;
+    background-color: white;
+    position: relative;
+}
+
+.thread-item {
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.thread-item:hover {
+    background-color: #f0f0f0;
+}
+
+.thread-item.active {
+    background-color: #e9ecef;
+    border-left: 3px solid #0d6efd;
+}
+
+.thread-preview {
+    font-size: 14px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 5px;
+}
+
+.thread-time {
+    font-size: 12px;
+    color: #888;
+    margin-top: 5px;
+}
+
+.message-container {
+    padding: 20px;
+}
+
+.chat-message {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    max-width: 80%;
+}
+
+.chat-message.user {
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.chat-message.assistant {
+    align-self: flex-start;
+    margin-right: auto;
+}
+
+.message-bubble {
+    padding: 10px 15px;
+    border-radius: 15px;
+    position: relative;
+    word-wrap: break-word;
+}
+
+.message-bubble.user {
+    background-color: #0d6efd;
+    color: white;
+    border-top-right-radius: 5px;
+}
+
+.message-bubble.assistant {
+    background-color: #e9ecef;
+    color: #212529;
+    border-top-left-radius: 5px;
+    padding-left: 40px;
+}
+
+.message-bubble.assistant::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: 24px;
+    height: 24px;
+    background-image: url('https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png');
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+}
+
+.message-time {
+    font-size: 11px;
+    margin-top: 3px;
+    color: #888;
+    align-self: flex-start;
+}
+
+.user .message-time {
+    align-self: flex-end;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .chat-logs-content {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .chat-logs-threads,
+    .chat-logs-messages {
+        width: 100%;
+        height: 400px;
+    }
+    
+    .chat-logs-threads {
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -792,9 +938,44 @@
 
         <!-- Chat Logs Page -->
         <div id="chat-logs" class="page-content">
-            <div class="placeholder-content">
-                <h2>Chat Logs</h2>
-                <p>View your chatbot's conversation history here.</p>
+            <div class="chat-logs-container">
+                <div class="chat-logs-header d-flex justify-content-between align-items-center mb-4" style="margin-top: -40px;">
+                    <h2>Chat Logs</h2>
+                </div>
+                
+                <div class="chat-logs-content">
+                    <div class="chat-logs-threads">
+                        <div id="threadsLoadingIndicator" style="text-align: center; padding: 30px; display: none;">
+                            <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto;"></div>
+                            <p class="mt-3">Loading threads...</p>
+                        </div>
+                        
+                        <div id="noThreadsMessage" style="text-align: center; padding: 50px 20px; display: none;">
+                            <h4>No chat threads found</h4>
+                            <p class="text-muted">When visitors chat with your bot, conversations will appear here.</p>
+                        </div>
+                        
+                        <div id="threadsList">
+                            <!-- Threads will be loaded here dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="chat-logs-messages">
+                        <div id="messagesLoadingIndicator" style="text-align: center; padding: 30px; display: none;">
+                            <div class="spinner" style="width: 30px; height: 30px; margin: 0 auto;"></div>
+                            <p class="mt-3">Loading conversation...</p>
+                        </div>
+                        
+                        <div id="noMessagesMessage" style="text-align: center; padding: 50px 20px; display: none;">
+                            <h4>Select a conversation</h4>
+                            <p class="text-muted">Choose a thread from the left to view the conversation.</p>
+                        </div>
+                        
+                        <div id="messagesList">
+                            <!-- Messages will be loaded here dynamically -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1880,6 +2061,401 @@ async function deleteLead(leadId) {
     }
 });
 </script>
+
+<script>
+    // Chat Logs Tab JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the dashboard page
+    if (!document.getElementById('chat-logs')) return;
+    
+    // Global variables for chat logs
+    let activeThreadId = null;
+    let chatbotConfig = null;
+    
+    // Initialize handlers for tab clicks
+    const chatLogsTabLink = document.querySelector('a[onclick="openPage(\'chat-logs\')"]');
+    if (chatLogsTabLink) {
+        chatLogsTabLink.addEventListener('click', function() {
+            loadChatThreads();
+        });
+    }
+    
+    // Load chat threads when tab becomes active
+    function loadChatThreads() {
+        // Get the currently selected chatbot ID
+        const selectedBotElement = document.getElementById('selected-bot-name');
+        let chatbotId = '';
+        
+        if (selectedBotElement) {
+            const botDropdownOptions = document.querySelectorAll('.bot-dropdown-content a');
+            for (let option of botDropdownOptions) {
+                if (option.textContent.trim() === selectedBotElement.textContent.trim()) {
+                    const match = option.getAttribute('onclick').match(/selectBot\('([^']+)'/);
+                    if (match && match[1]) {
+                        chatbotId = match[1];
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!chatbotId) {
+            // No chatbot selected, show empty state
+            document.getElementById('threadsList').innerHTML = '';
+            document.getElementById('messagesList').innerHTML = '';
+            document.getElementById('noThreadsMessage').style.display = 'block';
+            document.getElementById('threadsLoadingIndicator').style.display = 'none';
+            document.getElementById('noMessagesMessage').style.display = 'block';
+            document.getElementById('messagesLoadingIndicator').style.display = 'none';
+            return;
+        }
+        
+        // Fetch chatbot configuration for avatar and styling
+        fetchChatbotConfig(chatbotId);
+        
+        // Show loading indicator and hide messages
+        document.getElementById('threadsList').innerHTML = '';
+        document.getElementById('noThreadsMessage').style.display = 'none';
+        document.getElementById('threadsLoadingIndicator').style.display = 'block';
+        
+        // Clear message area and show placeholder
+        document.getElementById('messagesList').innerHTML = '';
+        document.getElementById('noMessagesMessage').style.display = 'block';
+        document.getElementById('messagesLoadingIndicator').style.display = 'none';
+        
+        // Fetch threads from the server
+        fetch(`/metrics/chatbot-threads/${chatbotId}?limit=50&since=30d`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading indicator
+                document.getElementById('threadsLoadingIndicator').style.display = 'none';
+                
+                // Process the threads data
+                if (!data.threads || data.threads.length === 0) {
+                    document.getElementById('noThreadsMessage').style.display = 'block';
+                    return;
+                }
+                
+                // Clear any previous content
+                const threadsContainer = document.getElementById('threadsList');
+                threadsContainer.innerHTML = '';
+                
+                // Sort threads by last_activity (newest first)
+                const sortedThreads = data.threads.sort((a, b) => {
+                    return new Date(b.last_activity) - new Date(a.last_activity);
+                });
+                
+                // Add threads to the container
+                sortedThreads.forEach((thread, index) => {
+                    const threadElement = createThreadElement(thread);
+                    threadsContainer.appendChild(threadElement);
+                    
+                    // Auto-select the first (newest) thread
+                    if (index === 0) {
+                        threadElement.classList.add('active');
+                        activeThreadId = thread.thread_id;
+                        loadThreadMessages(activeThreadId);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error loading chat threads:', error);
+                document.getElementById('threadsLoadingIndicator').style.display = 'none';
+                document.getElementById('noThreadsMessage').style.display = 'block';
+                document.getElementById('noThreadsMessage').innerHTML = `
+                    <h4>Error loading threads</h4>
+                    <p class="text-muted">There was a problem loading the chat threads. Please try again.</p>
+                `;
+            });
+    }
+    
+    // Fetch chatbot configuration
+    async function fetchChatbotConfig(chatbotId) {
+        try {
+            const response = await fetch(`/config/chatbot/${chatbotId}`);
+            
+            // Default config if API call fails
+            if (!response.ok) {
+                chatbotConfig = {
+                    icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
+                    chat_title: 'Agent d-A-v-I-d'
+                };
+                return;
+            }
+            
+            const config = await response.json();
+            
+            // Validate the icon URL
+            if (config.icon_image_url && 
+                typeof config.icon_image_url === 'string' && 
+                config.icon_image_url.trim() !== '' &&
+                (config.icon_image_url.startsWith('https://') || config.icon_image_url.startsWith('http://'))) {
+                // Update CSS for assistant messages
+                const newAvatarRule = `.message-bubble.assistant::before { background-image: url('${config.icon_image_url}'); }`;
+                
+                // Check if we already have a style element for this
+                let styleEl = document.getElementById('chat-avatar-style');
+                if (!styleEl) {
+                    styleEl = document.createElement('style');
+                    styleEl.id = 'chat-avatar-style';
+                    document.head.appendChild(styleEl);
+                }
+                
+                styleEl.textContent = newAvatarRule;
+            }
+            
+            chatbotConfig = config;
+            
+        } catch (error) {
+            console.error('Error fetching chatbot config:', error);
+            chatbotConfig = {
+                icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
+                chat_title: 'Agent d-A-v-I-d'
+            };
+        }
+    }
+    
+    // Create a thread element
+    function createThreadElement(thread) {
+        const elem = document.createElement('div');
+        elem.className = 'thread-item';
+        elem.setAttribute('data-thread-id', thread.thread_id);
+        
+        // Get the first message preview (need to fetch thread messages)
+        let previewText = 'Loading preview...';
+        
+        // Format the last activity time as relative time
+        const lastActivity = new Date(thread.last_activity);
+        const relativeTime = formatRelativeTime(lastActivity);
+        
+        elem.innerHTML = `
+            <div>
+                <!-- <strong>Thread ${shortenThreadId(thread.thread_id)}</strong> -->
+                <div class="thread-preview">${previewText}</div>
+                <div class="thread-time">${relativeTime} · ${thread.message_count} messages</div>
+            </div>
+        `;
+        
+        // Fetch thread preview (first message)
+        fetchThreadPreview(thread.thread_id, elem);
+        
+        // Add event listener for thread selection
+        elem.addEventListener('click', function() {
+            // Skip if already active
+            if (this.classList.contains('active')) return;
+            
+            // Remove active class from all threads
+            document.querySelectorAll('.thread-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active class to this thread
+            this.classList.add('active');
+            
+            // Load messages for this thread
+            activeThreadId = thread.thread_id;
+            loadThreadMessages(activeThreadId);
+        });
+        
+        return elem;
+    }
+    
+    // Fetch preview for a thread
+    async function fetchThreadPreview(threadId, threadElement) {
+        try {
+            const response = await fetch(`/metrics/thread-messages/${threadId}?limit=1`);
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            if (data.messages && data.messages.length > 0) {
+                const firstMessage = data.messages[0];
+                const previewText = firstMessage.user_message.substring(0, 50) + 
+                    (firstMessage.user_message.length > 50 ? '...' : '');
+                
+                // Update the preview text
+                const previewElement = threadElement.querySelector('.thread-preview');
+                if (previewElement) {
+                    previewElement.textContent = previewText;
+                }
+            }
+        } catch (error) {
+            console.error(`Error fetching preview for thread ${threadId}:`, error);
+        }
+    }
+    
+    // Load messages for a thread
+    function loadThreadMessages(threadId) {
+        // Show loading indicator
+        document.getElementById('messagesList').innerHTML = '';
+        document.getElementById('noMessagesMessage').style.display = 'none';
+        document.getElementById('messagesLoadingIndicator').style.display = 'block';
+        
+        fetch(`/metrics/thread-messages/${threadId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading indicator
+                document.getElementById('messagesLoadingIndicator').style.display = 'none';
+                
+                // Process the messages data
+                if (!data.messages || data.messages.length === 0) {
+                    document.getElementById('noMessagesMessage').style.display = 'block';
+                    return;
+                }
+                
+                // Prepare messages container
+                const messagesContainer = document.getElementById('messagesList');
+                messagesContainer.innerHTML = '';
+                
+                // Create container for proper styling
+                const messageContainer = document.createElement('div');
+                messageContainer.className = 'message-container';
+                messagesContainer.appendChild(messageContainer);
+                
+                // Add messages to the container
+                data.messages.forEach(message => {
+                    // Add user message
+                    if (message.user_message) {
+                        const userMessageElement = createMessageElement(message.user_message, 'user', new Date(message.created_at));
+                        messageContainer.appendChild(userMessageElement);
+                    }
+                    
+                    // Add assistant message
+                    if (message.assistant_response) {
+                        const assistantMessageElement = createMessageElement(message.assistant_response, 'assistant', new Date(message.created_at));
+                        messageContainer.appendChild(assistantMessageElement);
+                    }
+                });
+                
+                // Scroll to the bottom of the messages
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error loading thread messages:', error);
+                document.getElementById('messagesLoadingIndicator').style.display = 'none';
+                document.getElementById('noMessagesMessage').style.display = 'block';
+                document.getElementById('noMessagesMessage').innerHTML = `
+                    <h4>Error loading messages</h4>
+                    <p class="text-muted">There was a problem loading the conversation. Please try again.</p>
+                `;
+            });
+    }
+    
+    // Create a message element
+    function createMessageElement(content, role, timestamp) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+        
+        const messageBubble = document.createElement('div');
+        messageBubble.className = `message-bubble ${role}`;
+        
+        // Handle markdown for assistant messages
+        if (role === 'assistant') {
+            // Check if marked library is available
+            if (typeof marked !== 'undefined') {
+                messageBubble.innerHTML = marked.parse(content);
+            } else {
+                // Fallback to simple text with line breaks
+                messageBubble.textContent = content;
+            }
+        } else {
+            // User messages are plain text
+            messageBubble.textContent = content;
+        }
+        
+        messageDiv.appendChild(messageBubble);
+        
+        // Add timestamp
+        const timeElement = document.createElement('div');
+        timeElement.className = 'message-time';
+        timeElement.textContent = formatMessageTime(timestamp);
+        messageDiv.appendChild(timeElement);
+        
+        return messageDiv;
+    }
+    
+    // Format relative time (e.g., "2 hours ago")
+    function formatRelativeTime(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        if (diffSecs < 60) {
+            return diffSecs + ' sec' + (diffSecs !== 1 ? 's' : '') + ' ago';
+        } else if (diffMins < 60) {
+            return diffMins + ' min' + (diffMins !== 1 ? 's' : '') + ' ago';
+        } else if (diffHours < 24) {
+            return diffHours + ' hour' + (diffHours !== 1 ? 's' : '') + ' ago';
+        } else if (diffDays < 30) {
+            return diffDays + ' day' + (diffDays !== 1 ? 's' : '') + ' ago';
+        } else {
+            // Format as date
+            return date.toLocaleDateString();
+        }
+    }
+    
+    // Format message time
+    function formatMessageTime(date) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + 
+               ' · ' + 
+               date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    
+    // Shorten thread ID for display
+    function shortenThreadId(threadId) {
+        // If it starts with "thread_", remove it
+        if (threadId.startsWith('thread_')) {
+            threadId = threadId.substring(7);
+        }
+        
+        // If it's a timestamp, convert to date
+        if (!isNaN(threadId)) {
+            const date = new Date(parseInt(threadId));
+            return date.toLocaleDateString();
+        }
+        
+        // Otherwise, just show first 8 chars
+        return threadId.substring(0, 8);
+    }
+    
+    // Initialize when a chatbot is selected
+    function initChatLogs() {
+        document.querySelectorAll('.bot-dropdown-content a').forEach(option => {
+            option.addEventListener('click', function() {
+                if (document.getElementById('chat-logs').classList.contains('active')) {
+                    // If chat logs tab is active, reload threads for the new chatbot
+                    setTimeout(loadChatThreads, 100);
+                }
+            });
+        });
+    }
+    
+    // Initialize chat logs module
+    initChatLogs();
+    
+    // If chat logs tab is active on page load, load threads
+    if (document.getElementById('chat-logs').classList.contains('active')) {
+        loadChatThreads();
+    }
+});
+</script>
+
 
 <script>
     window.davesEasySupportChatConfig = {

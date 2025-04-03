@@ -648,6 +648,184 @@ def get_chatbot_metrics(chatbot_id):
             "message": "Internal server error"
         }), 500
 
+# Route for getting chatbot threads with time filter
+@metrics_blueprint.route('/chatbot-threads/<chatbot_id>', methods=['GET'])
+def get_chatbot_threads_route(chatbot_id):
+    """API endpoint to get threads for a chatbot with optional time filter"""
+    try:
+        # Get query parameters
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        since = request.args.get('since', None)
+        
+        # Parse the since parameter (30d, 7d, etc.)
+        days_cutoff = 30  # Default to 30 days
+        if since:
+            if since.endswith('d'):
+                try:
+                    days_cutoff = int(since[:-1])
+                except ValueError:
+                    pass
+        
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Different query based on database type
+            if DB_TYPE.lower() == 'postgresql':
+                # PostgreSQL query with date filtering
+                query = f"""
+                    SELECT thread_id, 
+                           MIN(created_at) as started_at,
+                           MAX(created_at) as last_activity,
+                           COUNT(*) as message_count
+                    FROM {DB_SCHEMA}.chat_messages 
+                    WHERE chatbot_id = %s
+                    AND created_at >= NOW() - INTERVAL '{days_cutoff} days'
+                    GROUP BY thread_id
+                    ORDER BY last_activity DESC
+                    LIMIT %s OFFSET %s
+                """
+                cursor.execute(query, (chatbot_id, limit, offset))
+            else:
+                # SQLite query with date filtering
+                query = """
+                    SELECT thread_id, 
+                           MIN(created_at) as started_at,
+                           MAX(created_at) as last_activity,
+                           COUNT(*) as message_count
+                    FROM chat_messages 
+                    WHERE chatbot_id = ?
+                    AND created_at >= datetime('now', ?)
+                    GROUP BY thread_id
+                    ORDER BY last_activity DESC
+                    LIMIT ? OFFSET ?
+                """
+                cursor.execute(query, (chatbot_id, f'-{days_cutoff} days', limit, offset))
+            
+            # Fetch all results
+            rows = cursor.fetchall()
+            
+            # Convert rows to dictionaries
+            columns = [column[0] for column in cursor.description]
+            threads = []
+            
+            for row in rows:
+                thread = dict(zip(columns, row))
+                
+                # Convert datetime objects to strings if needed
+                if isinstance(thread.get('started_at'), (datetime.datetime, datetime.date)):
+                    thread['started_at'] = thread['started_at'].isoformat()
+                
+                if isinstance(thread.get('last_activity'), (datetime.datetime, datetime.date)):
+                    thread['last_activity'] = thread['last_activity'].isoformat()
+                
+                threads.append(thread)
+            
+            return jsonify({
+                "status": "success",
+                "threads": threads
+            })
+            
+    except Exception as e:
+        print(f"[db_metrics] Error getting chatbot threads: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "status": "error",
+            "message": "Error retrieving threads",
+            "error": str(e)
+        }), 500
+
+# Route for getting messages for a specific thread
+# Used on dashboard for Chat Logs tab
+@metrics_blueprint.route('/thread-messages/<thread_id>', methods=['GET'])
+def get_thread_messages_route(thread_id):
+    """API endpoint to get messages for a specific thread"""
+    try:
+        # Get query parameters
+        limit = request.args.get('limit', None, type=int)
+        
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Different query based on database type and limit
+            if DB_TYPE.lower() == 'postgresql':
+                # PostgreSQL query
+                if limit:
+                    query = f"""
+                        SELECT message_id, chatbot_id, thread_id, user_message, 
+                               assistant_response, prompt_tokens, completion_tokens, 
+                               total_tokens, user_feedback, created_at
+                        FROM {DB_SCHEMA}.chat_messages 
+                        WHERE thread_id = %s
+                        ORDER BY created_at ASC
+                        LIMIT %s
+                    """
+                    cursor.execute(query, (thread_id, limit))
+                else:
+                    query = f"""
+                        SELECT message_id, chatbot_id, thread_id, user_message, 
+                               assistant_response, prompt_tokens, completion_tokens, 
+                               total_tokens, user_feedback, created_at
+                        FROM {DB_SCHEMA}.chat_messages 
+                        WHERE thread_id = %s
+                        ORDER BY created_at ASC
+                    """
+                    cursor.execute(query, (thread_id,))
+            else:
+                # SQLite query
+                if limit:
+                    query = """
+                        SELECT message_id, chatbot_id, thread_id, user_message, 
+                               assistant_response, prompt_tokens, completion_tokens, 
+                               total_tokens, user_feedback, created_at
+                        FROM chat_messages 
+                        WHERE thread_id = ?
+                        ORDER BY created_at ASC
+                        LIMIT ?
+                    """
+                    cursor.execute(query, (thread_id, limit))
+                else:
+                    query = """
+                        SELECT message_id, chatbot_id, thread_id, user_message, 
+                               assistant_response, prompt_tokens, completion_tokens, 
+                               total_tokens, user_feedback, created_at
+                        FROM chat_messages 
+                        WHERE thread_id = ?
+                        ORDER BY created_at ASC
+                    """
+                    cursor.execute(query, (thread_id,))
+            
+            # Fetch all results
+            rows = cursor.fetchall()
+            
+            # Convert rows to dictionaries
+            columns = [column[0] for column in cursor.description]
+            messages = []
+            
+            for row in rows:
+                message = dict(zip(columns, row))
+                
+                # Convert datetime object to string if needed
+                if isinstance(message.get('created_at'), (datetime.datetime, datetime.date)):
+                    message['created_at'] = message['created_at'].isoformat()
+                
+                messages.append(message)
+            
+            return jsonify({
+                "status": "success",
+                "thread_id": thread_id,
+                "messages": messages
+            })
+            
+    except Exception as e:
+        print(f"[db_metrics] Error getting thread messages: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "status": "error",
+            "message": "Error retrieving messages",
+            "error": str(e)
+        }), 500
+
 # Route for getting daily usage over time
 @metrics_blueprint.route('/daily-metrics/<chatbot_id>', methods=['GET'])
 def get_daily_metrics(chatbot_id):
