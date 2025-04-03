@@ -2389,24 +2389,52 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Format relative time (e.g., "2 hours ago")
     function formatRelativeTime(date) {
-        const now = new Date();
-        const diffMs = now - date;
-        const diffSecs = Math.floor(diffMs / 1000);
-        const diffMins = Math.floor(diffSecs / 60);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-        
-        if (diffSecs < 60) {
-            return diffSecs + ' sec' + (diffSecs !== 1 ? 's' : '') + ' ago';
-        } else if (diffMins < 60) {
-            return diffMins + ' min' + (diffMins !== 1 ? 's' : '') + ' ago';
-        } else if (diffHours < 24) {
-            return diffHours + ' hour' + (diffHours !== 1 ? 's' : '') + ' ago';
-        } else if (diffDays < 30) {
-            return diffDays + ' day' + (diffDays !== 1 ? 's' : '') + ' ago';
-        } else {
-            // Format as date
-            return date.toLocaleDateString();
+        try {
+            const now = new Date();
+            
+            // Ensure the date is valid
+            if (!(date instanceof Date) || isNaN(date.getTime())) {
+                console.error('Invalid date object:', date);
+                return 'unknown time';
+            }
+            
+            // Calculate the time difference in milliseconds
+            let diffMs = now - date;
+            
+            // Handle timezone issues - if we get negative diff, assume it's a timezone problem
+            // and treat it as a small positive difference
+            if (diffMs < 0) {
+                // Check if it's just a small negative difference (likely timezone-related)
+                if (diffMs > -86400000) { // Within 24 hours
+                    console.log('Correcting negative time difference (likely timezone issue):', diffMs);
+                    // Absolute value - treat it as recent
+                    diffMs = Math.abs(diffMs);
+                } else {
+                    // If it's a large negative difference, it might be a future date
+                    return 'in the future';
+                }
+            }
+            
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSecs / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+            
+            if (diffSecs < 60) {
+                return (diffSecs === 0) ? 'just now' : diffSecs + ' sec' + (diffSecs !== 1 ? 's' : '') + ' ago';
+            } else if (diffMins < 60) {
+                return diffMins + ' min' + (diffMins !== 1 ? 's' : '') + ' ago';
+            } else if (diffHours < 24) {
+                return diffHours + ' hour' + (diffHours !== 1 ? 's' : '') + ' ago';
+            } else if (diffDays < 30) {
+                return diffDays + ' day' + (diffDays !== 1 ? 's' : '') + ' ago';
+            } else {
+                // Format as date
+                return date.toLocaleDateString();
+            }
+        } catch (error) {
+            console.error('Error formatting relative time:', error);
+            return 'unknown time';
         }
     }
     
