@@ -300,12 +300,21 @@ def get_chatbot_threads(chatbot_id: str, limit: int = 50, offset: int = 0) -> Li
             for row in rows:
                 thread = dict(zip(columns, row))
                 
+                # Added debugging to see timestamps before conversion
+                print(f"[DEBUG] Thread {thread['thread_id']} - Raw last_activity: {thread['last_activity']}, Type: {type(thread['last_activity'])}")
+                
                 # Convert datetime objects to strings if needed
                 if isinstance(thread.get('started_at'), (datetime.datetime, datetime.date)):
+                    # Debug original datetime before conversion
+                    print(f"[DEBUG] Thread {thread['thread_id']} - started_at before: {thread['started_at']}, TZ info: {thread['started_at'].tzinfo}")
                     thread['started_at'] = thread['started_at'].isoformat()
+                    print(f"[DEBUG] Thread {thread['thread_id']} - started_at after: {thread['started_at']}")
                 
                 if isinstance(thread.get('last_activity'), (datetime.datetime, datetime.date)):
+                    # Debug original datetime before conversion
+                    print(f"[DEBUG] Thread {thread['thread_id']} - last_activity before: {thread['last_activity']}, TZ info: {thread['last_activity'].tzinfo}")
                     thread['last_activity'] = thread['last_activity'].isoformat()
+                    print(f"[DEBUG] Thread {thread['thread_id']} - last_activity after: {thread['last_activity']}")
                 
                 threads.append(thread)
                 

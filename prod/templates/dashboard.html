@@ -2080,7 +2080,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Load chat threads when tab becomes active
     function loadChatThreads() {
         // Get the currently selected chatbot ID
         const selectedBotElement = document.getElementById('selected-bot-name');
@@ -2132,6 +2131,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
+                // Enhanced debugging for thread timestamps
+                console.log('===== THREAD DATA FROM API =====');
+                console.log('Raw API response:', data);
+                
+                if (data.threads && data.threads.length > 0) {
+                    const thread = data.threads[0]; // Look at first thread
+                    console.log('First thread data:', thread);
+                    console.log('Thread ID:', thread.thread_id);
+                    console.log('Last activity (raw):', thread.last_activity);
+                    console.log('Last activity format:', typeof thread.last_activity);
+                    
+                    // Try parsing it different ways
+                    console.log('Parsed as local:', new Date(thread.last_activity).toString());
+                    console.log('Parsed as local ISO:', new Date(thread.last_activity).toISOString());
+                    console.log('Current local time:', new Date().toString());
+                    
+                    // Calculate UTC offset for local timezone
+                    const offset = new Date().getTimezoneOffset();
+                    console.log('Local timezone offset (minutes):', offset);
+                    console.log('===== END THREAD DATA DEBUG =====');
+                }
+                
                 // Hide loading indicator
                 document.getElementById('threadsLoadingIndicator').style.display = 'none';
                 
@@ -2147,7 +2168,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Sort threads by last_activity (newest first)
                 const sortedThreads = data.threads.sort((a, b) => {
-                    return new Date(b.last_activity) - new Date(a.last_activity);
+                    return Date.parse(b.last_activity) - Date.parse(a.last_activity);
                 });
                 
                 // Add threads to the container
@@ -2220,50 +2241,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Create a thread element
-    function createThreadElement(thread) {
-        const elem = document.createElement('div');
-        elem.className = 'thread-item';
-        elem.setAttribute('data-thread-id', thread.thread_id);
-        
-        // Get the first message preview (need to fetch thread messages)
-        let previewText = 'Loading preview...';
-        
-        // Format the last activity time as relative time
-        const lastActivity = new Date(thread.last_activity);
-        const relativeTime = formatRelativeTime(lastActivity);
-        
-        elem.innerHTML = `
-            <div>
-                <!-- <strong>Thread ${shortenThreadId(thread.thread_id)}</strong> -->
-                <div class="thread-preview">${previewText}</div>
-                <div class="thread-time">${relativeTime} · ${thread.message_count} messages</div>
-            </div>
-        `;
-        
-        // Fetch thread preview (first message)
-        fetchThreadPreview(thread.thread_id, elem);
-        
-        // Add event listener for thread selection
-        elem.addEventListener('click', function() {
-            // Skip if already active
-            if (this.classList.contains('active')) return;
-            
-            // Remove active class from all threads
-            document.querySelectorAll('.thread-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            // Add active class to this thread
-            this.classList.add('active');
-            
-            // Load messages for this thread
-            activeThreadId = thread.thread_id;
-            loadThreadMessages(activeThreadId);
+// Create a thread element
+function createThreadElement(thread) {
+    const elem = document.createElement('div');
+    elem.className = 'thread-item';
+    elem.setAttribute('data-thread-id', thread.thread_id);
+
+    // Get the first message preview (need to fetch thread messages)
+    let previewText = 'Loading preview...';
+
+    // Format the last activity time as relative time
+    const lastActivity = new Date(thread.last_activity);
+    const relativeTime = formatRelativeTime(lastActivity.toISOString());
+
+    elem.innerHTML = `
+        <div>
+            <div class="thread-preview">${previewText}</div>
+            <div class="thread-time">${relativeTime} · ${thread.message_count} messages</div>
+        </div>
+    `;
+
+    // Fetch thread preview (first message)
+    fetchThreadPreview(thread.thread_id, elem);
+
+    // Add event listener for thread selection
+    elem.addEventListener('click', function() {
+        // Skip if already active
+        if (this.classList.contains('active')) return;
+
+        // Remove active class from all threads
+        document.querySelectorAll('.thread-item').forEach(item => {
+            item.classList.remove('active');
         });
-        
-        return elem;
-    }
+
+        // Add active class to this thread
+        this.classList.add('active');
+
+        // Load messages for this thread
+        activeThreadId = thread.thread_id;
+        loadThreadMessages(activeThreadId);
+    });
+
+    return elem;
+}
+
+
+
+
     
     // Fetch preview for a thread
     async function fetchThreadPreview(threadId, threadElement) {
@@ -2292,7 +2316,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Load messages for a thread
     function loadThreadMessages(threadId) {
         // Show loading indicator
         document.getElementById('messagesList').innerHTML = '';
@@ -2309,6 +2332,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 // Hide loading indicator
                 document.getElementById('messagesLoadingIndicator').style.display = 'none';
+                
+                // Debug raw data from server to understand created_at format
+                console.log('THREAD MESSAGES RAW DATA:', data);
+                if (data.messages && data.messages.length > 0) {
+                    console.log('First message created_at:', data.messages[0].created_at);
+                    console.log('First message created_at type:', typeof data.messages[0].created_at);
+                }
                 
                 // Process the messages data
                 if (!data.messages || data.messages.length === 0) {
@@ -2387,56 +2417,80 @@ document.addEventListener('DOMContentLoaded', function() {
         return messageDiv;
     }
     
-    // Format relative time (e.g., "2 hours ago")
-    function formatRelativeTime(date) {
-        try {
-            const now = new Date();
-            
-            // Ensure the date is valid
-            if (!(date instanceof Date) || isNaN(date.getTime())) {
-                console.error('Invalid date object:', date);
-                return 'unknown time';
-            }
-            
-            // Calculate the time difference in milliseconds
-            let diffMs = now - date;
-            
-            // Handle timezone issues - if we get negative diff, assume it's a timezone problem
-            // and treat it as a small positive difference
-            if (diffMs < 0) {
-                // Check if it's just a small negative difference (likely timezone-related)
-                if (diffMs > -86400000) { // Within 24 hours
-                    console.log('Correcting negative time difference (likely timezone issue):', diffMs);
-                    // Absolute value - treat it as recent
-                    diffMs = Math.abs(diffMs);
-                } else {
-                    // If it's a large negative difference, it might be a future date
-                    return 'in the future';
-                }
-            }
-            
-            const diffSecs = Math.floor(diffMs / 1000);
-            const diffMins = Math.floor(diffSecs / 60);
-            const diffHours = Math.floor(diffMins / 60);
-            const diffDays = Math.floor(diffHours / 24);
-            
-            if (diffSecs < 60) {
-                return (diffSecs === 0) ? 'just now' : diffSecs + ' sec' + (diffSecs !== 1 ? 's' : '') + ' ago';
-            } else if (diffMins < 60) {
-                return diffMins + ' min' + (diffMins !== 1 ? 's' : '') + ' ago';
-            } else if (diffHours < 24) {
-                return diffHours + ' hour' + (diffHours !== 1 ? 's' : '') + ' ago';
-            } else if (diffDays < 30) {
-                return diffDays + ' day' + (diffDays !== 1 ? 's' : '') + ' ago';
-            } else {
-                // Format as date
-                return date.toLocaleDateString();
-            }
-        } catch (error) {
-            console.error('Error formatting relative time:', error);
+// Format relative time (e.g., "2 hours ago")
+function formatRelativeTime(dateStr) {
+    try {
+        const now = new Date();
+        let timestamp;
+        
+        if (typeof dateStr !== 'string') {
+            console.error('Invalid date input type:', typeof dateStr);
             return 'unknown time';
         }
+        
+        // Handle different timestamp formats
+        if (dateStr.includes(' ') && !dateStr.includes('T')) {
+            // Raw SQL format (YYYY-MM-DD HH:MM:SS) - assume UTC
+            const utcStr = dateStr.replace(' ', 'T') + 'Z';
+            timestamp = new Date(utcStr);
+            console.log('Format #1 - SQL to UTC:', dateStr, '->', utcStr, '->', timestamp.toString());
+        } 
+        else if (dateStr.includes('T') && dateStr.includes('Z')) {
+            // Already ISO format with Z - explicitly parse as UTC
+            timestamp = new Date(dateStr);
+            
+            // Fix for timezone offset issue - convert to actual local time
+            // Subtract timezone offset to get actual time
+            const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+            timestamp = new Date(timestamp.getTime() - offsetMs);
+            
+            console.log('Format #2 - ISO with Z (fixed):', dateStr, '->', timestamp.toString());
+        }
+        else {
+            // Other formats - let JavaScript handle
+            timestamp = new Date(dateStr);
+            console.log('Format #3 - Other:', dateStr, '->', timestamp.toString());
+        }
+        
+        // Ensure the date is valid
+        if (isNaN(timestamp.getTime())) {
+            console.error('Invalid date string:', dateStr);
+            return 'unknown time';
+        }
+
+        // Calculate time difference - now with accurate timestamp
+        const diffMs = now - timestamp;
+        
+        // Debug info
+        console.log('Final time calculation:');
+        console.log('- Original string:', dateStr);
+        console.log('- Parsed timestamp:', timestamp.toString());
+        console.log('- Current time:', now.toString());
+        console.log('- Time difference (ms):', diffMs);
+        
+        // Standard time difference calculations
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffSecs < 60) {
+            return 'just now';
+        } else if (diffMins < 60) {
+            return diffMins + ' min' + (diffMins !== 1 ? 's' : '') + ' ago';
+        } else if (diffHours < 24) {
+            return diffHours + ' hour' + (diffHours !== 1 ? 's' : '') + ' ago';
+        } else if (diffDays < 30) {
+            return diffDays + ' day' + (diffDays !== 1 ? 's' : '') + ' ago';
+        } else {
+            // Format as date
+            return timestamp.toLocaleDateString();
+        }
+    } catch (error) {
+        console.error('Error formatting relative time:', error);
+        return 'unknown time';
     }
+}
     
     // Format message time
     function formatMessageTime(date) {
