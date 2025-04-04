@@ -2333,13 +2333,6 @@ function createThreadElement(thread) {
                 // Hide loading indicator
                 document.getElementById('messagesLoadingIndicator').style.display = 'none';
                 
-                // Debug raw data from server to understand created_at format
-                console.log('THREAD MESSAGES RAW DATA:', data);
-                if (data.messages && data.messages.length > 0) {
-                    console.log('First message created_at:', data.messages[0].created_at);
-                    console.log('First message created_at type:', typeof data.messages[0].created_at);
-                }
-                
                 // Process the messages data
                 if (!data.messages || data.messages.length === 0) {
                     document.getElementById('noMessagesMessage').style.display = 'block';
@@ -2357,15 +2350,40 @@ function createThreadElement(thread) {
                 
                 // Add messages to the container
                 data.messages.forEach(message => {
+                    // Parse and adjust the timestamp for proper timezone handling
+                    let timestamp;
+                    if (message.created_at) {
+                        const dateStr = message.created_at;
+                        // Use the same timestamp correction logic we added to formatRelativeTime
+                        if (dateStr.includes(' ') && !dateStr.includes('T')) {
+                            // Raw SQL format (YYYY-MM-DD HH:MM:SS) - assume UTC
+                            const utcStr = dateStr.replace(' ', 'T') + 'Z';
+                            timestamp = new Date(utcStr);
+                        } 
+                        else if (dateStr.includes('T') && dateStr.includes('Z')) {
+                            // Already ISO format with Z - explicitly parse as UTC and fix timezone
+                            timestamp = new Date(dateStr);
+                            // Fix for timezone offset issue - convert to actual local time
+                            const offsetMs = new Date().getTimezoneOffset() * 60 * 1000;
+                            timestamp = new Date(timestamp.getTime() - offsetMs);
+                        }
+                        else {
+                            // Other formats - let JavaScript handle
+                            timestamp = new Date(dateStr);
+                        }
+                    } else {
+                        timestamp = new Date(); // Fallback to current time if no timestamp
+                    }
+                    
                     // Add user message
                     if (message.user_message) {
-                        const userMessageElement = createMessageElement(message.user_message, 'user', new Date(message.created_at));
+                        const userMessageElement = createMessageElement(message.user_message, 'user', timestamp);
                         messageContainer.appendChild(userMessageElement);
                     }
                     
                     // Add assistant message
                     if (message.assistant_response) {
-                        const assistantMessageElement = createMessageElement(message.assistant_response, 'assistant', new Date(message.created_at));
+                        const assistantMessageElement = createMessageElement(message.assistant_response, 'assistant', timestamp);
                         messageContainer.appendChild(assistantMessageElement);
                     }
                 });
