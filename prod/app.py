@@ -1473,6 +1473,7 @@ def embed_chat():
         chatbot_id = data.get("chatbot_id")
         user_message = data.get("message")
         thread_id = data.get("thread_id")  # Get the thread_id from the request
+        model_settings = data.get("model_settings", {})  # Get custom model settings if provided
 
         # Get IP address and user agent for metrics - Updated approach
         ip_address = request.remote_addr
@@ -1491,15 +1492,15 @@ def embed_chat():
             
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('''
-                    SELECT pinecone_namespace
-                    FROM companies
-                    WHERE chatbot_id = %s
+                    SELECT pinecone_namespace, c.chatbot_id
+                    FROM companies c
+                    WHERE c.chatbot_id = %s
                 ''', (chatbot_id,))
             else:
                 cursor.execute('''
-                    SELECT pinecone_namespace
-                    FROM companies
-                    WHERE chatbot_id = ?
+                    SELECT pinecone_namespace, c.chatbot_id
+                    FROM companies c 
+                    WHERE c.chatbot_id = ?
                 ''', (chatbot_id,))
                 
             row = cursor.fetchone()
@@ -1514,6 +1515,36 @@ def embed_chat():
         is_support_bot = thread_id and thread_id.startswith("support_")
         if is_support_bot:
             print(f"Support bot request detected - using namespace: {namespace}")
+        
+        # Get system prompt from chatbot_config if it exists
+        system_prompt = None
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('''
+                    SELECT system_prompt, chat_model, temperature, max_tokens
+                    FROM chatbot_config
+                    WHERE chatbot_id = %s
+                ''', (chatbot_id,))
+            else:
+                cursor.execute('''
+                    SELECT system_prompt, chat_model, temperature, max_tokens
+                    FROM chatbot_config
+                    WHERE chatbot_id = ?
+                ''', (chatbot_id,))
+                
+            config_row = cursor.fetchone()
+            
+            if config_row:
+                system_prompt = config_row[0]
+                # Override model settings from frontend if not provided
+                if not model_settings:
+                    model_settings = {
+                        "model": config_row[1] or "gpt-4o",
+                        "temperature": float(config_row[2]) if config_row[2] is not None else 0.7,
+                        "max_tokens": int(config_row[3]) if config_row[3] is not None else 500
+                    }
         
         # Initialize chat handler with namespace if it doesn't exist
         if chatbot_id not in chat_handlers:
@@ -1532,6 +1563,11 @@ def embed_chat():
 
         handler = chat_handlers[chatbot_id]
         
+        # If a custom system prompt is provided, override the default one
+        if system_prompt:
+            print(f"Using custom system prompt for chatbot {chatbot_id}")
+            handler.SYSTEM_PROMPT = system_prompt
+        
         # Ensure handler is using the frontend thread_id for every message in the conversation
         if thread_id and handler.thread_id != thread_id:
             print(f"Thread ID mismatch - Request: {thread_id}, Handler: {handler.thread_id}")
@@ -1541,11 +1577,19 @@ def embed_chat():
         
         messages = handler.format_messages(user_message, namespace=namespace)
         
+        # Extract model settings from the request or use defaults
+        chat_model = model_settings.get("model", "gpt-4o")
+        temperature = model_settings.get("temperature", 0.7)
+        max_tokens = model_settings.get("max_tokens", 500)
+        
+        # Log the model settings being used
+        print(f"Using model settings - model: {chat_model}, temperature: {temperature}, max_tokens: {max_tokens}")
+        
         response = openai_client.chat.completions.create(
-            model="gpt-4o",
+            model=chat_model,
             messages=messages,
-            max_tokens=500,
-            temperature=0.7
+            max_tokens=max_tokens,
+            temperature=temperature
         )
 
         assistant_response = response.choices[0].message.content

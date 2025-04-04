@@ -153,7 +153,12 @@ function initializeChatbot() {
                 const defaults = {
                     icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
                     chat_title: 'Agent d-A-v-I-d',
-                    chat_subtitle: 'Hi there! 👋 How can I help you?'
+                    chat_subtitle: 'Hi there! 👋 How can I help you?',
+                    primary_color: '#0d6efd',
+                    accent_color: '#e9ecef',
+                    chat_model: 'gpt-4o',
+                    temperature: 0.7,
+                    max_tokens: 500
                 };
                 
                 if (!response.ok) {
@@ -195,13 +200,56 @@ function initializeChatbot() {
                     console.log('Using default chat subtitle: chat_subtitle is missing or invalid');
                 }
                 
+                // Validate primary_color - make sure it's a valid color format
+                if (config.primary_color && 
+                    typeof config.primary_color === 'string' && 
+                    config.primary_color.trim() !== '') {
+                    result.primary_color = config.primary_color;
+                } else {
+                    console.log('Using default primary color: primary_color is missing or invalid');
+                }
+                
+                // Validate accent_color - make sure it's a valid color format
+                if (config.accent_color && 
+                    typeof config.accent_color === 'string' && 
+                    config.accent_color.trim() !== '') {
+                    result.accent_color = config.accent_color;
+                } else {
+                    console.log('Using default accent color: accent_color is missing or invalid');
+                }
+                
+                // Validate chat model settings
+                if (config.chat_model && typeof config.chat_model === 'string' && config.chat_model.trim() !== '') {
+                    result.chat_model = config.chat_model;
+                }
+                
+                if (config.temperature !== undefined && config.temperature !== null) {
+                    const temp = parseFloat(config.temperature);
+                    if (!isNaN(temp) && temp >= 0 && temp <= 1) {
+                        result.temperature = temp;
+                    }
+                }
+                
+                if (config.max_tokens !== undefined && config.max_tokens !== null) {
+                    const tokens = parseInt(config.max_tokens);
+                    if (!isNaN(tokens) && tokens > 0) {
+                        result.max_tokens = tokens;
+                    }
+                }
+                
+                console.log('Using final config values:', result);
                 return result;
             } catch (error) {
                 console.error('Error fetching chatbot config:', error);
                 return {
                     icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
                     chat_title: 'Agent d-A-v-I-d',
-                    chat_subtitle: 'Hi there! 👋 How can I help you?'
+                    chat_subtitle: 'Hi there! 👋 How can I help you?',
+                    primary_color: '#0d6efd',
+                    accent_color: '#e9ecef',
+                    chat_model: 'gpt-4o',
+                    temperature: 0.7,
+                    max_tokens: 500
                 };
             }
         }
@@ -243,366 +291,371 @@ function initializeChatbot() {
             const style = document.createElement('style');
             // Check if this is the demo page
             const isDemoPage = window.location.pathname.includes('/demo/');
+            // Use the configured colors from chatbotConfig
+            const primaryColor = chatbotConfig.primary_color || '#0d6efd';
+            const accentColor = chatbotConfig.accent_color || '#e9ecef';
+            console.log(`Applying custom colors - Primary: ${primaryColor}, Accent: ${accentColor}`);
+
             style.textContent = `
                 .daves-chat-window {
-                position: ${config.mountTo ? 'absolute' : 'fixed'};
-                bottom: 100px;
-                right: 20px;
-                width: 400px;
-                height: ${isDemoPage && config.mountTo ? '500px' : '80vh'}; 
-                max-height: ${isDemoPage && config.mountTo ? '500px' : '800px'};
-                border-radius: 12px;
-                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-                display: flex !important;
-                flex-direction: column !important;
-                transition: all 0.3s ease;
-                z-index: ${isDemoPage ? '9999999' : '999999'};
-                overflow: hidden;
-                background-color: white !important;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-            }
+                    position: ${config.mountTo ? 'absolute' : 'fixed'};
+                    bottom: 100px;
+                    right: 20px;
+                    width: 400px;
+                    height: ${isDemoPage && config.mountTo ? '500px' : '80vh'}; 
+                    max-height: ${isDemoPage && config.mountTo ? '500px' : '800px'};
+                    border-radius: 12px;
+                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                    display: flex !important;
+                    flex-direction: column !important;
+                    transition: all 0.3s ease;
+                    z-index: ${isDemoPage ? '9999999' : '999999'};
+                    overflow: hidden;
+                    background-color: white !important;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+                }
 
-            .daves-chat-window .card-header {
-                background-color: #f3f5f7 !important;
-                border-bottom: 1px solid #e9ecef !important;
-                padding: 1rem !important;
-                display: flex !important;
-                justify-content: space-between !important;
-                align-items: center !important;
-            }
+                .daves-chat-window .card-header {
+                    background-color: #f3f5f7 !important;
+                    border-bottom: 1px solid #e9ecef !important;
+                    padding: 1rem !important;
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                }
 
-            /* Bottom align */
-            .daves-chat-window .card-header > div:last-child {
-                display: flex !important;
-                align-items: flex-end !important; /* Change from center to flex-end */
-                /* background-color: #e0f7fa !important; */ /* Light blue background */
-                padding: 5px !important;
-                border-radius: 4px !important;
-            }
+                /* Bottom align */
+                .daves-chat-window .card-header > div:last-child {
+                    display: flex !important;
+                    align-items: flex-end !important; /* Change from center to flex-end */
+                    /* background-color: #e0f7fa !important; */ /* Light blue background */
+                    padding: 5px !important;
+                    border-radius: 4px !important;
+                }
 
-            .daves-chat-window .card-body {
-                flex: 1 !important;
-                overflow-y: auto !important;
-                padding: 1rem !important;
-                background-color: white !important;
-            }
+                .daves-chat-window .card-body {
+                    flex: 1 !important;
+                    overflow-y: auto !important;
+                    padding: 1rem !important;
+                    background-color: white !important;
+                }
 
-            .daves-chat-window .card-footer {
-                background-color: #f3f5f7 !important;
-                border-top: 1px solid #e9ecef !important;
-                padding: 1rem !important;
-            }
+                .daves-chat-window .card-footer {
+                    background-color: #f3f5f7 !important;
+                    border-top: 1px solid #e9ecef !important;
+                    padding: 1rem !important;
+                }
 
-            @media (max-width: 767px) {
-                .daves-chat-window {
-                    width: 90%;
-                    right: 5%;
-                    height: 95vh;
-                    max-height: 600px;
+                @media (max-width: 767px) {
+                    .daves-chat-window {
+                        width: 90%;
+                        right: 5%;
+                        height: 95vh;
+                        max-height: 600px;
+                        bottom: 20px;
+                    }
+
+                    .daves-chat-window #daves-close-chat {
+                        font-size: 24px !important;
+                    }
+
+                    #daves-reset-chat svg {
+                        width: 20px !important;
+                        height: 20px !important;
+                    }
+                }
+
+                .daves-chat-bubble {
+                    position: ${config.mountTo ? 'absolute' : 'fixed'};
                     bottom: 20px;
+                    right: 20px;
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 50%;
+                    background-color: ${primaryColor} !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    cursor: pointer;
+                    transition: transform 0.3s ease;
+                    z-index: 999999;
+                    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
                 }
 
-                .daves-chat-window #daves-close-chat {
-                    font-size: 24px !important;
+                .daves-chat-bubble:hover {
+                    transform: scale(1.1);
                 }
 
-                #daves-reset-chat svg {
-                    width: 20px !important;
-                    height: 20px !important;
+                .daves-chat-bubble.active {
+                    transform: scale(0.9);
                 }
-            }
 
-            .daves-chat-bubble {
-                position: ${config.mountTo ? 'absolute' : 'fixed'};
-                bottom: 20px;
-                right: 20px;
-                width: 60px;
-                height: 60px;
-                border-radius: 50%;
-                background-color: #0d6efd !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                cursor: pointer;
-                transition: transform 0.3s ease;
-                z-index: 999999;
-                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-            }
+                #daves-chat-messages {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    gap: 1rem !important;
+                }
 
-            .daves-chat-bubble:hover {
-                transform: scale(1.1);
-            }
+                .daves-chat-message {
+                    margin-bottom: 1rem !important;
+                    padding: 0.75rem 1rem !important;
+                    border-radius: 12px !important;
+                    max-width: 80% !important;
+                    position: relative !important;
+                    text-align: left !important;
+                }
 
-            .daves-chat-bubble.active {
-                transform: scale(0.9);
-            }
+                .daves-chat-message.assistant {
+                    background-color: ${accentColor} !important;
+                    margin-right: auto !important;
+                    margin-left: 0 !important;
+                    padding-left: 2.5rem !important;
+                    color: #212529 !important;
+                }
 
-            #daves-chat-messages {
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 1rem !important;
-            }
+                .daves-chat-message.assistant::before {
+                    content: '';
+                    position: absolute !important;
+                    left: 0.5rem !important;
+                    top: 0.5rem !important;
+                    width: 24px !important;
+                    height: 24px !important;
+                    background-image: url('${iconImageUrl}');
+                    background-size: cover !important;
+                    background-position: center !important;
+                    border-radius: 50% !important;
+                }
 
-            .daves-chat-message {
-                margin-bottom: 1rem !important;
-                padding: 0.75rem 1rem !important;
-                border-radius: 12px !important;
-                max-width: 80% !important;
-                position: relative !important;
-                text-align: left !important;
-            }
+                .daves-chat-message.user {
+                    background-color: ${primaryColor} !important;
+                    margin-left: auto !important;
+                    margin-right: 0 !important;
+                    color: white !important;
+                }
 
-            .daves-chat-message.assistant {
-                background-color: #e9ecef !important;
-                margin-right: auto !important;
-                margin-left: 0 !important;
-                padding-left: 2.5rem !important;
-                color: #212529 !important;
-            }
+                .daves-chat-input {
+                    width: 85% !important;
+                    padding: 0.5rem 0.75rem !important;
+                    padding-right: 45px !important;
+                    border: 1px solid #dee2e6 !important;
+                    border-radius: 6px !important;
+                    background-color: white !important;
+                    color: #212529 !important;
+                    resize: none !important;
+                    min-height: 40px !important;
+                    line-height: 1.5 !important;
+                    font-size: 1rem !important;
+                }
 
-            .daves-chat-message.assistant::before {
-                content: '';
-                position: absolute !important;
-                left: 0.5rem !important;
-                top: 0.5rem !important;
-                width: 24px !important;
-                height: 24px !important;
-                background-image: url('${iconImageUrl}');
-                background-size: cover !important;
-                background-position: center !important;
-                border-radius: 50% !important;
-            }
+                .daves-chat-input:focus {
+                    border-color: #6c757d !important;
+                    box-shadow: none !important;
+                    outline: 0 !important;
+                    background-color: white !important;
+                }
 
-            .daves-chat-message.user {
-                background-color: #0d6efd !important;
-                margin-left: auto !important;
-                margin-right: 0 !important;
-                color: white !important;
-            }
+                .daves-chat-input::placeholder {
+                    font-size: 1.1rem !important;
+                }
 
-            .daves-chat-input {
-                width: 85% !important;
-                padding: 0.5rem 0.75rem !important;
-                padding-right: 45px !important;
-                border: 1px solid #dee2e6 !important;
-                border-radius: 6px !important;
-                background-color: white !important;
-                color: #212529 !important;
-                resize: none !important;
-                min-height: 40px !important;
-                line-height: 1.5 !important;
-                font-size: 1rem !important;
-            }
+                .send-icon-btn {
+                    position: absolute !important;
+                    right: 0 !important;
+                    top: 50% !important;
+                    transform: translateY(-50%) !important;
+                    padding: 6px !important;
+                    background: none !important;
+                    border: none !important;
+                    color: #495057 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    cursor: pointer !important;
+                }
 
-            .daves-chat-input:focus {
-                border-color: #6c757d !important;
-                box-shadow: none !important;
-                outline: 0 !important;
-                background-color: white !important;
-            }
+                .input-wrapper {
+                    position: relative !important;
+                    width: 100% !important;
+                }
 
-            .daves-chat-input::placeholder {
-                font-size: 1.1rem !important;
-            }
+                .daves-button {
+                    background: none !important;
+                    border: none !important;
+                    padding: 0.375rem !important;
+                    cursor: pointer !important;
+                    color: #6c757d !important;
+                }
 
-            .send-icon-btn {
-                position: absolute !important;
-                right: 0 !important;
-                top: 50% !important;
-                transform: translateY(-50%) !important;
-                padding: 6px !important;
-                background: none !important;
-                border: none !important;
-                color: #495057 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                cursor: pointer !important;
-            }
+                .daves-button:hover {
+                    color: #212529 !important;
+                }
 
-            .input-wrapper {
-                position: relative !important;
-                width: 100% !important;
-            }
+                #daves-close-chat {
+                    font-size: 16px !important;
+                }
 
-            .daves-button {
-                background: none !important;
-                border: none !important;
-                padding: 0.375rem !important;
-                cursor: pointer !important;
-                color: #6c757d !important;
-            }
+                .d-none {
+                    display: none !important;
+                }
 
-            .daves-button:hover {
-                color: #212529 !important;
-            }
+                /* Add markdown styling */
+                .daves-chat-message h1,
+                .daves-chat-message h2,
+                .daves-chat-message h3,
+                .daves-chat-message h4 {
+                    margin-top: 0.5rem !important;
+                    margin-bottom: 0.5rem !important;
+                    font-weight: 600 !important;
+                }
 
-            #daves-close-chat {
-                font-size: 16px !important;
-            }
+                .daves-chat-message p {
+                    margin-bottom: 0.5rem !important;
+                }
 
-            .d-none {
-                display: none !important;
-            }
+                .daves-chat-message ul,
+                .daves-chat-message ol {
+                    margin: 0.5rem 0 !important;
+                    padding-left: 1.5rem !important;
+                }
 
-            /* Add markdown styling */
-            .daves-chat-message h1,
-            .daves-chat-message h2,
-            .daves-chat-message h3,
-            .daves-chat-message h4 {
-                margin-top: 0.5rem !important;
-                margin-bottom: 0.5rem !important;
-                font-weight: 600 !important;
-            }
+                .daves-chat-message li {
+                    margin-bottom: 0.25rem !important;
+                }
 
-            .daves-chat-message p {
-                margin-bottom: 0.5rem !important;
-            }
+                .daves-chat-message code {
+                    background: rgba(0, 0, 0, 0.1) !important;
+                    padding: 0.2rem 0.4rem !important;
+                    border-radius: 0.25rem !important;
+                    font-family: monospace !important;
+                }
 
-            .daves-chat-message ul,
-            .daves-chat-message ol {
-                margin: 0.5rem 0 !important;
-                padding-left: 1.5rem !important;
-            }
+                .daves-chat-message pre {
+                    background: rgba(0, 0, 0, 0.1) !important;
+                    padding: 0.75rem !important;
+                    border-radius: 0.5rem !important;
+                    overflow-x: auto !important;
+                    margin: 0.5rem 0 !important;
+                }
 
-            .daves-chat-message li {
-                margin-bottom: 0.25rem !important;
-            }
+                /* Lead Form Styles */
+                .daves-lead-form {
+                    background-color: #f8f9fa !important;
+                    padding: 1rem !important;
+                    border-radius: 8px !important;
+                    margin: 0.5rem 0 !important;
+                    border: 1px solid #dee2e6 !important;
+                    max-width: 100% !important;
+                }
 
-            .daves-chat-message code {
-                background: rgba(0, 0, 0, 0.1) !important;
-                padding: 0.2rem 0.4rem !important;
-                border-radius: 0.25rem !important;
-                font-family: monospace !important;
-            }
+                .daves-lead-form h3 {
+                    margin-top: 0 !important;
+                    margin-bottom: 0.75rem !important;
+                    font-size: 1.1rem !important;
+                    color: #212529 !important;
+                }
 
-            .daves-chat-message pre {
-                background: rgba(0, 0, 0, 0.1) !important;
-                padding: 0.75rem !important;
-                border-radius: 0.5rem !important;
-                overflow-x: auto !important;
-                margin: 0.5rem 0 !important;
-            }
+                .daves-lead-form-field {
+                    margin-bottom: 0.75rem !important;
+                }
 
-            /* Lead Form Styles */
-            .daves-lead-form {
-                background-color: #f8f9fa !important;
-                padding: 1rem !important;
-                border-radius: 8px !important;
-                margin: 0.5rem 0 !important;
-                border: 1px solid #dee2e6 !important;
-                max-width: 100% !important;
-            }
+                .daves-lead-form-field input {
+                    width: 100% !important;
+                    padding: 0.5rem !important;
+                    border: 1px solid #ced4da !important;
+                    border-radius: 4px !important;
+                    font-size: 0.9rem !important;
+                }
 
-            .daves-lead-form h3 {
-                margin-top: 0 !important;
-                margin-bottom: 0.75rem !important;
-                font-size: 1.1rem !important;
-                color: #212529 !important;
-            }
+                .daves-lead-form-field input:focus {
+                    outline: none !important;
+                    border-color: #80bdff !important;
+                    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+                }
 
-            .daves-lead-form-field {
-                margin-bottom: 0.75rem !important;
-            }
+                .daves-lead-form-submit {
+                    background-color: ${primaryColor} !important;
+                    color: white !important;
+                    border: none !important;
+                    border-radius: 4px !important;
+                    padding: 0.5rem 1rem !important;
+                    cursor: pointer !important;
+                    font-size: 0.9rem !important;
+                    font-weight: 500 !important;
+                    transition: background-color 0.2s !important;
+                }
 
-            .daves-lead-form-field input {
-                width: 100% !important;
-                padding: 0.5rem !important;
-                border: 1px solid #ced4da !important;
-                border-radius: 4px !important;
-                font-size: 0.9rem !important;
-            }
+                .daves-lead-form-submit:hover {
+                    background-color: ${primaryColor === '#0d6efd' ? '#0b5ed7' : primaryColor} !important;
+                }
 
-            .daves-lead-form-field input:focus {
-                outline: none !important;
-                border-color: #80bdff !important;
-                box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
-            }
+                .daves-lead-form-submit:disabled {
+                    background-color: #6c757d !important;
+                    cursor: not-allowed !important;
+                }
 
-            .daves-lead-form-submit {
-                background-color: #0d6efd !important;
-                color: white !important;
-                border: none !important;
-                border-radius: 4px !important;
-                padding: 0.5rem 1rem !important;
-                cursor: pointer !important;
-                font-size: 0.9rem !important;
-                font-weight: 500 !important;
-                transition: background-color 0.2s !important;
-            }
+                .daves-lead-form-close {
+                    background: none !important;
+                    border: none !important;
+                    color: #6c757d !important;
+                    font-size: 0.8rem !important;
+                    margin-left: 0.5rem !important;
+                    cursor: pointer !important;
+                    text-decoration: underline !important;
+                }
 
-            .daves-lead-form-submit:hover {
-                background-color: #0b5ed7 !important;
-            }
+                .daves-lead-form-close:hover {
+                    color: #495057 !important;
+                }
 
-            .daves-lead-form-submit:disabled {
-                background-color: #6c757d !important;
-                cursor: not-allowed !important;
-            }
+                .daves-lead-form-thanks {
+                    padding: 1rem !important;
+                    background-color: #d4edda !important;
+                    color: #155724 !important;
+                    border-radius: 4px !important;
+                    margin: 0.5rem 0 !important;
+                    text-align: center !important;
+                }
 
-            .daves-lead-form-close {
-                background: none !important;
-                border: none !important;
-                color: #6c757d !important;
-                font-size: 0.8rem !important;
-                margin-left: 0.5rem !important;
-                cursor: pointer !important;
-                text-decoration: underline !important;
-            }
-
-            .daves-lead-form-close:hover {
-                color: #495057 !important;
-            }
-
-            .daves-lead-form-thanks {
-                padding: 1rem !important;
-                background-color: #d4edda !important;
-                color: #155724 !important;
-                border-radius: 4px !important;
-                margin: 0.5rem 0 !important;
-                text-align: center !important;
-            }
-
-            /* Initial popup with delay */
-            .daves-initial-popup {
-                position: absolute;
-                top: -10px;
-                left: -240px;
-                width: 240px;
-                padding: 10px 15px;
-                background-color: white;
-                border: 1px solid #e9ecef;
-                border-radius: 8px;
-                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-                transform: translateY(-100%);
-                opacity: 0;
-                transition: opacity 0.3s ease;
-                z-index: 999998;
-                font-size: 14px;
-                text-align: left;
-                color: #333;
-            }
-
-            .daves-initial-popup:after {
-                content: "";
-                position: absolute;
-                bottom: -8px;
-                right: 20px;
-                width: 0;
-                height: 0;
-                border-left: 8px solid transparent;
-                border-right: 8px solid transparent;
-                border-top: 8px solid white;
-            }
-
-            @media (max-width: 767px) {
+                /* Initial popup with delay */
                 .daves-initial-popup {
-                    left: auto;
-                    right: 10px;
-                    width: 200px;
+                    position: absolute;
+                    top: -10px;
+                    left: -240px;
+                    width: 240px;
+                    padding: 10px 15px;
+                    background-color: white;
+                    border: 1px solid #e9ecef;
+                    border-radius: 8px;
+                    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+                    transform: translateY(-100%);
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                    z-index: 999998;
+                    font-size: 14px;
+                    text-align: left;
+                    color: #333;
                 }
-            }
-        `;
+
+                .daves-initial-popup:after {
+                    content: "";
+                    position: absolute;
+                    bottom: -8px;
+                    right: 20px;
+                    width: 0;
+                    height: 0;
+                    border-left: 8px solid transparent;
+                    border-right: 8px solid transparent;
+                    border-top: 8px solid white;
+                }
+
+                @media (max-width: 767px) {
+                    .daves-initial-popup {
+                        left: auto;
+                        right: 10px;
+                        width: 200px;
+                    }
+                }
+            `;
 
         document.head.appendChild(style);
 
@@ -1078,22 +1131,31 @@ chatForm.addEventListener('submit', async (e) => {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     try {
-        console.log('Sending chat request:', {
+        // Include model settings from config in the request
+        const requestData = {
             message,
             chatbot_id: chatbotId,
             thread_id: threadId
-        });
+        };
+        
+        // Add model configuration if available
+        if (chatbotConfig) {
+            requestData.model_settings = {
+                model: chatbotConfig.chat_model,
+                temperature: chatbotConfig.temperature,
+                max_tokens: chatbotConfig.max_tokens
+            };
+            console.log('Sending model settings:', requestData.model_settings);
+        }
+        
+        console.log('Sending chat request:', requestData);
         
         const response = await fetch(`${baseUrl}/embed-chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                message,
-                chatbot_id: chatbotId,
-                thread_id: threadId
-            })
+            body: JSON.stringify(requestData)
         });
 
         // Clear interval and remove thinking indicator
