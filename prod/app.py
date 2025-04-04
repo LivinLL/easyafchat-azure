@@ -2195,6 +2195,8 @@ def validate_webhook_url(url):
         'hook.make.com',
         'cloud.n8n.io',
         'n8n.',  # Allow any n8n subdomain
+        'app.n8n.cloud',  # n8n cloud domains
+        'd-a-v-i-d.app.n8n.cloud',  # Your specific n8n domain
         'endpoint.pipedream.net',
         'maker.ifttt.com',
         'wh.automate.io',
