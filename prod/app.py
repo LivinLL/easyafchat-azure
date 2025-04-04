@@ -2194,9 +2194,6 @@ def validate_webhook_url(url):
         'hook.eu1.make.com',
         'hook.make.com',
         'cloud.n8n.io',
-        'n8n.',  # Allow any n8n subdomain
-        'app.n8n.cloud',  # n8n cloud domains
-        'd-a-v-i-d.app.n8n.cloud',  # Your specific n8n domain
         'endpoint.pipedream.net',
         'maker.ifttt.com',
         'wh.automate.io',
@@ -2216,6 +2213,12 @@ def validate_webhook_url(url):
         '127.0.0.1'   # For local testing
     ]
     
+    # Domain patterns to match (e.g., *.app.n8n.cloud)
+    domain_patterns = [
+        '.app.n8n.cloud',  # Any n8n cloud domain
+        '.n8n.io'          # Any n8n.io domain
+    ]
+    
     try:
         from urllib.parse import urlparse
         parsed_url = urlparse(url)
@@ -2223,17 +2226,20 @@ def validate_webhook_url(url):
         # Extract domain from URL
         domain = parsed_url.netloc.lower()
         
-        # Check if domain or any part of it is in allowed list
+        # Check if domain is in the exact allowed list
         if domain in allowed_domains:
             return True
             
-        # Check for subdomains of allowed domains
+        # Check for exact subdomain of allowed domains
         for allowed in allowed_domains:
-            if allowed.startswith('.') and domain.endswith(allowed):
-                return True
-            elif domain.endswith('.' + allowed) or domain == allowed:
+            if domain.endswith('.' + allowed) or domain == allowed:
                 return True
                 
+        # Check for pattern matches
+        for pattern in domain_patterns:
+            if domain.endswith(pattern):
+                return True
+        
         print(f"[webhook] URL validation failed for: {url}, domain: {domain}")
         return False
     except Exception as e:
