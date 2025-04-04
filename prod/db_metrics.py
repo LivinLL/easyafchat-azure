@@ -660,7 +660,8 @@ def get_chatbot_metrics(chatbot_id):
 # Route for getting chatbot threads with time filter
 @metrics_blueprint.route('/chatbot-threads/<chatbot_id>', methods=['GET'])
 def get_chatbot_threads_route(chatbot_id):
-    """API endpoint to get threads for a chatbot with optional time filter"""
+    """API endpoint to get threads for a chatbot with optional time filter
+       Gets a max of 50 threads and not older than 30 days ago"""
     try:
         # Get query parameters
         limit = request.args.get('limit', 50, type=int)

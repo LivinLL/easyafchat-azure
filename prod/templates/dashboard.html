@@ -2333,6 +2333,9 @@ function createThreadElement(thread) {
                 // Hide loading indicator
                 document.getElementById('messagesLoadingIndicator').style.display = 'none';
                 
+                // Debug raw messages data
+                console.log('Messages from API:', data);
+                
                 // Process the messages data
                 if (!data.messages || data.messages.length === 0) {
                     document.getElementById('noMessagesMessage').style.display = 'block';
@@ -2350,29 +2353,53 @@ function createThreadElement(thread) {
                 
                 // Add messages to the container
                 data.messages.forEach(message => {
-                    // Parse and adjust the timestamp for proper timezone handling
+                    // Fix timestamp for proper timezone display
                     let timestamp;
+                    
                     if (message.created_at) {
                         const dateStr = message.created_at;
-                        // Use the same timestamp correction logic we added to formatRelativeTime
-                        if (dateStr.includes(' ') && !dateStr.includes('T')) {
-                            // Raw SQL format (YYYY-MM-DD HH:MM:SS) - assume UTC
+                        console.log('Message timestamp from API:', dateStr);
+                        
+                        // Handle different timestamp formats from different database types
+                        if (dateStr.includes('T') && dateStr.includes('Z')) {
+                            // Already ISO format with Z - correct the double UTC conversion
+                            const parsedDate = new Date(dateStr);
+                            // Apply offset correction to convert from UTC to local time
+                            const offsetMinutes = new Date().getTimezoneOffset();
+                            timestamp = new Date(parsedDate.getTime() - (offsetMinutes * 60 * 1000));
+                            console.log('Corrected ISO+Z timestamp:', dateStr, '->', timestamp.toString());
+                        } 
+                        else if (dateStr.includes('T')) {
+                            // ISO format without Z
+                            timestamp = new Date(dateStr);
+                            console.log('Parsed ISO timestamp:', dateStr, '->', timestamp.toString());
+                        }
+                        else if (dateStr.includes(' ')) {
+                            // Raw SQL format (YYYY-MM-DD HH:MM:SS) - convert to ISO with Z
                             const utcStr = dateStr.replace(' ', 'T') + 'Z';
                             timestamp = new Date(utcStr);
-                        } 
-                        else if (dateStr.includes('T') && dateStr.includes('Z')) {
-                            // Already ISO format with Z - explicitly parse as UTC and fix timezone
-                            timestamp = new Date(dateStr);
-                            // Fix for timezone offset issue - convert to actual local time
-                            const offsetMs = new Date().getTimezoneOffset() * 60 * 1000;
-                            timestamp = new Date(timestamp.getTime() - offsetMs);
+                            console.log('Converted SQL timestamp:', dateStr, '->', utcStr, '->', timestamp.toString());
                         }
                         else {
-                            // Other formats - let JavaScript handle
+                            // Other format - let JavaScript handle it
                             timestamp = new Date(dateStr);
+                            console.log('Parsed other timestamp format:', dateStr, '->', timestamp.toString());
                         }
                     } else {
-                        timestamp = new Date(); // Fallback to current time if no timestamp
+                        // No timestamp provided
+                        timestamp = new Date();
+                        console.log('No timestamp found, using current time');
+                    }
+                    
+                    // Check for very future timestamps (likely timezone issues)
+                    const now = new Date();
+                    const diffMs = now - timestamp;
+                    if (diffMs < -3600000) { // More than an hour in the future
+                        console.log('Detected future timestamp, applying additional correction');
+                        // This is a last resort correction - apply a timezone offset to fix it
+                        const offsetHours = Math.round(Math.abs(diffMs) / 3600000);
+                        timestamp = new Date(timestamp.getTime() - (offsetHours * 3600 * 1000));
+                        console.log('After additional correction:', timestamp.toString());
                     }
                     
                     // Add user message
@@ -2381,7 +2408,7 @@ function createThreadElement(thread) {
                         messageContainer.appendChild(userMessageElement);
                     }
                     
-                    // Add assistant message
+                    // Add assistant message - use the same timestamp for both messages
                     if (message.assistant_response) {
                         const assistantMessageElement = createMessageElement(message.assistant_response, 'assistant', timestamp);
                         messageContainer.appendChild(assistantMessageElement);
@@ -2402,38 +2429,53 @@ function createThreadElement(thread) {
             });
     }
     
-    // Create a message element
-    function createMessageElement(content, role, timestamp) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${role}`;
-        
-        const messageBubble = document.createElement('div');
-        messageBubble.className = `message-bubble ${role}`;
-        
-        // Handle markdown for assistant messages
-        if (role === 'assistant') {
-            // Check if marked library is available
-            if (typeof marked !== 'undefined') {
-                messageBubble.innerHTML = marked.parse(content);
-            } else {
-                // Fallback to simple text with line breaks
-                messageBubble.textContent = content;
-            }
+// Create a message element
+function createMessageElement(content, role, timestamp) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${role}`;
+    
+    const messageBubble = document.createElement('div');
+    messageBubble.className = `message-bubble ${role}`;
+    
+    // Handle markdown for assistant messages
+    if (role === 'assistant') {
+        // Check if marked library is available
+        if (typeof marked !== 'undefined') {
+            messageBubble.innerHTML = marked.parse(content);
         } else {
-            // User messages are plain text
+            // Fallback to simple text with line breaks
             messageBubble.textContent = content;
         }
-        
-        messageDiv.appendChild(messageBubble);
-        
-        // Add timestamp
-        const timeElement = document.createElement('div');
-        timeElement.className = 'message-time';
-        timeElement.textContent = formatMessageTime(timestamp);
-        messageDiv.appendChild(timeElement);
-        
-        return messageDiv;
+    } else {
+        // User messages are plain text
+        messageBubble.textContent = content;
     }
+    
+    messageDiv.appendChild(messageBubble);
+    
+    // Add timestamp - convert to local time if needed
+    const timeElement = document.createElement('div');
+    timeElement.className = 'message-time';
+    timeElement.textContent = formatMessageTime(timestamp);
+    messageDiv.appendChild(timeElement);
+    
+    return messageDiv;
+}
+
+// Format message time
+function formatMessageTime(date) {
+    // Ensure we have a valid date object
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+        console.error('Invalid date for formatting:', date);
+        return 'unknown time';
+    }
+    
+    // Format the date and time for display
+    // This will use the browser's locale settings to format according to user's preferences
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + 
+        ' · ' + 
+        date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
     
 // Format relative time (e.g., "2 hours ago")
 function formatRelativeTime(dateStr) {
