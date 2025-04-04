@@ -2173,6 +2173,236 @@ def check_active_status(chatbot_id):
             "message": "Internal server error"
         }), 500
 
+
+def validate_webhook_url(url):
+    """
+    Validate if a webhook URL is from an allowed provider
+    
+    Args:
+        url (str): The webhook URL to validate
+        
+    Returns:
+        bool: True if the URL is valid, False otherwise
+    """
+    if not url:
+        return False
+        
+    # List of allowed webhook providers
+    allowed_domains = [
+        'hooks.zapier.com',
+        'hook.us1.make.com',
+        'hook.eu1.make.com',
+        'hook.make.com',
+        'cloud.n8n.io',
+        'n8n.',  # Allow any n8n subdomain
+        'endpoint.pipedream.net',
+        'maker.ifttt.com',
+        'wh.automate.io',
+        'logic.azure.com',  # Microsoft Power Automate
+        'hook.integromat.com',
+        'api.webhookrelay.com',
+        'flowservice.realm.io',
+        'hooks.slack.com',
+        'api.platformable.com',
+        'webhooks.data8.app',
+        'automate.io',  # Generic domain
+        'workflow.adalo.com',
+        'dsl.pipedream.net',
+        'chatflow.io',
+        'sendymail.com',
+        'localhost',  # For local testing
+        '127.0.0.1'   # For local testing
+    ]
+    
+    try:
+        from urllib.parse import urlparse
+        parsed_url = urlparse(url)
+        
+        # Extract domain from URL
+        domain = parsed_url.netloc.lower()
+        
+        # Check if domain or any part of it is in allowed list
+        if domain in allowed_domains:
+            return True
+            
+        # Check for subdomains of allowed domains
+        for allowed in allowed_domains:
+            if allowed.startswith('.') and domain.endswith(allowed):
+                return True
+            elif domain.endswith('.' + allowed) or domain == allowed:
+                return True
+                
+        print(f"[webhook] URL validation failed for: {url}, domain: {domain}")
+        return False
+    except Exception as e:
+        print(f"[webhook] Error validating webhook URL: {e}")
+        return False
+
+# Create a simple in-memory rate limiter for webhooks
+webhook_rate_limits = {}
+
+def check_rate_limit(webhook_url, max_calls=10, period_seconds=60):
+    """
+    Check if a webhook URL has exceeded its rate limit
+    
+    Args:
+        webhook_url (str): The webhook URL to check
+        max_calls (int): Maximum number of calls allowed in the period
+        period_seconds (int): The period in seconds
+        
+    Returns:
+        bool: True if rate limit is not exceeded, False otherwise
+    """
+    from time import time
+    current_time = time()
+    
+    # Create an entry for this webhook if it doesn't exist
+    if webhook_url not in webhook_rate_limits:
+        webhook_rate_limits[webhook_url] = {
+            'calls': [],
+            'blocked_until': 0
+        }
+    
+    rate_info = webhook_rate_limits[webhook_url]
+    
+    # Check if webhook is currently blocked
+    if current_time < rate_info['blocked_until']:
+        print(f"[webhook] Rate limit exceeded for {webhook_url}, blocked until {rate_info['blocked_until']}")
+        return False
+    
+    # Remove calls that are outside the current period
+    rate_info['calls'] = [timestamp for timestamp in rate_info['calls'] 
+                         if timestamp > current_time - period_seconds]
+    
+    # Check if adding this call would exceed the limit
+    if len(rate_info['calls']) >= max_calls:
+        # Block this webhook for 5 minutes (adjust as needed)
+        block_duration = 300  # 5 minutes in seconds
+        rate_info['blocked_until'] = current_time + block_duration
+        print(f"[webhook] Rate limit exceeded for {webhook_url}, blocking for {block_duration} seconds")
+        return False
+    
+    # Add the current call time
+    rate_info['calls'].append(current_time)
+    return True
+
+
+def send_webhook(chatbot_id, event_type, payload_data):
+    """
+    Send a webhook notification if configured for the chatbot and event
+    
+    Args:
+        chatbot_id (str): The chatbot ID
+        event_type (str): The event type (e.g., "new_lead")
+        payload_data (dict): The data to include in the payload
+        
+    Returns:
+        bool: True if webhook was sent successfully, False otherwise
+    """
+    import requests
+    import json
+    from datetime import datetime
+    
+    try:
+        # Get webhook configuration from database
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+            
+            # Different placeholders based on DB type
+            placeholder = "%s" if os.getenv('DB_TYPE', '').lower() == 'postgresql' else "?"
+            
+            # Get webhook URL and triggers
+            cursor.execute(f"""
+                SELECT webhook_url, webhook_triggers
+                FROM chatbot_config
+                WHERE chatbot_id = {placeholder}
+            """, (chatbot_id,))
+            
+            result = cursor.fetchone()
+            
+            if not result or not result[0] or not result[1]:
+                # No webhook configured or no triggers set
+                return False
+                
+            webhook_url, webhook_triggers = result
+            
+            # Check if the webhook URL is valid
+            if not validate_webhook_url(webhook_url):
+                print(f"[webhook] Invalid webhook URL for chatbot {chatbot_id}: {webhook_url}")
+                return False
+                
+            # Parse the comma-separated triggers
+            triggers = [t.strip() for t in webhook_triggers.split(',')]
+            
+            # Check if this event type is in the triggers
+            if event_type not in triggers:
+                print(f"[webhook] Event type {event_type} not in triggers for chatbot {chatbot_id}")
+                return False
+                
+            # Check rate limit
+            if not check_rate_limit(webhook_url):
+                print(f"[webhook] Rate limit exceeded for chatbot {chatbot_id}")
+                return False
+                
+            # Create the full payload with metadata
+            full_payload = {
+                "event_type": event_type,
+                "timestamp": datetime.now().isoformat(),
+                "chatbot_id": chatbot_id,
+                **payload_data
+            }
+            
+            # Send the webhook with retries
+            for attempt in range(3):  # Try up to 3 times
+                try:
+                    response = requests.post(
+                        webhook_url, 
+                        json=full_payload,
+                        headers={
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'GoEasyChat-Webhook/1.0'
+                        },
+                        timeout=3  # 3 second timeout
+                    )
+                    
+                    # Log the webhook attempt
+                    print(f"[webhook] Sent {event_type} webhook for chatbot {chatbot_id} - Status: {response.status_code}")
+                    
+                    # Check if request was successful
+                    if response.status_code >= 200 and response.status_code < 300:
+                        return True
+                    
+                    # If we get here, the request failed but didn't raise an exception
+                    print(f"[webhook] Failed with status {response.status_code}: {response.text[:100]}")
+                    
+                except requests.RequestException as e:
+                    print(f"[webhook] Request failed on attempt {attempt+1}: {str(e)}")
+                    
+                # Wait before retrying (exponential backoff)
+                if attempt < 2:  # Don't sleep after the last attempt
+                    import time
+                    time.sleep(2 ** attempt)  # 0, 2, 4 seconds
+            
+            # If we get here, all attempts failed
+            print(f"[webhook] All attempts failed for chatbot {chatbot_id}")
+            return False
+                
+    except Exception as e:
+        print(f"[webhook] Error sending webhook: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return False
+
+# Initialize webhook function in leads blueprint
+try:
+    from db_leads import init_webhook_function
+    init_webhook_function(send_webhook)
+    print("Webhook function initialized in leads blueprint")
+except ImportError:
+    print("Warning: Could not initialize webhook function in leads blueprint")
+except Exception as e:
+    print(f"Error initializing webhook function: {e}")
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))  # Digital Ocean needs this
     app.run(host='0.0.0.0', port=port, debug=False)  # Listen on all interfaces

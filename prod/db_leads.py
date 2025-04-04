@@ -14,6 +14,28 @@ leads_blueprint = Blueprint('leads', __name__)
 openai_client = None
 pinecone_client = None
 
+# Global variable to store reference to the webhook function
+send_webhook_func = None
+
+def init_webhook_function(webhook_function):
+    """Initialize the webhook function reference"""
+    global send_webhook_func
+    send_webhook_func = webhook_function
+    print(f"Webhook function initialized: {webhook_function is not None}")
+    return send_webhook_func
+
+def trigger_webhook(chatbot_id, event_type, payload):
+    """Wrapper to call the webhook function if it's initialized"""
+    if send_webhook_func:
+        try:
+            return send_webhook_func(chatbot_id, event_type, payload)
+        except Exception as e:
+            print(f"Error in trigger_webhook: {e}")
+            return False
+    else:
+        print("Warning: Webhook function not initialized")
+        return False
+
 def init_leads_blueprint(app_openai_client, app_pinecone_client):
     """Initialize the blueprint with the OpenAI and Pinecone clients"""
     global openai_client, pinecone_client
@@ -332,10 +354,71 @@ def handle_lead_submission():
         lead_id = save_lead(chatbot_id, thread_id, name, email, phone, initial_question)
         
         if lead_id:
-            return jsonify({
+            # Success response to return to the client
+            response_data = {
                 "success": True,
                 "lead_id": lead_id
-            })
+            }
+            
+            # Get the company URL for the webhook payload
+            company_url = None
+            try:
+                with connect_to_db() as conn:
+                    cursor = conn.cursor()
+                    
+                    if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                        cursor.execute('SELECT company_url, pinecone_namespace FROM companies WHERE chatbot_id = %s', (chatbot_id,))
+                    else:
+                        cursor.execute('SELECT company_url, pinecone_namespace FROM companies WHERE chatbot_id = ?', (chatbot_id,))
+                        
+                    company_row = cursor.fetchone()
+                    if company_row:
+                        company_url = company_row[0]
+                        namespace = company_row[1]
+            except Exception as e:
+                print(f"Error fetching company URL: {e}")
+                # Continue even if we can't get company URL
+                company_url = None
+                namespace = None
+            
+            # Prepare the webhook payload
+            lead_data = {
+                "lead_id": lead_id,
+                "name": name,
+                "email": email,
+                "phone": phone,
+                "initial_question": initial_question,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            company_data = {
+                "url": company_url,
+                "namespace": namespace
+            }
+            
+            # Create the webhook payload
+            webhook_payload = {
+                "thread_id": thread_id,
+                "lead": lead_data,
+                "company": company_data
+            }
+            
+            # Trigger the webhook using our utility function
+            try:
+                # Use a background thread to avoid blocking the response
+                import threading
+                threading.Thread(
+                    target=trigger_webhook,
+                    args=(chatbot_id, "new_lead", webhook_payload),
+                    daemon=True
+                ).start()
+                
+                print(f"Webhook trigger initiated for new lead (ID: {lead_id})")
+            except Exception as webhook_error:
+                print(f"Error triggering webhook: {webhook_error}")
+                # Continue even if webhook fails - it's a background task
+            
+            return jsonify(response_data)
         else:
             return jsonify({"error": "Failed to save lead"}), 500
     except Exception as e:

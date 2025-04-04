@@ -381,6 +381,8 @@ def upgrade_database(verbose=False):
                     accent_color TEXT DEFAULT '#ffffff',
                     icon_image_url TEXT DEFAULT NULL,
                     show_lead_form TEXT DEFAULT 'Yes',
+                    webhook_url TEXT DEFAULT NULL,
+                    webhook_triggers TEXT DEFAULT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -622,6 +624,8 @@ def upgrade_database(verbose=False):
                 accent_color TEXT DEFAULT '#ffffff',
                 icon_image_url TEXT DEFAULT NULL,
                 show_lead_form TEXT DEFAULT 'Yes',
+                webhook_url TEXT DEFAULT NULL,
+                webhook_triggers TEXT DEFAULT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
