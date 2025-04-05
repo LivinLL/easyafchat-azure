@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dashboard - GoEasyChat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -772,6 +773,351 @@
     }
 }
 
+/* =========================================== */
+/* Settings Tab Styles */
+.settings-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.settings-header {
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 500;
+}
+
+.settings-layout {
+    display: flex;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
+    min-height: 600px;
+}
+
+.settings-nav {
+    width: 250px;
+    border-right: 1px solid #e0e0e0;
+    background-color: #f9f9f9;
+}
+
+.settings-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.settings-menu li {
+    margin: 0;
+    padding: 0;
+}
+
+.settings-nav-item {
+    display: block;
+    padding: 15px 20px;
+    color: #333;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background 0.2s;
+}
+
+.settings-nav-item:hover {
+    background-color: #f0f0f0;
+    color: #0084ff;
+}
+
+.settings-nav-item.active {
+    background-color: #e9ecef;
+    border-left: 3px solid #0084ff;
+    font-weight: 500;
+    color: #0084ff;
+}
+
+.settings-content {
+    flex: 1;
+    padding: 30px;
+    min-height: 600px;
+}
+
+.settings-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.settings-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.settings-form {
+    max-width: 700px;
+}
+
+.settings-form h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 18px;
+    color: #333;
+}
+
+.settings-description {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.settings-note {
+    color: #666;
+    font-size: 13px;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.settings-textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.settings-text-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.char-counter {
+    text-align: right;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.color-input-container {
+    display: flex;
+    align-items: center;
+}
+
+.color-preview {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    margin-left: 10px;
+    border: 1px solid #ddd;
+}
+
+.color-presets {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.color-preset {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    transition: transform 0.2s;
+}
+
+.color-preset:hover {
+    transform: scale(1.1);
+}
+
+.radio-option {
+    margin-bottom: 10px;
+}
+
+.radio-option label {
+    margin-left: 5px;
+    cursor: pointer;
+}
+
+.icon-preview-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.icon-preview {
+    max-width: 300px;
+    max-height: 300px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.icon-placeholder {
+    width: 100%;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    border: 1px dashed #ddd;
+    border-radius: 8px;
+    color: #666;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.settings-save-btn {
+    background-color: #0084ff;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.settings-save-btn:hover {
+    background-color: #0073e6;
+}
+
+.settings-test-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.settings-test-btn:hover {
+    background-color: #5a6268;
+}
+
+.settings-message {
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    display: none;
+}
+
+.settings-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    display: block;
+}
+
+.settings-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    display: block;
+}
+
+.settings-message.info {
+    background-color: #e7f3ff;
+    color: #0c5460;
+    display: block;
+}
+
+.webhook-test-results {
+    margin-top: 30px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+.webhook-test-results h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.webhook-success {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.webhook-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.webhook-testing {
+    background-color: #e7f3ff;
+    color: #0c5460;
+    padding: 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.webhook-icon {
+    font-size: 18px;
+    margin-right: 10px;
+}
+
+.webhook-payload {
+    margin-top: 10px;
+}
+
+.webhook-payload h5 {
+    margin-bottom: 10px;
+}
+
+.webhook-payload pre {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    font-family: monospace;
+    font-size: 13px;
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .settings-layout {
+        flex-direction: column;
+    }
+    
+    .settings-nav {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .settings-content {
+        padding: 20px;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -789,12 +1135,6 @@
                     <li><a href="javascript:void(0);" onclick="openPage('leads')">Leads</a></li>
                     <li>
                         <a href="javascript:void(0);" onclick="openPage('settings')">Settings</a>
-                        <div class="dropdown-content">
-                            <a href="javascript:void(0);">Profile</a>
-                            <a href="javascript:void(0);">Billing</a>
-                            <a href="javascript:void(0);">API Keys</a>
-                            <a href="javascript:void(0);">Team</a>
-                        </div>
                     </li>
                 </ul>
                 <ul class="nav-links">
@@ -1019,10 +1359,35 @@
         </div>
 
         <!-- Settings Page -->
+        <!-- Settings Page -->
         <div id="settings" class="page-content">
-            <div class="placeholder-content">
-                <h2>Settings</h2>
-                <p>Configure your account and chatbot settings.</p>
+            <div class="settings-container">
+                <h2 class="settings-header">Settings</h2>
+                <div class="settings-layout">
+                    <div class="settings-nav">
+                        <ul class="settings-menu">
+                            <li><a href="#" class="settings-nav-item active" data-setting="system-prompt">System Prompt</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="chat-title">Chat Title</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="chat-subtitle">Chat Subtitle</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="lead-form-title">Lead Form Title</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="primary-color">Primary Color</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="accent-color">Accent Color</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="icon-image">Icon Image</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="show-lead-form">Show Lead Form</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="webhook-url">Webhook URL</a></li>
+                            <li><a href="#" class="settings-nav-item" data-setting="webhook-triggers">Webhook Triggers</a></li>
+                        </ul>
+                    </div>
+                    <div class="settings-content">
+                        <div class="settings-content-area">
+                            <!-- Setting content will be loaded here -->
+                            <div class="settings-loading">
+                                <div class="spinner"></div>
+                                <p>Loading settings...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -2610,5 +2975,6 @@ function formatRelativeTime(dateStr) {
 <script src="https://goeasychat.com/static/js/chatbot-embed-support.js" defer></script>
 
     <script src="/static/js/csrf.js"></script>
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 </body>
 </html>

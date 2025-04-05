@@ -158,7 +158,12 @@ processing_status = {}
 # Initialize chat handlers dictionary
 chat_handlers = {}
 
-# Add this to app.py after initializing the app but before the routes
+# Import the settings blueprint for use on dashboard.html
+from settings_blueprint import settings_bp
+
+# Register the settings blueprint with the app for use on dashboard.html
+app.register_blueprint(settings_bp)
+
 @app.before_request
 def check_user_session():
     """Check user session and make user info available to templates"""
