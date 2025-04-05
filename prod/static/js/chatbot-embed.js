@@ -152,7 +152,7 @@ function initializeChatbot() {
                 // Default values if API call fails or values are missing/invalid
                 const defaults = {
                     icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
-                    chat_title: 'Agent d-A-v-I-d',
+                    chat_title: 'Agent Easy',
                     chat_subtitle: 'Hi there! 👋 How can I help you?',
                     primary_color: '#0d6efd',
                     accent_color: '#e9ecef',
@@ -243,7 +243,7 @@ function initializeChatbot() {
                 console.error('Error fetching chatbot config:', error);
                 return {
                     icon_image_url: 'https://res.cloudinary.com/dd19jhkar/image/upload/v1735504762/enfadxyhjtjkwdivbuw4.png',
-                    chat_title: 'Agent d-A-v-I-d',
+                    chat_title: 'Agent Easy',
                     chat_subtitle: 'Hi there! 👋 How can I help you?',
                     primary_color: '#0d6efd',
                     accent_color: '#e9ecef',
@@ -282,7 +282,7 @@ function initializeChatbot() {
         }).catch(error => {
             console.error('Error initializing chatbot with config:', error);
             // Proceed with default config
-            loadChatInterface('Agent d-A-v-I-d', 'Hi there! 👋 How can I help you?');
+            loadChatInterface('Agent Easy', 'Hi there! 👋 How can I help you?');
         });
 
         // Function to load the chat interface after config is loaded

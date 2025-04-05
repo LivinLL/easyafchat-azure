@@ -356,8 +356,8 @@ def get_chatbot_config(chatbot_id):
                 """, (
                     chatbot_id, 
                     default_system_prompt,
-                    "Chat with d-A-v-I-d",
-                    "I'm here to answer your questions.",
+                    "Agent Easy",
+                    "Hi there! 👋 How can I help you?",
                     "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                     "#0084ff",
                     "#ffffff",
@@ -404,8 +404,8 @@ def get_chatbot_config(chatbot_id):
 4. Handling Unanswerable Queries: If you encounter a question that cannot be answered using the provided company information, or if the query falls outside your role as a helpful, charismatic, friendly and enthusiastic support agent, politely inform the user that you don't have the necessary information to provide an accurate response. Then, if contact information for the company is available in the company information, provide them with a company email or phone number for further assistance. Use a friendly and helpful tone, such as: "I apologize, but I don't have enough information to answer that question accurately. I recommend reaching out to [company name] at [company email if in the company information] or [company phone if in the company information] for assistance with this request!"
 5. Use very few emojis.
 6. URLs and Media Resources: When company information includes a specific URL (especially YouTube links or other media), ALWAYS include the EXACT URL in your response. NEVER create or fabricate URLs. If you reference a video or resource, you MUST include the precise URL provided in the company information. Format as a clickable link: [Brief description](exact URL from company information).''',
-                "chat_title": "Chat with d-A-v-I-d",
-                "chat_subtitle": "I'm here to answer your questions.",
+                "chat_title": "Agent Easy",
+                "chat_subtitle": "Hi there! 👋 How can I help you?",
                 "lead_form_title": "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                 "primary_color": "#0084ff",
                 "accent_color": "#ffffff",
@@ -508,8 +508,8 @@ def update_chatbot_config(chatbot_id):
                 """, (
                     chatbot_id, 
                     default_system_prompt,
-                    "Chat with d-A-v-I-d",
-                    "I'm here to answer your questions.",
+                    "Agent Easy",
+                    "Hi there! 👋 How can I help you?",
                     "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                     "#0084ff",
                     "#ffffff",
