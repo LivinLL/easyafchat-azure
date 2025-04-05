@@ -4,7 +4,9 @@ from database import connect_to_db
 import traceback
 import json
 import requests
+import hashlib
 from datetime import datetime
+import time
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
@@ -238,6 +240,55 @@ def send_webhook(chatbot_id, event_type, payload_data):
         import traceback
         print(traceback.format_exc())
         return False, None, {"error": str(e)}
+
+@settings_bp.route('/generate-cloudinary-signature', methods=['GET'])
+def generate_cloudinary_signature():
+    """Generate a signature for Cloudinary uploads"""
+    try:
+        # Get Cloudinary credentials from environment
+        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
+        api_key = os.environ.get('CLOUDINARY_API_KEY')
+        api_secret = os.environ.get('CLOUDINARY_API_SECRET')
+        
+        # Check if credentials are available
+        if not cloud_name or not api_key or not api_secret:
+            return jsonify({
+                "success": False,
+                "error": "Cloudinary credentials not configured"
+            }), 500
+        
+        # Create timestamp and transformation parameters
+        timestamp = int(time.time())
+        transformation = "w_600,c_limit,q_auto"
+        folder = "GoEasyChat"
+        
+        # Build the string to sign (same format as your PHP implementation)
+        signature_string = f"folder={folder}&timestamp={timestamp}&transformation={transformation}{api_secret}"
+        
+        print(f"[Cloudinary] Generating signature with folder: {folder}")
+        print(f"[Cloudinary] Signature string: {signature_string}")
+
+        # Generate SHA-256 signature
+        signature = hashlib.sha256(signature_string.encode('utf-8')).hexdigest()
+        
+        # Return the necessary data for the frontend
+        return jsonify({
+            "success": True,
+            "signature": signature,
+            "timestamp": timestamp,
+            "api_key": api_key,
+            "folder": folder,
+            "transformation": transformation,
+            "cloud_name": cloud_name
+        })
+        
+    except Exception as e:
+        print(f"Error generating Cloudinary signature: {e}")
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @settings_bp.route('/get-config/<chatbot_id>', methods=['GET'])
 def get_chatbot_config(chatbot_id):

@@ -312,7 +312,7 @@ function renderColorForm(container, settingId, title, description, presetColors)
     });
 }
 
-// Render icon image form
+// Render icon image form with Cloudinary upload
 function renderIconImageForm(container) {
     const currentImage = currentSettings['icon_image_url'] || '';
     
@@ -329,13 +329,24 @@ function renderIconImageForm(container) {
                     }
                 </div>
                 
-                <label>Image URL:</label>
+                <div class="icon-upload-container">
+                    <input type="file" id="icon-image-file" accept="image/*" style="display: none;">
+                    <button type="button" id="select-icon-btn" class="settings-upload-btn">
+                        <span id="camera-icon">📸</span> Upload Image
+                    </button>
+                    <div id="image-preview-container"></div>
+                    <div class="spinner-container" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Uploading image...</p>
+                    </div>
+                    <p class="settings-note">
+                        Maximum file size: 10MB. Recommended size: 300x300 pixels.
+                    </p>
+                </div>
+                
+                <label>Or enter image URL:</label>
                 <input type="text" id="icon-image-input" class="settings-text-input" 
-                    value="${currentImage}" placeholder="Enter image URL or upload an image">
-                    
-                <p class="settings-note">
-                    Note: Direct image upload will be available in a future update. For now, please enter a URL to an existing image.
-                </p>
+                    value="${currentImage}" placeholder="Enter image URL">
             </div>
             
             <div class="settings-message" id="settings-message-icon-image"></div>
@@ -350,10 +361,143 @@ function renderIconImageForm(container) {
     
     // Add event listeners
     const inputField = document.getElementById('icon-image-input');
+    const fileInput = document.getElementById('icon-image-file');
+    const selectButton = document.getElementById('select-icon-btn');
     
+    // Click on upload button triggers file input
+    selectButton.addEventListener('click', function() {
+        fileInput.click();
+    });
+    
+    // File input change handler
+    fileInput.addEventListener('change', handleIconImageUpload);
+    
+    // Save button handler
     document.getElementById('save-icon-image').addEventListener('click', function() {
         const value = inputField.value.trim();
         saveSettingValue('icon_image_url', value);
+    });
+}
+
+// Handle icon image upload to Cloudinary
+async function handleIconImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        alert("Please select a file to upload.");
+        return;
+    }
+    
+    const spinnerContainer = document.querySelector('.spinner-container');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    
+    try {
+        // Show spinner
+        spinnerContainer.style.display = 'flex';
+        
+        // Validate file size (10MB limit)
+        const maxSizeInMB = 10;
+        const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
+        if (file.size > maxSizeInBytes) {
+            spinnerContainer.style.display = 'none';
+            alert(`File size exceeds ${maxSizeInMB}MB! Please choose a smaller file.`);
+            return;
+        }
+        
+        // Validate image dimensions
+        const dimensionsValid = await validateImageDimensions(file);
+        if (!dimensionsValid) {
+            spinnerContainer.style.display = 'none';
+            alert('Image dimensions are too large. Maximum dimensions are 2000x2000 pixels.');
+            return;
+        }
+        
+        // Step 1: Fetch signature from our server
+        const signatureResponse = await fetch('/settings/generate-cloudinary-signature');
+        const signatureData = await signatureResponse.json();
+        
+        if (!signatureData.success) {
+            throw new Error(signatureData.error || "Failed to get upload signature");
+        }
+        
+        console.log('Cloudinary signature data:', signatureData);
+        console.log('Folder being sent to Cloudinary:', signatureData.folder);
+
+        // Step 2: Upload to Cloudinary
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('api_key', signatureData.api_key);
+        formData.append('timestamp', signatureData.timestamp);
+        formData.append('signature', signatureData.signature);
+        formData.append('folder', signatureData.folder);
+        formData.append('transformation', signatureData.transformation);
+        
+        const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${signatureData.cloud_name}/image/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const uploadResult = await uploadResponse.json();
+        
+        if (!uploadResponse.ok) {
+            throw new Error(uploadResult.error?.message || "Image upload failed");
+        }
+        
+        // Add transformation to the uploaded URL for preview
+        const transformedUrl = uploadResult.secure_url.replace(
+            '/upload/',
+            '/upload/c_limit,w_300/'
+        );
+        
+        // Update the input field with the URL
+        document.getElementById('icon-image-input').value = uploadResult.secure_url;
+        
+        // Update the preview
+        const iconPreview = document.getElementById('icon-preview');
+        if (iconPreview) {
+            iconPreview.src = transformedUrl;
+        } else {
+            const previewContainer = document.querySelector('.icon-preview-container');
+            previewContainer.innerHTML = `<img src="${transformedUrl}" alt="Chatbot Icon" class="icon-preview" id="icon-preview">`;
+        }
+        
+        // Hide placeholder if it exists
+        const placeholder = document.querySelector('.icon-placeholder');
+        if (placeholder) {
+            placeholder.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Error uploading image: ' + error.message);
+    } finally {
+        // Hide spinner
+        spinnerContainer.style.display = 'none';
+    }
+}
+
+// Validate image dimensions
+function validateImageDimensions(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const img = new Image();
+            
+            img.onload = () => {
+                const maxWidth = 5000;
+                const maxHeight = 5000;
+                
+                if (img.width > maxWidth || img.height > maxHeight) {
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            };
+            
+            img.src = e.target.result;
+        };
+        
+        reader.readAsDataURL(file);
     });
 }
 
