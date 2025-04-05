@@ -168,11 +168,40 @@ function loadSettingContent(settingId) {
             renderWebhookUrlForm(contentArea);
             break;
         case 'webhook-triggers':
-            renderRadioForm(contentArea, 'webhook-triggers', 'Webhook Triggers', 'Select which events trigger your webhook', 
+            // Check if a webhook URL is configured before showing trigger options
+            const webhookUrl = currentSettings['webhook_url'] || '';
+            if (webhookUrl.trim()) {
+                renderRadioForm(contentArea, 'webhook-triggers', 'Webhook Triggers', 'Select which events trigger your webhook', 
                 [
                     { value: 'new_lead', label: 'New Lead - Send webhook when a new lead is generated' },
                     { value: '', label: 'No Trigger - Disable webhook triggers' }
                 ]);
+            } else {
+                // Show message instructing user to set up webhook URL first
+                contentArea.innerHTML = `
+                    <div class="settings-form">
+                        <h3>Webhook Triggers</h3>
+                        <p class="settings-description">Configure events that will trigger your webhook.</p>
+                        
+                        <div class="webhook-setup-notice" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center;">
+                            <p style="font-weight: 500; margin-bottom: 15px;">You need to set up your webhook URL first</p>
+                            <p style="color: #666; margin-bottom: 20px;">Enter and save a valid webhook URL in the "Webhook URL" section and then return here to choose what triggers it.</p>
+                            <button class="settings-nav-trigger-btn" data-setting="webhook-url" style="background-color: #0084ff; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                                Go to Webhook URL setup
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Add event listener for the "Go to Webhook URL setup" button
+                const setupBtn = contentArea.querySelector('.settings-nav-trigger-btn');
+                if (setupBtn) {
+                    setupBtn.addEventListener('click', function() {
+                        const settingType = this.getAttribute('data-setting');
+                        switchSettingSection(settingType);
+                    });
+                }
+            }
             break;
         default:
             contentArea.innerHTML = '<div class="settings-error">Unknown setting type</div>';
@@ -344,9 +373,12 @@ function renderIconImageForm(container) {
                     </p>
                 </div>
                 
+                <!-- URL input field commented out as requested
                 <label>Or enter image URL:</label>
                 <input type="text" id="icon-image-input" class="settings-text-input" 
-                    value="${currentImage}" placeholder="Enter image URL">
+                    value="${currentImage}" placeholder="Enter image URL"> 
+                -->
+                <input type="hidden" id="icon-image-input" value="${currentImage}">
             </div>
             
             <div class="settings-message" id="settings-message-icon-image"></div>
