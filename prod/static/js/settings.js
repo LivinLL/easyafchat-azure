@@ -407,7 +407,38 @@ function renderIconImageForm(container) {
     // Save button handler
     document.getElementById('save-icon-image').addEventListener('click', function() {
         const value = inputField.value.trim();
-        saveSettingValue('icon_image_url', value);
+        
+        // Show saving message in the correct message element
+        showSettingMessage('settings-message-icon-image', 'Saving...', 'info');
+        
+        // Call the save function, but don't rely on its default messaging
+        fetch(`/settings/update/${currentChatbotId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                setting: 'icon_image_url',
+                value: value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update local settings
+                currentSettings['icon_image_url'] = value;
+                
+                // Show success message
+                showSettingMessage('settings-message-icon-image', 'Saved successfully!', 'success');
+            } else {
+                showSettingMessage('settings-message-icon-image', 'Error: ' + (data.error || 'Unknown error'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving setting:', error);
+            showSettingMessage('settings-message-icon-image', 'Error: ' + error.message, 'error');
+        });
     });
 }
 
