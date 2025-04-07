@@ -1071,6 +1071,14 @@ chatBubble.addEventListener('click', () => {
     }
 });
 
+// <<< --- START: ADDED CLOSE BUTTON LISTENER --- >>>
+closeButton.addEventListener('click', () => {
+    chatWindow.classList.add('d-none');
+    chatBubble.classList.remove('active');
+    console.log('Chat window closed by close button');
+});
+// <<< --- END: ADDED CLOSE BUTTON LISTENER --- >>>
+
 // Fixed chat submit handler with proper user message anchoring
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
