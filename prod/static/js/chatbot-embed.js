@@ -1006,6 +1006,12 @@ function showInitialPopup(delay = 2000) {
     // Only show if enabled in config (default to true if not specified)
     if (config.showInitialMessage === false) return;
     
+    // Check sessionStorage to see if we've already shown the popup in this session
+    if (sessionStorage.getItem('davesEasyChatPopupShown')) {
+        console.log('DavesEasyChat: Popup already shown in this session, skipping');
+        return;
+    }
+    
     // Use subtitle from config or default message
     const initialMessage = config.initialMessage || chatSubtitle;
     
@@ -1021,23 +1027,25 @@ function showInitialPopup(delay = 2000) {
     // Show with delay and animation
     setTimeout(() => {
         popup.style.opacity = '1';
+        
+        // Set timeout to automatically hide after 3 seconds of being visible
+        setTimeout(() => {
+            popup.style.opacity = '0';
+            setTimeout(() => {
+                if (popup.parentNode === chatBubble) {
+                    chatBubble.removeChild(popup);
+                }
+            }, 300); // Wait for fade out animation
+        }, 3000); // Show for 3 seconds
+        
+        // Mark as shown in sessionStorage
+        sessionStorage.setItem('davesEasyChatPopupShown', 'true');
     }, delay);
 }
 
 // Add event listeners
 chatBubble.addEventListener('click', () => {
     console.log('Chat bubble clicked');
-    
-    // Hide the popup if it exists
-    const popup = document.getElementById('daves-initial-popup');
-    if (popup) {
-        popup.style.opacity = '0';
-        setTimeout(() => {
-            if (popup.parentNode === chatBubble) {
-                chatBubble.removeChild(popup);
-            }
-        }, 300);
-    }
 
     if (isMobile && chatWindow.classList.contains('d-none')) {
         // Move window to body before showing it on mobile
@@ -1061,11 +1069,6 @@ chatBubble.addEventListener('click', () => {
         addMessage(chatSubtitle, 'assistant');
         console.log('Added initial assistant greeting');
     }
-});
-
-closeButton.addEventListener('click', () => {
-    chatWindow.classList.add('d-none');
-    chatBubble.classList.remove('active');
 });
 
 // Fixed chat submit handler with proper user message anchoring
