@@ -828,11 +828,22 @@ function initializeMarkedAndChatbot() {
 
         // Function to show initial popup message with delay
         function showInitialPopup(delay = 2000) {
+            console.log('showInitialPopup called with delay:', delay);
             // Only show if enabled in config (default to true if not specified)
-            if (config.showInitialMessage === false) return;
+            if (config.showInitialMessage === false) {
+                console.log('showInitialMessage is false in config, not showing popup');
+                return;
+            }
+            
+            // Check sessionStorage to see if we've already shown the popup in this session
+            if (sessionStorage.getItem('supportEasyChatPopupShown')) {
+                console.log('DavesEasyChat Support: Popup already shown in this session, skipping');
+                return;
+            }
             
             // Default message or custom message from config
             const initialMessage = config.initialMessage || "Agent Easy here! 👋 How can I help you?";
+            console.log('Initial message content:', initialMessage);
             
             // Create popup element
             const popup = document.createElement('div');
@@ -842,56 +853,36 @@ function initializeMarkedAndChatbot() {
             
             // Add to DOM but hidden first
             chatBubble.appendChild(popup);
+            console.log('Popup element created and added to DOM');
             
             // Show with delay and animation
             setTimeout(() => {
+                console.log('First timeout fired - showing popup');
                 popup.style.opacity = '1';
+                
+                // Set timeout to automatically hide after 3 seconds of being visible
+                setTimeout(() => {
+                    console.log('Second timeout fired - hiding popup');
+                    popup.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        console.log('Third timeout fired - removing popup from DOM');
+                        if (popup.parentNode === chatBubble) {
+                            console.log('Popup parent is chatBubble, removing it');
+                            chatBubble.removeChild(popup);
+                            console.log('Popup successfully removed from DOM');
+                        } else {
+                            console.log('Popup parent is not chatBubble!', popup.parentNode);
+                        }
+                    }, 300); // Wait for fade out animation
+                    
+                }, 5000); // Show for 5 seconds
+                
+                // Mark as shown in sessionStorage
+                sessionStorage.setItem('supportEasyChatPopupShown', 'true');
+                console.log('Set sessionStorage flag: supportEasyChatPopupShown = true');
             }, delay);
         }
-
-        // Add event listeners
-        chatBubble.addEventListener('click', () => {
-            console.log('Chat bubble clicked');
-            
-            // Hide the popup if it exists
-            const popup = document.getElementById('support-initial-popup');
-            if (popup) {
-                popup.style.opacity = '0';
-                setTimeout(() => {
-                    if (popup.parentNode === chatBubble) {
-                        chatBubble.removeChild(popup);
-                    }
-                }, 300);
-            }
-
-            if (isMobile && chatWindow.classList.contains('support-d-none')) {
-                // Move window to body before showing it on mobile
-                document.body.appendChild(chatWindow);
-                mountPoint = document.body;
-                console.log('Chat window moved to body for mobile');
-            }
-            
-            // Toggle visibility
-            if (chatWindow.classList.contains('support-d-none')) {
-                chatWindow.classList.remove('support-d-none');
-                chatBubble.classList.add('active');
-                console.log('Chat window opened');
-            } else {
-                chatWindow.classList.add('support-d-none');
-                chatBubble.classList.remove('active');
-                console.log('Chat window closed');
-            }
-            
-            if (messages.length === 0) {
-                addMessage("Hi there! 👋 How can I help you?", 'assistant');
-                console.log('Added initial assistant greeting');
-            }
-        });
-
-        closeButton.addEventListener('click', () => {
-            chatWindow.classList.add('support-d-none');
-            chatBubble.classList.remove('active');
-        });
 
         // Fixed chat submit handler with proper user message anchoring
         chatForm.addEventListener('submit', async (e) => {

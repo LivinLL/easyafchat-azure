@@ -1036,7 +1036,7 @@ function showInitialPopup(delay = 2000) {
                     chatBubble.removeChild(popup);
                 }
             }, 300); // Wait for fade out animation
-        }, 3000); // Show for 3 seconds
+        }, 5000); // Show for 5 seconds
         
         // Mark as shown in sessionStorage
         sessionStorage.setItem('davesEasyChatPopupShown', 'true');
