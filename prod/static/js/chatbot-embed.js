@@ -348,11 +348,15 @@ function initializeChatbot() {
 
                 @media (max-width: 767px) {
                     .daves-chat-window {
-                        width: 90%;
-                        right: 5%;
-                        height: 95vh;
-                        max-height: 600px;
-                        bottom: 20px;
+                        width: 100%;        /* Use full width */
+                        height: 100vh;       /* Use full viewport height */
+                        top: 0;             /* Position from the top edge */
+                        left: 0;            /* Position from the left edge */
+                        right: auto;        /* Remove specific right positioning */
+                        bottom: auto;       /* Remove specific bottom positioning */
+                        max-height: none;   /* Remove the max-height limit */
+                        border-radius: 0;   /* Remove rounded corners for full screen */
+                        /* Keep other essential styles like display, flex-direction, z-index, etc. */
                     }
 
                     .daves-chat-window #daves-close-chat {
