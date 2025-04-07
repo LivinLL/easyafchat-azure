@@ -568,6 +568,28 @@ function initializeMarkedAndChatbot() {
         const closeButton = chatWindow.querySelector('#support-close-chat');
         const resetButton = chatWindow.querySelector('#support-reset-chat');
 
+        // <<< --- START: ADDED EVENT LISTENER --- >>>
+        chatBubble.addEventListener('click', () => {
+            // Remove the class that hides the window
+            chatWindow.classList.remove('support-d-none');
+            // Add the 'active' class to the bubble for visual feedback
+            chatBubble.classList.add('active');
+            // Optional: Focus the input field when opening
+            chatInput.focus();
+
+            // If this is the very first time opening and there are no messages,
+            // add the initial greeting and generate thread ID.
+            if (messages.length === 0) {
+                    addMessage("Hi there! 👋 How can I help you?", 'assistant');
+                    // Initialize threadId here if not done elsewhere on first interaction
+                    if (!threadId) {
+                        threadId = `support_thread_${Date.now()}`;
+                        console.log('Initial open. Thread ID generated:', threadId);
+                    }
+            }
+        });
+        // <<< --- END: ADDED EVENT LISTENER --- >>>
+
         async function fetchLeadFormConfig() {
             try {
                 console.log('Fetching lead form config for chatbot ID:', chatbotId);
@@ -1182,6 +1204,12 @@ function initializeMarkedAndChatbot() {
                 console.error('Error resetting chat:', error);
             }
         });
+
+// Add click event for close button to hide the chat window
+closeButton.addEventListener('click', () => {
+    chatWindow.classList.add('support-d-none');
+    chatBubble.classList.remove('active');
+});
 
 // Call the showInitialPopup function with a delay
 setTimeout(() => {
