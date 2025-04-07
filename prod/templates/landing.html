@@ -105,6 +105,137 @@
             color: #198754 !important;
             font-weight: 600 !important;
         }
+
+/* =============================================== */
+/* == Generic Container (Apply where needed) == */
+/* =============================================== */
+.container {
+    width: 90%;                /* Responsive width */
+    max-width: 1140px;         /* Max width on large screens */
+    margin-left: auto;         /* Center the container horizontally */
+    margin-right: auto;        /* Center the container horizontally */
+    padding-left: 15px;        /* Inner spacing */
+    padding-right: 15px;       /* Inner spacing */
+}
+
+/* =============================================== */
+/* == GoEasyChat Benefits Section Styles == */
+/* =============================================== */
+.gec-benefits-section {
+    padding: 60px 0;           /* Vertical padding for the section */
+    background-color: #f8f9fa; /* Light background for the section */
+}
+
+/* Title within the benefits section */
+.gec-benefits-section h2 {
+    text-align: center;        /* Center the title */
+    margin-bottom: 15px;       /* Space below the title */
+    color: #0d384d;            
+    font-size: 2.2rem;         /* Title size */
+}
+
+/* Introduction paragraph below the title */
+.gec-section-intro {
+    text-align: left;        /* Center the intro text */
+    max-width: 800px;          /* Limit width for readability */
+    margin: 0 auto 40px;       /* Center horizontally, add space below */
+    color: #495057;            /* Text color */
+    line-height: 1.6;          /* Spacing between lines */
+    font-size: 1.1rem;         /* Text size */
+}
+
+/* Grid container for the benefit cards */
+.gec-benefits-section .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Default: 3 equal columns */
+    gap: 30px;                 /* Space between cards */
+    /* margin-top: 40px; */    /* This is handled by intro margin-bottom */
+}
+
+/* Individual benefit card styling */
+.gec-benefit-card {
+    text-align: left;        /* Center content within the card */
+    padding: 30px 20px;        /* Inner padding of the card */
+    border-radius: 10px;       /* Rounded corners */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08); /* Subtle shadow */
+    background-color: white;   /* Card background */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth hover effect */
+    display: flex;             /* Use flexbox for vertical alignment */
+    flex-direction: column;    /* Stack card content vertically */
+    justify-content: flex-start; /* Align content to the top */
+    align-items: center;       /* Center content horizontally */
+}
+
+/* Hover effect for the cards */
+.gec-benefit-card:hover {
+    transform: translateY(-5px); /* Lift card slightly */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12); /* Enhance shadow */
+}
+
+/* Circular container for the icon */
+.gec-card-icon {
+    background-color: #e7f1ff; /* Light blue background for icon circle */
+    width: 80px;               /* Fixed width */
+    height: 80px;              /* Fixed height */
+    border-radius: 50%;        /* Make it a circle */
+    display: flex;             /* Use flexbox to center icon inside */
+    align-items: center;       /* Vertical centering */
+    justify-content: center;   /* Horizontal centering */
+    margin-bottom: 20px;       /* Space below the icon circle */
+    flex-shrink: 0;            /* Prevent icon container from shrinking */
+}
+
+/* Icon image itself */
+.gec-card-icon img {
+    width: 40px;               /* Icon size */
+    height: 40px;              /* Icon size */
+    display: block;            /* Ensure proper rendering */
+}
+
+/* Card heading (e.g., "Boost Your Reputation") */
+.gec-benefit-card h3 {
+    color: #0d384d;         
+    margin-top: 0;             /* Remove default top margin */
+    margin-bottom: 15px;       /* Space below heading */
+    font-size: 1.4rem;         /* Heading size */
+}
+
+/* Card paragraph text */
+.gec-benefit-card p {
+    color: #6c757d;            /* Text color */
+    line-height: 1.6;          /* Spacing between lines */
+    margin-bottom: 0;          /* Remove default bottom margin */
+    flex-grow: 1;              /* Allow text to take remaining space if needed */
+}
+
+/* =============================================== */
+/* == Responsive Adjustments == */
+/* =============================================== */
+
+/* Medium screens (Tablets) */
+@media (max-width: 992px) {
+    .gec-benefits-section .grid {
+        grid-template-columns: repeat(2, 1fr); /* Switch to 2 columns */
+    }
+}
+
+/* Small screens (Mobile) */
+@media (max-width: 768px) {
+    .gec-benefits-section {
+        padding: 40px 0;       /* Reduce section padding */
+    }
+
+    .gec-section-intro {
+        padding-left: 15px;    /* Add padding for very narrow text */
+        padding-right: 15px;   /* Add padding for very narrow text */
+        /* Max-width is handled by container, but explicit padding helps */
+    }
+
+    .gec-benefits-section .grid {
+        grid-template-columns: 1fr; /* Switch to 1 column (stacking) */
+        gap: 20px;             /* Reduce gap between cards */
+    }
+}
     </style>
 
 <script>
@@ -437,10 +568,8 @@ function onSubmitForm(e) {
                 </div>
                 <!-- Navigation Links -->
                 <ul class="nav-links">
-                    <li><a href="/">Home</a></li>
                     <li><a href="#features">Features</a></li>
                     <li><a href="#pricing">Pricing</a></li>
-                    <li><a href="#contact">Contact</a></li>
                     {% if user %}
                     <li><a href="/dashboard">Dashboard</a></li>
                     <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
@@ -500,30 +629,47 @@ function onSubmitForm(e) {
             </div>
         </section>
 
-        <!-- Rich Conversational Experiences Section -->
-        <section class="rich-conversations">
-            <div class="container">
-                <h2>Create rich conversational experiences</h2>
+        <!-- Benefits Section -->
+        <section class="gec-benefits-section">
+            <div class="container">  <!-- Ensures content is contained and centered -->
+                <h2>Effortlessly Grow Your Business with AI</h2>
+                <p class="gec-section-intro">You've worked hard to create your product, services and website. Wouldn't it be nice if, for a change, it was REALLY easy to boost your reputation with visitors, easily answer their questions, level up customer relationships, generate fresh leads, and all without adding any employees? Welcome to GoEasyChat!</p>
                 <div class="grid">
-                    <div class="card">
-                        <div class="image-placeholder"></div>
-                        <h3>Provide support wherever customers are</h3>
-                        <p>Connect across web, mobile and social so the conversation is ongoing and the customer never has to repeat themselves.</p>
+                     <!-- Card 1: Reputation -->
+                     <div class="gec-benefit-card">
+                         <div class="gec-card-icon">
+                             <img src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230d6efd%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2022s8-4%208-10V5l-8-3-8%203v7c0%206%208%2010%208%2010z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E'
+                                  alt="Reputation Icon"
+                                  onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default-icon.png') }}';">
+                         </div>
+                         <h3>Boost Your Reputation</h3>
+                         <p>Impress visitors with instant, accurate responses to their questions. Show them you care about providing superior service with a cutting-edge AI assistant that represents your brand 24/7.</p>
+                     </div>
+                     <!-- Card 2: Leads -->
+                     <div class="gec-benefit-card">
+                         <div class="gec-card-icon">
+                             <img src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230d6efd%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M17%2021v-2a4%204%200%200%200-4-4H5a4%204%200%200%200-4%204v2%22%3E%3C%2Fpath%3E%3Ccircle%20cx%3D%229%22%20cy%3D%227%22%20r%3D%224%22%3E%3C%2Fcircle%3E%3Cpath%20d%3D%22M23%2021v-2a4%204%200%200%200-3-3.87%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M16%203.13a4%204%200%200%201%200%207.75%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E'
+                                  alt="Leads Icon"
+                                  onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default-icon.png') }}';">
+                         </div>
+                         <h3>Generate Fresh Leads</h3>
+                         <p>Convert more visitors into customers by answering their questions immediately. Capture contact information and qualify leads automatically without any human intervention.</p>
+                     </div>
+                     <!-- Card 3: Scale -->
+                     <div class="gec-benefit-card">
+                        <div class="gec-card-icon">
+                            <!-- MODIFIED ICON BELOW -->
+                            <img src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230d6efd%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2020h18%22%2F%3E%3Cpath%20d%3D%22M6%2016v4%22%2F%3E%3Cpath%20d%3D%22M10%2012v8%22%2F%3E%3Cpath%20d%3D%22M14%208v12%22%2F%3E%3Cpath%20d%3D%22M18%204v16%22%2F%3E%3Cpolyline%20points%3D%223%2017%208%2012%2013%2014%2021%206%22%2F%3E%3Cpolyline%20points%3D%2217%206%2021%206%2021%2010%22%2F%3E%3C%2Fsvg%3E'
+                                 alt="Scale Icon"
+                                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default-icon.png') }}';">
+                        </div>
+                        <h3>Scale Without Adding Staff</h3>
+                        <p>Handle unlimited customer inquiries simultaneously with zero added payroll. Your AI chatbot works tirelessly to build relationships, educate customers, and drive sales.</p>
                     </div>
-                    <div class="card">
-                        <div class="image-placeholder"></div>
-                        <h3>Increase team productivity & efficiency</h3>
-                        <p>Messaging comes with a unified agent workspace that gives agents what they need to respond to customers, anywhere.</p>
-                    </div>
-                    <div class="card">
-                        <div class="image-placeholder"></div>
-                        <h3>Offer quick & personalized interactions</h3>
-                        <p>Provide 24/7 support with built-in automation for faster service as you scale and rich content for your conversations.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
+                </div> <!-- End .grid -->
+            </div> <!-- End .container -->
+        </section> <!-- End .gec-benefits-section -->
+        
         <!-- How It Works Section -->
         <section class="how-it-works">
             <div class="container">
