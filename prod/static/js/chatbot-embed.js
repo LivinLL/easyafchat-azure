@@ -356,7 +356,7 @@ function initializeChatbot() {
             @media (max-width: 767px) {
                 .daves-chat-window {
                     width: 100%;        /* Use full width */
-                    height: 100vh;       /* Use full viewport height */
+                    /* height: 100vh; */ /* Removed fixed height - will be set by JS */
                     top: 0;             /* Position from the top edge */
                     left: 0;            /* Position from the left edge */
                     right: auto;        /* Remove specific right positioning */
@@ -369,7 +369,7 @@ function initializeChatbot() {
 
                 /* <<< --- START: REMOVED Mobile-specific padding for card body --- >>> */
                 /* Removed the padding-bottom: 2rem !important; here, rely on safe-area-inset-bottom on the main window */
-                 /* <<< --- END: REMOVED Mobile-specific padding for card body --- >>> */
+                /* <<< --- END: REMOVED Mobile-specific padding for card body --- >>> */
 
                 .daves-chat-window #daves-close-chat {
                     font-size: 24px !important;
@@ -1123,6 +1123,16 @@ chatBubble.addEventListener('click', () => {
         document.body.appendChild(chatWindow);
         mountPoint = document.body;
         console.log('Chat window moved to body for mobile');
+        
+        // Get the actual visible viewport height for mobile
+        if (window.visualViewport) {
+            const vv = window.visualViewport;
+            // Set the chat window height to match visible viewport
+            chatWindow.style.height = `${vv.height}px`;
+            // Align with top of visible viewport
+            chatWindow.style.top = `${vv.offsetTop}px`;
+            console.log(`Setting mobile chat window height: ${vv.height}px, top: ${vv.offsetTop}px`);
+        }
     }
     
     // Toggle visibility
