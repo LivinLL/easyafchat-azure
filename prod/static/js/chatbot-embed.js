@@ -412,10 +412,10 @@ function initializeChatbot() {
 
                 .input-wrapper-new {
                     position: relative !important;
-                    width: 80% !important;
+                    width: 90% !important;
                     padding-right: 60px !important; /* Ensure there's always space for the button */
                     box-sizing: border-box !important;
-                    border: 2px solid #00ff00 !important;
+                    border: 0px solid #00ff00 !important;
                 }
             }
 
@@ -540,7 +540,7 @@ function initializeChatbot() {
                 width: 100%;
                 padding-right: 10px !important; /* Ensure there's always space for the button */
                 box-sizing: border-box !important;
-                border: 2px solid #ff0000;
+                border: 0px solid #ff0000;
             }
 
             .daves-button {
