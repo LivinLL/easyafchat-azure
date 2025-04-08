@@ -485,7 +485,7 @@ function initializeChatbot() {
             }
 
             .daves-chat-input {
-                width: 85% !important;
+                width: 100% !important; /* Change from 85% to 100% */
                 padding: 0.5rem 0.75rem !important;
                 padding-right: 45px !important;
                 border: 1px solid #dee2e6 !important;
@@ -496,6 +496,7 @@ function initializeChatbot() {
                 min-height: 40px !important;
                 line-height: 1.5 !important;
                 font-size: 1rem !important;
+                box-sizing: border-box !important;
             }
 
             .daves-chat-input:focus {
@@ -511,7 +512,7 @@ function initializeChatbot() {
 
             .send-icon-btn {
                 position: absolute !important;
-                right: 0 !important;
+                right: 10px !important; /* Increased from 0px to ensure it's not too close to edge */
                 top: 50% !important;
                 transform: translateY(-50%) !important;
                 padding: 6px !important;
@@ -522,11 +523,15 @@ function initializeChatbot() {
                 align-items: center !important;
                 justify-content: center !important;
                 cursor: pointer !important;
+                max-width: 30px !important; /* Ensure button has max width */
+                overflow: visible !important; /* Allow SVG to overflow button if needed */
             }
 
             .input-wrapper {
                 position: relative !important;
                 width: 100% !important;
+                padding-right: 45px !important; /* Ensure there's always space for the button */
+                box-sizing: border-box !important;
             }
 
             .daves-button {
