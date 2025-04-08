@@ -409,6 +409,14 @@ function initializeChatbot() {
                     width: 100% !important;
                     height: 100% !important;
                 }
+
+                .input-wrapper-new {
+                    position: relative !important;
+                    width: 80% !important;
+                    padding-right: 60px !important; /* Ensure there's always space for the button */
+                    box-sizing: border-box !important;
+                    border: 2px solid #00ff00 !important;
+                }
             }
 
             .daves-chat-bubble {
@@ -512,7 +520,7 @@ function initializeChatbot() {
 
             .send-icon-btn {
                 position: absolute !important;
-                right: 10px !important; /* Increased from 0px to ensure it's not too close to edge */
+                right: 20px !important; /* Increased from 0px to ensure it's not too close to edge */
                 top: 50% !important;
                 transform: translateY(-50%) !important;
                 padding: 6px !important;
@@ -523,15 +531,16 @@ function initializeChatbot() {
                 align-items: center !important;
                 justify-content: center !important;
                 cursor: pointer !important;
-                max-width: 30px !important; /* Ensure button has max width */
+                max-width: 40px !important; /* Ensure button has max width */
                 overflow: visible !important; /* Allow SVG to overflow button if needed */
             }
 
-            .input-wrapper {
+            .input-wrapper-new {
                 position: relative !important;
-                width: 100% !important;
-                padding-right: 45px !important; /* Ensure there's always space for the button */
+                width: 100%;
+                padding-right: 10px !important; /* Ensure there's always space for the button */
                 box-sizing: border-box !important;
+                border: 2px solid #ff0000;
             }
 
             .daves-button {
@@ -762,13 +771,13 @@ function initializeChatbot() {
             <div class="card-body" id="daves-chat-messages"></div>
             <div class="card-footer">
                 <form id="daves-chat-form">
-                    <div class="input-wrapper">
+                    <div class="input-wrapper-new">
                         <textarea class="daves-chat-input" 
                                 id="daves-chat-input" 
                                 placeholder="Your message..." 
                                 required></textarea>
                                 <button type="submit" class="daves-button send-icon-btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 20 20" fill="none" style="transform: rotate(0deg);">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 20 20" fill="none" style="transform: rotate(0deg);">
                                         <title>Paper Plane</title>
                                         <path fill="currentColor" d="M15.44 1.68c.69-.05 1.47.08 2.13.74.66.67.8 1.45.75 2.14-.03.47-.15 1-.25 1.4l-.09.35a43.7 43.7 0 0 1-3.83 10.67A2.52 2.52 0 0 1 9.7 17l-1.65-3.03a.83.83 0 0 1 .14-1l3.1-3.1a.83.83 0 1 0-1.18-1.17l-3.1 3.1a.83.83 0 0 1-.99.14L2.98 10.3a2.52 2.52 0 0 1 .04-4.45 43.7 43.7 0 0 1 11.02-3.9c.4-.1.92-.23 1.4-.26Z"></path>
                                     </svg>
