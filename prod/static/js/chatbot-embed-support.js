@@ -172,24 +172,37 @@ function initializeMarkedAndChatbot() {
                 padding: 1rem !important;
             }
 
+            /* --- Updated Mobile Styles --- */
             @media (max-width: 767px) {
                 .support-chat-window {
-                    width: 90%;
-                    right: 5%;
-                    height: 95vh;
-                    max-height: 600px;
-                    bottom: 20px;
+                    width: 100%;        /* Use full width */
+                    height: 100vh;       /* Use full viewport height */
+                    top: 0;             /* Position from the top edge */
+                    left: 0;            /* Position from the left edge */
+                    right: auto;        /* Remove specific right positioning */
+                    bottom: auto;       /* Remove specific bottom positioning */
+                    max-height: none;   /* Remove the max-height limit */
+                    border-radius: 0;   /* Remove rounded corners for full screen */
+                    /* Keep other essential styles like display, flex-direction, z-index, etc. */
                 }
 
                 .support-chat-window #support-close-chat {
-                    font-size: 24px !important;
+                    font-size: 24px !important; /* Kept existing style */
                 }
 
                 #support-reset-chat svg {
-                    width: 20px !important;
-                    height: 20px !important;
+                    width: 20px !important; /* Kept existing style */
+                    height: 20px !important; /* Kept existing style */
+                }
+
+                /* Styles for initial popup on mobile (preserved from original) */
+                .support-initial-popup {
+                    left: auto;
+                    right: 10px;
+                    width: 200px;
                 }
             }
+            /* --- End Updated Mobile Styles --- */
 
             .support-chat-bubble {
                 position: ${config.mountTo ? 'absolute' : 'fixed'};
@@ -474,13 +487,7 @@ function initializeMarkedAndChatbot() {
                 border-top: 8px solid white;
             }
 
-            @media (max-width: 767px) {
-                .support-initial-popup {
-                    left: auto;
-                    right: 10px;
-                    width: 200px;
-                }
-            }
+            /* Note: Mobile styles for .support-initial-popup are now inside the main @media query above */
         `;
 
         document.head.appendChild(style);
@@ -1141,38 +1148,81 @@ function initializeMarkedAndChatbot() {
             }
         });
 
-        // Fix for mobile input visibility when keyboard appears
-        chatInput.addEventListener('focus', function(event) {
-            console.log('Input field focused - applying fixed lift amount');
-            if (isMobile) {
-                // Prevent the underlying page from scrolling
-                if (event) event.preventDefault();
-                
-                // Reset any existing transform first to prevent stacking
-                chatWindow.style.transform = '';
-                
-                // Small delay to ensure the reset is processed before applying new transform
-                setTimeout(() => {
-                    // Then apply a fixed transformation to lift the chat window
-                    chatWindow.style.transform = 'translateY(-200px)';
-                    
-                    // Still do a gentle scroll to ensure input is visible
-                    chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                }, 50);
-                
-                // Reset position after blur
-                chatInput.addEventListener('blur', function onBlur() {
-                    chatWindow.style.transform = '';
-                    chatInput.removeEventListener('blur', onBlur);
-                }, { once: true });
-            }
-        });
-
         // Auto-resize textarea
         chatInput.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
+
+        // --- START: NEW CODE for VisualViewport Keyboard Handling ---
+
+        let isInputFocused = false; // Flag to track input focus state
+
+        // Define the function to adjust layout based on visualViewport
+        const handleViewportResize = () => {
+            // Only run this logic on mobile devices
+            if (!isMobile || !window.visualViewport) {
+                // Reset styles if not mobile or visualViewport is not supported
+                chatWindow.style.height = '';
+                chatWindow.style.top = '';
+                return;
+            }
+
+            const vv = window.visualViewport;
+
+            if (isInputFocused) {
+                // Keyboard is likely up (input has focus)
+                // Make the chat window exactly fill the VISIBLE area
+                // Use 100% of vv.height MINUS a small buffer (e.g., 1px) if needed to prevent layout shifts
+                chatWindow.style.height = `${vv.height}px`; 
+                chatWindow.style.top = `${vv.offsetTop}px`; // Align top with visible area
+
+                // Ensure the input is visible within the new smaller area
+                // Using 'nearest' is often smoother than 'end' here
+                // Small delay helps ensure layout calculation is complete
+                setTimeout(() => {
+                    chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+
+
+            } else {
+                // Keyboard is likely down (input lost focus)
+                // Reset inline styles so the CSS (height: 100vh, top: 0) takes over
+                chatWindow.style.height = '';
+                chatWindow.style.top = '';
+            }
+        };
+
+        // Add listener for input focus
+        chatInput.addEventListener('focus', () => {
+            if (!isMobile) return; // Only on mobile
+
+            isInputFocused = true;
+            // Start listening for viewport changes WHEN input gets focus
+            if (window.visualViewport) {
+                 window.visualViewport.addEventListener('resize', handleViewportResize);
+                 // Call handler immediately on focus in case viewport already changed
+                 handleViewportResize();
+            } else {
+                console.warn("VisualViewport API not supported on this browser.");
+            }
+        });
+
+        // Add listener for input blur
+        chatInput.addEventListener('blur', () => {
+            if (!isMobile) return; // Only on mobile
+
+            isInputFocused = false;
+            // Stop listening for viewport changes WHEN input loses focus
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleViewportResize);
+                // Call handler immediately on blur to reset the layout
+                // Use a small delay because blur might fire slightly before resize event finishes
+                setTimeout(handleViewportResize, 100); // Increased delay slightly
+            }
+        });
+
+        // --- END: NEW CODE for VisualViewport Keyboard Handling ---
 
         // Reset chat functionality
         resetButton.addEventListener('click', async () => {
