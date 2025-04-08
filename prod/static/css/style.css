@@ -308,6 +308,15 @@ header {
     border-radius: 10px;
 }
 
+/* styles.css */
+
+.how-it-works .main-image video {
+    max-width: 100%;
+    height: auto;
+    display: block; /* Optional: helps prevent extra space below video */
+    border-radius: 10px; /* Optional: matches the fallback image style */
+}
+
 .how-it-works .steps-container {
     flex: 1;
 }
@@ -347,6 +356,7 @@ header {
 .how-it-works .step-content h3 {
     font-size: 1.25rem;
     font-weight: bold;
+    margin-top: 0;
     margin-bottom: 0.5rem;
     color: #0d384d; /* Brand color for headings */
 }

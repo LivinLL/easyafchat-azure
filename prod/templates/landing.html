@@ -676,14 +676,12 @@ function onSubmitForm(e) {
                 <div class="how-it-works-content">
                     <!-- MP4 Video on the Left -->
                     <div class="main-image">
-                        <video 
-                            autoplay 
-                            muted 
-                            loop 
+                        <video
+                            autoplay
+                            muted
+                            loop
                             playsinline
                             loading="lazy"
-                            width="625"
-                            height="475"
                             poster="{{ url_for('static', filename='images/how-it-works-main.png') }}"
                         >
                             <source src="{{ url_for('static', filename='images/Bot-Create-Demo-v1.mp4') }}" type="video/mp4">
