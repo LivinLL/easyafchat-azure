@@ -313,6 +313,10 @@ function initializeChatbot() {
                 overflow: hidden;
                 background-color: white !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+                 /* <<< --- START: Add safe area padding --- >>> */
+                padding-bottom: env(safe-area-inset-bottom, 0px); /* Add padding for iOS bottom bar/notch */
+                box-sizing: border-box; /* Ensure padding is included in height */
+                /* <<< --- END: Add safe area padding --- >>> */
             }
 
             .daves-chat-window .card-header {
@@ -344,6 +348,9 @@ function initializeChatbot() {
                 background-color: #f3f5f7 !important;
                 border-top: 1px solid #e9ecef !important;
                 padding: 1rem !important;
+                /* <<< --- START: Ensure footer doesn't shrink unexpectedly --- >>> */
+                flex-shrink: 0 !important; /* Prevent footer from shrinking */
+                /* <<< --- END: Ensure footer doesn't shrink unexpectedly --- >>> */
             }
 
             @media (max-width: 767px) {
@@ -357,14 +364,12 @@ function initializeChatbot() {
                     max-height: none;   /* Remove the max-height limit */
                     border-radius: 0;   /* Remove rounded corners for full screen */
                     /* Keep other essential styles like display, flex-direction, z-index, etc. */
+                    /* Safe area padding moved to main .daves-chat-window rule */
                 }
 
-                /* <<< --- START: ADDED Mobile-specific padding for card body --- >>> */
-                .daves-chat-window .card-body {
-                    /* Add extra padding at the bottom on mobile to push content up from potential keyboard overlap */
-                    padding-bottom: 2rem !important; 
-                }
-                 /* <<< --- END: ADDED Mobile-specific padding for card body --- >>> */
+                /* <<< --- START: REMOVED Mobile-specific padding for card body --- >>> */
+                /* Removed the padding-bottom: 2rem !important; here, rely on safe-area-inset-bottom on the main window */
+                 /* <<< --- END: REMOVED Mobile-specific padding for card body --- >>> */
 
                 .daves-chat-window #daves-close-chat {
                     font-size: 24px !important;
@@ -391,6 +396,11 @@ function initializeChatbot() {
                 transition: transform 0.3s ease;
                 z-index: 999999;
                 box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                /* <<< --- START: Add safe area padding to bubble position --- >>> */
+                /* Adjust position slightly based on safe area */
+                bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+                right: 20px; /* Keep right fixed */
+                /* <<< --- END: Add safe area padding to bubble position --- >>> */
             }
 
             .daves-chat-bubble:hover {
@@ -556,9 +566,10 @@ function initializeChatbot() {
                 margin: 0.5rem 0 !important;
                 border: 1px solid #dee2e6 !important;
                 max-width: 100% !important;
-                /* <<< --- START: ADDED Bottom margin for spacing --- >>> */
-                margin-bottom: 1rem !important; /* Add spacing below the form */
-                /* <<< --- END: ADDED Bottom margin for spacing --- >>> */
+                margin-bottom: 1rem !important; /* Keep spacing below the form */
+                 /* <<< --- START: Ensure lead form doesn't shrink --- >>> */
+                 flex-shrink: 0 !important; /* Prevent form from shrinking weirdly */
+                 /* <<< --- END: Ensure lead form doesn't shrink --- >>> */
             }
 
             .daves-lead-form h3 {
@@ -628,9 +639,10 @@ function initializeChatbot() {
                 border-radius: 4px !important;
                 margin: 0.5rem 0 !important;
                 text-align: center !important;
-                 /* <<< --- START: ADDED Bottom margin for spacing --- >>> */
-                margin-bottom: 1rem !important; /* Also add spacing below the thank you message */
-                /* <<< --- END: ADDED Bottom margin for spacing --- >>> */
+                margin-bottom: 1rem !important; /* Keep spacing below the thank you message */
+                 /* <<< --- START: Ensure thanks message doesn't shrink --- >>> */
+                 flex-shrink: 0 !important; /* Prevent message from shrinking weirdly */
+                 /* <<< --- END: Ensure thanks message doesn't shrink --- >>> */
             }
 
             /* Initial popup with delay */
@@ -898,9 +910,11 @@ async function handleLeadFormSubmit(e) {
         }
     }
     
-    // <<< --- START: Get chatForm reference earlier --- >>>
     const chatForm = document.getElementById('daves-chat-form');
-    // <<< --- END: Get chatForm reference earlier --- >>>
+    // <<< --- START: Get reference to chatWindow --- >>>
+    // Ensure we have a reference to the main chat window element
+    const chatWindow = document.querySelector('.daves-chat-window'); 
+    // <<< --- END: Get reference to chatWindow --- >>>
 
     try {
         console.log('Submitting lead data with thread ID:', threadId);
@@ -933,43 +947,44 @@ async function handleLeadFormSubmit(e) {
         thankYouDiv.className = 'daves-lead-form-thanks';
         thankYouDiv.textContent = 'Thank you! We have received your information.';
         
-        if (leadForm) {
+        if (leadForm && chatWindow) { // Check if chatWindow exists
             leadForm.parentNode.replaceChild(thankYouDiv, leadForm);
             console.log('Lead form replaced with thank you message');
             
             // Re-enable chat form after successful submission
-            // const chatForm = document.getElementById('daves-chat-form'); // Moved earlier
             chatForm.classList.remove('d-none');
             
-            // <<< --- START: Force layout reset and scroll input into view on mobile --- >>>
+            // <<< --- START: NEW Mobile layout reset logic --- >>>
             if (isMobile) {
-                // Give the DOM a moment to update and keyboard to potentially start dismissing
+                console.log('Running mobile reset logic after lead submit.');
+                // Force remove inline styles potentially set by visualViewport handler
+                chatWindow.style.height = '';
+                chatWindow.style.top = '';
+                isInputFocused = false; // Update state flag
+
+                // Give the browser a moment to apply the CSS (100vh) and redraw
                 setTimeout(() => {
-                    // Explicitly call the viewport resize handler to reset inline styles
-                    // Assuming the input *doesn't* have focus now, this should reset height/top
-                    isInputFocused = false; // Ensure state reflects reality
-                    handleViewportResize();
-                    
-                    // Ensure the chat input area is visible
-                    chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                    console.log('Mobile layout reset and scrolled input into view after lead submit.');
-                }, 150); // Delay might need adjustment based on testing
+                    console.log('Scrolling input into view after delay.');
+                    // Ensure the chat input area is visible using 'nearest'
+                    chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 250); // Increased delay slightly for stability
             }
-            // <<< --- END: Force layout reset and scroll input into view on mobile --- >>>
+            // <<< --- END: NEW Mobile layout reset logic --- >>>
 
             // Remove the thank you message after a few seconds
             setTimeout(() => {
                 if (thankYouDiv.parentNode) {
                     thankYouDiv.parentNode.removeChild(thankYouDiv);
                     console.log('Thank you message removed');
-                     // <<< --- START: Scroll again after thank you removed (optional but good) --- >>>
+                     // Scroll again after thank you removed just in case layout shifted
                      if (isMobile) {
-                         // Ensure input is still visible after removing the thank you message
-                        chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                         // Use requestAnimationFrame for smoother scroll after DOM change
+                         requestAnimationFrame(() => {
+                            chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                         });
                      }
-                     // <<< --- END: Scroll again after thank you removed (optional but good) --- >>>
                 }
-            }, 5000); // Adjusted timing slightly from original code
+            }, 5000); 
         }
         
         hasSubmittedLead = true;
@@ -979,19 +994,22 @@ async function handleLeadFormSubmit(e) {
         console.error('Error saving lead:', error);
         alert('Sorry, there was an error saving your information. Please try again.');
         
-        // Re-enable chat form even on error to prevent users from being stuck
-        // const chatForm = document.getElementById('daves-chat-form'); // Moved earlier
+        // Re-enable chat form even on error
         chatForm.classList.remove('d-none');
-         // <<< --- START: Ensure layout reset even on error --- >>>
-         if (isMobile) {
-            setTimeout(() => {
-                isInputFocused = false; // Ensure state reflects reality
-                handleViewportResize(); // Attempt reset
-                 chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' }); // Scroll into view
-                console.log('Mobile layout reset attempted after lead submit error.');
-            }, 150);
+
+         // <<< --- START: Attempt layout reset even on error --- >>>
+         if (isMobile && chatWindow) {
+             console.log('Running mobile reset logic after lead submit error.');
+             // Force remove inline styles
+             chatWindow.style.height = '';
+             chatWindow.style.top = '';
+             isInputFocused = false; 
+
+             setTimeout(() => {
+                 chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+             }, 250);
          }
-         // <<< --- END: Ensure layout reset even on error --- >>>
+         // <<< --- END: Attempt layout reset even on error --- >>>
     }
 }
 
