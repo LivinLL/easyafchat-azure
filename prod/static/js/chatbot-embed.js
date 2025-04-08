@@ -297,369 +297,382 @@ function initializeChatbot() {
             console.log(`Applying custom colors - Primary: ${primaryColor}, Accent: ${accentColor}`);
 
             style.textContent = `
+            .daves-chat-window {
+                position: ${config.mountTo ? 'absolute' : 'fixed'};
+                bottom: 100px;
+                right: 20px;
+                width: 400px;
+                height: ${isDemoPage && config.mountTo ? '500px' : '80vh'}; 
+                max-height: ${isDemoPage && config.mountTo ? '500px' : '800px'};
+                border-radius: 12px;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                display: flex !important;
+                flex-direction: column !important;
+                transition: all 0.3s ease;
+                z-index: ${isDemoPage ? '9999999' : '999999'};
+                overflow: hidden;
+                background-color: white !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            }
+
+            .daves-chat-window .card-header {
+                background-color: #f3f5f7 !important;
+                border-bottom: 1px solid #e9ecef !important;
+                padding: 1rem !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+
+            /* Bottom align */
+            .daves-chat-window .card-header > div:last-child {
+                display: flex !important;
+                align-items: flex-end !important; /* Change from center to flex-end */
+                /* background-color: #e0f7fa !important; */ /* Light blue background */
+                padding: 5px !important;
+                border-radius: 4px !important;
+            }
+
+            .daves-chat-window .card-body {
+                flex: 1 !important;
+                overflow-y: auto !important;
+                padding: 1rem !important;
+                background-color: white !important;
+            }
+
+            .daves-chat-window .card-footer {
+                background-color: #f3f5f7 !important;
+                border-top: 1px solid #e9ecef !important;
+                padding: 1rem !important;
+            }
+
+            @media (max-width: 767px) {
                 .daves-chat-window {
-                    position: ${config.mountTo ? 'absolute' : 'fixed'};
-                    bottom: 100px;
-                    right: 20px;
-                    width: 400px;
-                    height: ${isDemoPage && config.mountTo ? '500px' : '80vh'}; 
-                    max-height: ${isDemoPage && config.mountTo ? '500px' : '800px'};
-                    border-radius: 12px;
-                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-                    display: flex !important;
-                    flex-direction: column !important;
-                    transition: all 0.3s ease;
-                    z-index: ${isDemoPage ? '9999999' : '999999'};
-                    overflow: hidden;
-                    background-color: white !important;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+                    width: 100%;        /* Use full width */
+                    height: 100vh;       /* Use full viewport height */
+                    top: 0;             /* Position from the top edge */
+                    left: 0;            /* Position from the left edge */
+                    right: auto;        /* Remove specific right positioning */
+                    bottom: auto;       /* Remove specific bottom positioning */
+                    max-height: none;   /* Remove the max-height limit */
+                    border-radius: 0;   /* Remove rounded corners for full screen */
+                    /* Keep other essential styles like display, flex-direction, z-index, etc. */
                 }
 
-                .daves-chat-window .card-header {
-                    background-color: #f3f5f7 !important;
-                    border-bottom: 1px solid #e9ecef !important;
-                    padding: 1rem !important;
-                    display: flex !important;
-                    justify-content: space-between !important;
-                    align-items: center !important;
-                }
-
-                /* Bottom align */
-                .daves-chat-window .card-header > div:last-child {
-                    display: flex !important;
-                    align-items: flex-end !important; /* Change from center to flex-end */
-                    /* background-color: #e0f7fa !important; */ /* Light blue background */
-                    padding: 5px !important;
-                    border-radius: 4px !important;
-                }
-
+                /* <<< --- START: ADDED Mobile-specific padding for card body --- >>> */
                 .daves-chat-window .card-body {
-                    flex: 1 !important;
-                    overflow-y: auto !important;
-                    padding: 1rem !important;
-                    background-color: white !important;
+                    /* Add extra padding at the bottom on mobile to push content up from potential keyboard overlap */
+                    padding-bottom: 2rem !important; 
+                }
+                 /* <<< --- END: ADDED Mobile-specific padding for card body --- >>> */
+
+                .daves-chat-window #daves-close-chat {
+                    font-size: 24px !important;
                 }
 
-                .daves-chat-window .card-footer {
-                    background-color: #f3f5f7 !important;
-                    border-top: 1px solid #e9ecef !important;
-                    padding: 1rem !important;
+                #daves-reset-chat svg {
+                    width: 20px !important;
+                    height: 20px !important;
                 }
+            }
 
-                @media (max-width: 767px) {
-                    .daves-chat-window {
-                        width: 100%;        /* Use full width */
-                        height: 100vh;       /* Use full viewport height */
-                        top: 0;             /* Position from the top edge */
-                        left: 0;            /* Position from the left edge */
-                        right: auto;        /* Remove specific right positioning */
-                        bottom: auto;       /* Remove specific bottom positioning */
-                        max-height: none;   /* Remove the max-height limit */
-                        border-radius: 0;   /* Remove rounded corners for full screen */
-                        /* Keep other essential styles like display, flex-direction, z-index, etc. */
-                    }
+            .daves-chat-bubble {
+                position: ${config.mountTo ? 'absolute' : 'fixed'};
+                bottom: 20px;
+                right: 20px;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                background-color: ${primaryColor} !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer;
+                transition: transform 0.3s ease;
+                z-index: 999999;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            }
 
-                    .daves-chat-window #daves-close-chat {
-                        font-size: 24px !important;
-                    }
+            .daves-chat-bubble:hover {
+                transform: scale(1.1);
+            }
 
-                    #daves-reset-chat svg {
-                        width: 20px !important;
-                        height: 20px !important;
-                    }
-                }
+            .daves-chat-bubble.active {
+                transform: scale(0.9);
+            }
 
-                .daves-chat-bubble {
-                    position: ${config.mountTo ? 'absolute' : 'fixed'};
-                    bottom: 20px;
-                    right: 20px;
-                    width: 60px;
-                    height: 60px;
-                    border-radius: 50%;
-                    background-color: ${primaryColor} !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    cursor: pointer;
-                    transition: transform 0.3s ease;
-                    z-index: 999999;
-                    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-                }
+            #daves-chat-messages {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 1rem !important;
+            }
 
-                .daves-chat-bubble:hover {
-                    transform: scale(1.1);
-                }
+            .daves-chat-message {
+                margin-bottom: 1rem !important;
+                padding: 0.75rem 1rem !important;
+                border-radius: 12px !important;
+                max-width: 80% !important;
+                position: relative !important;
+                text-align: left !important;
+            }
 
-                .daves-chat-bubble.active {
-                    transform: scale(0.9);
-                }
+            .daves-chat-message.assistant {
+                background-color: ${accentColor} !important;
+                margin-right: auto !important;
+                margin-left: 0 !important;
+                padding-left: 2.5rem !important;
+                color: #212529 !important;
+            }
 
-                #daves-chat-messages {
-                    display: flex !important;
-                    flex-direction: column !important;
-                    gap: 1rem !important;
-                }
+            .daves-chat-message.assistant::before {
+                content: '';
+                position: absolute !important;
+                left: 0.5rem !important;
+                top: 0.5rem !important;
+                width: 24px !important;
+                height: 24px !important;
+                background-image: url('${iconImageUrl}');
+                background-size: cover !important;
+                background-position: center !important;
+                border-radius: 50% !important;
+            }
 
-                .daves-chat-message {
-                    margin-bottom: 1rem !important;
-                    padding: 0.75rem 1rem !important;
-                    border-radius: 12px !important;
-                    max-width: 80% !important;
-                    position: relative !important;
-                    text-align: left !important;
-                }
+            .daves-chat-message.user {
+                background-color: ${primaryColor} !important;
+                margin-left: auto !important;
+                margin-right: 0 !important;
+                color: white !important;
+            }
 
-                .daves-chat-message.assistant {
-                    background-color: ${accentColor} !important;
-                    margin-right: auto !important;
-                    margin-left: 0 !important;
-                    padding-left: 2.5rem !important;
-                    color: #212529 !important;
-                }
+            .daves-chat-input {
+                width: 85% !important;
+                padding: 0.5rem 0.75rem !important;
+                padding-right: 45px !important;
+                border: 1px solid #dee2e6 !important;
+                border-radius: 6px !important;
+                background-color: white !important;
+                color: #212529 !important;
+                resize: none !important;
+                min-height: 40px !important;
+                line-height: 1.5 !important;
+                font-size: 1rem !important;
+            }
 
-                .daves-chat-message.assistant::before {
-                    content: '';
-                    position: absolute !important;
-                    left: 0.5rem !important;
-                    top: 0.5rem !important;
-                    width: 24px !important;
-                    height: 24px !important;
-                    background-image: url('${iconImageUrl}');
-                    background-size: cover !important;
-                    background-position: center !important;
-                    border-radius: 50% !important;
-                }
+            .daves-chat-input:focus {
+                border-color: #6c757d !important;
+                box-shadow: none !important;
+                outline: 0 !important;
+                background-color: white !important;
+            }
 
-                .daves-chat-message.user {
-                    background-color: ${primaryColor} !important;
-                    margin-left: auto !important;
-                    margin-right: 0 !important;
-                    color: white !important;
-                }
+            .daves-chat-input::placeholder {
+                font-size: 1.1rem !important;
+            }
 
-                .daves-chat-input {
-                    width: 85% !important;
-                    padding: 0.5rem 0.75rem !important;
-                    padding-right: 45px !important;
-                    border: 1px solid #dee2e6 !important;
-                    border-radius: 6px !important;
-                    background-color: white !important;
-                    color: #212529 !important;
-                    resize: none !important;
-                    min-height: 40px !important;
-                    line-height: 1.5 !important;
-                    font-size: 1rem !important;
-                }
+            .send-icon-btn {
+                position: absolute !important;
+                right: 0 !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                padding: 6px !important;
+                background: none !important;
+                border: none !important;
+                color: #495057 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer !important;
+            }
 
-                .daves-chat-input:focus {
-                    border-color: #6c757d !important;
-                    box-shadow: none !important;
-                    outline: 0 !important;
-                    background-color: white !important;
-                }
+            .input-wrapper {
+                position: relative !important;
+                width: 100% !important;
+            }
 
-                .daves-chat-input::placeholder {
-                    font-size: 1.1rem !important;
-                }
+            .daves-button {
+                background: none !important;
+                border: none !important;
+                padding: 0.375rem !important;
+                cursor: pointer !important;
+                color: #6c757d !important;
+            }
 
-                .send-icon-btn {
-                    position: absolute !important;
-                    right: 0 !important;
-                    top: 50% !important;
-                    transform: translateY(-50%) !important;
-                    padding: 6px !important;
-                    background: none !important;
-                    border: none !important;
-                    color: #495057 !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    cursor: pointer !important;
-                }
+            .daves-button:hover {
+                color: #212529 !important;
+            }
 
-                .input-wrapper {
-                    position: relative !important;
-                    width: 100% !important;
-                }
+            #daves-close-chat {
+                font-size: 16px !important;
+            }
 
-                .daves-button {
-                    background: none !important;
-                    border: none !important;
-                    padding: 0.375rem !important;
-                    cursor: pointer !important;
-                    color: #6c757d !important;
-                }
+            .d-none {
+                display: none !important;
+            }
 
-                .daves-button:hover {
-                    color: #212529 !important;
-                }
+            /* Add markdown styling */
+            .daves-chat-message h1,
+            .daves-chat-message h2,
+            .daves-chat-message h3,
+            .daves-chat-message h4 {
+                margin-top: 0.5rem !important;
+                margin-bottom: 0.5rem !important;
+                font-weight: 600 !important;
+            }
 
-                #daves-close-chat {
-                    font-size: 16px !important;
-                }
+            .daves-chat-message p {
+                margin-bottom: 0.5rem !important;
+            }
 
-                .d-none {
-                    display: none !important;
-                }
+            .daves-chat-message ul,
+            .daves-chat-message ol {
+                margin: 0.5rem 0 !important;
+                padding-left: 1.5rem !important;
+            }
 
-                /* Add markdown styling */
-                .daves-chat-message h1,
-                .daves-chat-message h2,
-                .daves-chat-message h3,
-                .daves-chat-message h4 {
-                    margin-top: 0.5rem !important;
-                    margin-bottom: 0.5rem !important;
-                    font-weight: 600 !important;
-                }
+            .daves-chat-message li {
+                margin-bottom: 0.25rem !important;
+            }
 
-                .daves-chat-message p {
-                    margin-bottom: 0.5rem !important;
-                }
+            .daves-chat-message code {
+                background: rgba(0, 0, 0, 0.1) !important;
+                padding: 0.2rem 0.4rem !important;
+                border-radius: 0.25rem !important;
+                font-family: monospace !important;
+            }
 
-                .daves-chat-message ul,
-                .daves-chat-message ol {
-                    margin: 0.5rem 0 !important;
-                    padding-left: 1.5rem !important;
-                }
+            .daves-chat-message pre {
+                background: rgba(0, 0, 0, 0.1) !important;
+                padding: 0.75rem !important;
+                border-radius: 0.5rem !important;
+                overflow-x: auto !important;
+                margin: 0.5rem 0 !important;
+            }
 
-                .daves-chat-message li {
-                    margin-bottom: 0.25rem !important;
-                }
+            /* Lead Form Styles */
+            .daves-lead-form {
+                background-color: #f8f9fa !important;
+                padding: 1rem !important;
+                border-radius: 8px !important;
+                margin: 0.5rem 0 !important;
+                border: 1px solid #dee2e6 !important;
+                max-width: 100% !important;
+                /* <<< --- START: ADDED Bottom margin for spacing --- >>> */
+                margin-bottom: 1rem !important; /* Add spacing below the form */
+                /* <<< --- END: ADDED Bottom margin for spacing --- >>> */
+            }
 
-                .daves-chat-message code {
-                    background: rgba(0, 0, 0, 0.1) !important;
-                    padding: 0.2rem 0.4rem !important;
-                    border-radius: 0.25rem !important;
-                    font-family: monospace !important;
-                }
+            .daves-lead-form h3 {
+                margin-top: 0 !important;
+                margin-bottom: 0.75rem !important;
+                font-size: 1.1rem !important;
+                color: #212529 !important;
+            }
 
-                .daves-chat-message pre {
-                    background: rgba(0, 0, 0, 0.1) !important;
-                    padding: 0.75rem !important;
-                    border-radius: 0.5rem !important;
-                    overflow-x: auto !important;
-                    margin: 0.5rem 0 !important;
-                }
+            .daves-lead-form-field {
+                margin-bottom: 0.75rem !important;
+            }
 
-                /* Lead Form Styles */
-                .daves-lead-form {
-                    background-color: #f8f9fa !important;
-                    padding: 1rem !important;
-                    border-radius: 8px !important;
-                    margin: 0.5rem 0 !important;
-                    border: 1px solid #dee2e6 !important;
-                    max-width: 100% !important;
-                }
+            .daves-lead-form-field input {
+                width: 100% !important;
+                padding: 0.5rem !important;
+                border: 1px solid #ced4da !important;
+                border-radius: 4px !important;
+                font-size: 0.9rem !important;
+            }
 
-                .daves-lead-form h3 {
-                    margin-top: 0 !important;
-                    margin-bottom: 0.75rem !important;
-                    font-size: 1.1rem !important;
-                    color: #212529 !important;
-                }
+            .daves-lead-form-field input:focus {
+                outline: none !important;
+                border-color: #80bdff !important;
+                box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+            }
 
-                .daves-lead-form-field {
-                    margin-bottom: 0.75rem !important;
-                }
+            .daves-lead-form-submit {
+                background-color: ${primaryColor} !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 4px !important;
+                padding: 0.5rem 1rem !important;
+                cursor: pointer !important;
+                font-size: 0.9rem !important;
+                font-weight: 500 !important;
+                transition: background-color 0.2s !important;
+            }
 
-                .daves-lead-form-field input {
-                    width: 100% !important;
-                    padding: 0.5rem !important;
-                    border: 1px solid #ced4da !important;
-                    border-radius: 4px !important;
-                    font-size: 0.9rem !important;
-                }
+            .daves-lead-form-submit:hover {
+                background-color: ${primaryColor === '#0d6efd' ? '#0b5ed7' : primaryColor} !important;
+            }
 
-                .daves-lead-form-field input:focus {
-                    outline: none !important;
-                    border-color: #80bdff !important;
-                    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
-                }
+            .daves-lead-form-submit:disabled {
+                background-color: #6c757d !important;
+                cursor: not-allowed !important;
+            }
 
-                .daves-lead-form-submit {
-                    background-color: ${primaryColor} !important;
-                    color: white !important;
-                    border: none !important;
-                    border-radius: 4px !important;
-                    padding: 0.5rem 1rem !important;
-                    cursor: pointer !important;
-                    font-size: 0.9rem !important;
-                    font-weight: 500 !important;
-                    transition: background-color 0.2s !important;
-                }
+            .daves-lead-form-close {
+                background: none !important;
+                border: none !important;
+                color: #6c757d !important;
+                font-size: 0.8rem !important;
+                margin-left: 0.5rem !important;
+                cursor: pointer !important;
+                text-decoration: underline !important;
+            }
 
-                .daves-lead-form-submit:hover {
-                    background-color: ${primaryColor === '#0d6efd' ? '#0b5ed7' : primaryColor} !important;
-                }
+            .daves-lead-form-close:hover {
+                color: #495057 !important;
+            }
 
-                .daves-lead-form-submit:disabled {
-                    background-color: #6c757d !important;
-                    cursor: not-allowed !important;
-                }
+            .daves-lead-form-thanks {
+                padding: 1rem !important;
+                background-color: #d4edda !important;
+                color: #155724 !important;
+                border-radius: 4px !important;
+                margin: 0.5rem 0 !important;
+                text-align: center !important;
+                 /* <<< --- START: ADDED Bottom margin for spacing --- >>> */
+                margin-bottom: 1rem !important; /* Also add spacing below the thank you message */
+                /* <<< --- END: ADDED Bottom margin for spacing --- >>> */
+            }
 
-                .daves-lead-form-close {
-                    background: none !important;
-                    border: none !important;
-                    color: #6c757d !important;
-                    font-size: 0.8rem !important;
-                    margin-left: 0.5rem !important;
-                    cursor: pointer !important;
-                    text-decoration: underline !important;
-                }
+            /* Initial popup with delay */
+            .daves-initial-popup {
+                position: absolute;
+                top: -10px;
+                left: -240px;
+                width: 240px;
+                padding: 10px 15px;
+                background-color: white;
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+                transform: translateY(-100%);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                z-index: 999998;
+                font-size: 14px;
+                text-align: left;
+                color: #333;
+            }
 
-                .daves-lead-form-close:hover {
-                    color: #495057 !important;
-                }
+            .daves-initial-popup:after {
+                content: "";
+                position: absolute;
+                bottom: -8px;
+                right: 20px;
+                width: 0;
+                height: 0;
+                border-left: 8px solid transparent;
+                border-right: 8px solid transparent;
+                border-top: 8px solid white;
+            }
 
-                .daves-lead-form-thanks {
-                    padding: 1rem !important;
-                    background-color: #d4edda !important;
-                    color: #155724 !important;
-                    border-radius: 4px !important;
-                    margin: 0.5rem 0 !important;
-                    text-align: center !important;
-                }
-
-                /* Initial popup with delay */
+            @media (max-width: 767px) {
                 .daves-initial-popup {
-                    position: absolute;
-                    top: -10px;
-                    left: -240px;
-                    width: 240px;
-                    padding: 10px 15px;
-                    background-color: white;
-                    border: 1px solid #e9ecef;
-                    border-radius: 8px;
-                    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-                    transform: translateY(-100%);
-                    opacity: 0;
-                    transition: opacity 0.3s ease;
-                    z-index: 999998;
-                    font-size: 14px;
-                    text-align: left;
-                    color: #333;
+                    left: auto;
+                    right: 10px;
+                    width: 200px;
                 }
-
-                .daves-initial-popup:after {
-                    content: "";
-                    position: absolute;
-                    bottom: -8px;
-                    right: 20px;
-                    width: 0;
-                    height: 0;
-                    border-left: 8px solid transparent;
-                    border-right: 8px solid transparent;
-                    border-top: 8px solid white;
-                }
-
-                @media (max-width: 767px) {
-                    .daves-initial-popup {
-                        left: auto;
-                        right: 10px;
-                        width: 200px;
-                    }
-                }
-            `;
+            }
+        `;
 
         document.head.appendChild(style);
 
@@ -885,6 +898,10 @@ async function handleLeadFormSubmit(e) {
         }
     }
     
+    // <<< --- START: Get chatForm reference earlier --- >>>
+    const chatForm = document.getElementById('daves-chat-form');
+    // <<< --- END: Get chatForm reference earlier --- >>>
+
     try {
         console.log('Submitting lead data with thread ID:', threadId);
         const leadData = {
@@ -921,16 +938,38 @@ async function handleLeadFormSubmit(e) {
             console.log('Lead form replaced with thank you message');
             
             // Re-enable chat form after successful submission
-            const chatForm = document.getElementById('daves-chat-form');
+            // const chatForm = document.getElementById('daves-chat-form'); // Moved earlier
             chatForm.classList.remove('d-none');
             
+            // <<< --- START: Force layout reset and scroll input into view on mobile --- >>>
+            if (isMobile) {
+                // Give the DOM a moment to update and keyboard to potentially start dismissing
+                setTimeout(() => {
+                    // Explicitly call the viewport resize handler to reset inline styles
+                    // Assuming the input *doesn't* have focus now, this should reset height/top
+                    isInputFocused = false; // Ensure state reflects reality
+                    handleViewportResize();
+                    
+                    // Ensure the chat input area is visible
+                    chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    console.log('Mobile layout reset and scrolled input into view after lead submit.');
+                }, 150); // Delay might need adjustment based on testing
+            }
+            // <<< --- END: Force layout reset and scroll input into view on mobile --- >>>
+
             // Remove the thank you message after a few seconds
             setTimeout(() => {
                 if (thankYouDiv.parentNode) {
                     thankYouDiv.parentNode.removeChild(thankYouDiv);
                     console.log('Thank you message removed');
+                     // <<< --- START: Scroll again after thank you removed (optional but good) --- >>>
+                     if (isMobile) {
+                         // Ensure input is still visible after removing the thank you message
+                        chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                     }
+                     // <<< --- END: Scroll again after thank you removed (optional but good) --- >>>
                 }
-            }, 5000);
+            }, 5000); // Adjusted timing slightly from original code
         }
         
         hasSubmittedLead = true;
@@ -941,8 +980,18 @@ async function handleLeadFormSubmit(e) {
         alert('Sorry, there was an error saving your information. Please try again.');
         
         // Re-enable chat form even on error to prevent users from being stuck
-        const chatForm = document.getElementById('daves-chat-form');
+        // const chatForm = document.getElementById('daves-chat-form'); // Moved earlier
         chatForm.classList.remove('d-none');
+         // <<< --- START: Ensure layout reset even on error --- >>>
+         if (isMobile) {
+            setTimeout(() => {
+                isInputFocused = false; // Ensure state reflects reality
+                handleViewportResize(); // Attempt reset
+                 chatInput.scrollIntoView({ behavior: 'smooth', block: 'end' }); // Scroll into view
+                console.log('Mobile layout reset attempted after lead submit error.');
+            }, 150);
+         }
+         // <<< --- END: Ensure layout reset even on error --- >>>
     }
 }
 
