@@ -355,21 +355,43 @@ function initializeChatbot() {
 
             @media (max-width: 767px) {
                 .daves-chat-window {
-                    width: 100%;        /* Use full width */
-                    /* height: 100vh; */ /* Removed fixed height - will be set by JS */
-                    top: 0;             /* Position from the top edge */
-                    left: 0;            /* Position from the left edge */
-                    right: auto;        /* Remove specific right positioning */
-                    bottom: auto;       /* Remove specific bottom positioning */
-                    max-height: none;   /* Remove the max-height limit */
-                    border-radius: 0;   /* Remove rounded corners for full screen */
-                    /* Keep other essential styles like display, flex-direction, z-index, etc. */
-                    /* Safe area padding moved to main .daves-chat-window rule */
+                    position: fixed !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    bottom: 0 !important;
+                    max-height: none !important;
+                    border-radius: 0 !important;
+                    z-index: 9999999 !important;
+                    overflow: hidden !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    background-color: white !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    padding-bottom: env(safe-area-inset-bottom, 0) !important;
                 }
 
-                /* <<< --- START: REMOVED Mobile-specific padding for card body --- >>> */
-                /* Removed the padding-bottom: 2rem !important; here, rely on safe-area-inset-bottom on the main window */
-                /* <<< --- END: REMOVED Mobile-specific padding for card body --- >>> */
+                .daves-chat-window .card-header {
+                    flex-shrink: 0 !important;
+                }
+
+                .daves-chat-window .card-body {
+                    flex: 1 !important;
+                    overflow-y: auto !important;
+                    position: relative !important;
+                }
+
+                .daves-chat-window .card-footer {
+                    flex-shrink: 0 !important;
+                    background-color: #f3f5f7 !important;
+                    border-top: 1px solid #e9ecef !important;
+                    padding: 1rem !important;
+                    width: 100% !important;
+                    position: relative !important;
+                }
 
                 .daves-chat-window #daves-close-chat {
                     font-size: 24px !important;
@@ -378,6 +400,14 @@ function initializeChatbot() {
                 #daves-reset-chat svg {
                     width: 20px !important;
                     height: 20px !important;
+                }
+
+                /* When chat is open on mobile, prevent scrolling the background page */
+                body.daves-chat-open {
+                    overflow: hidden !important;
+                    position: fixed !important;
+                    width: 100% !important;
+                    height: 100% !important;
                 }
             }
 
@@ -1118,20 +1148,12 @@ function showInitialPopup(delay = 2000) {
 chatBubble.addEventListener('click', () => {
     console.log('Chat bubble clicked');
 
-    if (isMobile && chatWindow.classList.contains('d-none')) {
+    if (isMobile) {
         // Move window to body before showing it on mobile
-        document.body.appendChild(chatWindow);
-        mountPoint = document.body;
-        console.log('Chat window moved to body for mobile');
-        
-        // Get the actual visible viewport height for mobile
-        if (window.visualViewport) {
-            const vv = window.visualViewport;
-            // Set the chat window height to match visible viewport
-            chatWindow.style.height = `${vv.height}px`;
-            // Align with top of visible viewport
-            chatWindow.style.top = `${vv.offsetTop}px`;
-            console.log(`Setting mobile chat window height: ${vv.height}px, top: ${vv.offsetTop}px`);
+        if (chatWindow.classList.contains('d-none')) {
+            document.body.appendChild(chatWindow);
+            mountPoint = document.body;
+            console.log('Chat window moved to body for mobile');
         }
     }
     
@@ -1139,10 +1161,21 @@ chatBubble.addEventListener('click', () => {
     if (chatWindow.classList.contains('d-none')) {
         chatWindow.classList.remove('d-none');
         chatBubble.classList.add('active');
+        // Add class to body to prevent background scrolling on mobile
+        if (isMobile) {
+            document.body.classList.add('daves-chat-open');
+            // Reset any inline styles that might have been applied
+            chatWindow.style.height = '';
+            chatWindow.style.top = '';
+        }
         console.log('Chat window opened');
     } else {
         chatWindow.classList.add('d-none');
         chatBubble.classList.remove('active');
+        // Remove the class from body to restore background scrolling
+        if (isMobile) {
+            document.body.classList.remove('daves-chat-open');
+        }
         console.log('Chat window closed');
     }
     
@@ -1156,6 +1189,10 @@ chatBubble.addEventListener('click', () => {
 closeButton.addEventListener('click', () => {
     chatWindow.classList.add('d-none');
     chatBubble.classList.remove('active');
+    // Remove the class from body to restore background scrolling
+    if (isMobile) {
+        document.body.classList.remove('daves-chat-open');
+    }
     console.log('Chat window closed by close button');
 });
 // <<< --- END: ADDED CLOSE BUTTON LISTENER --- >>>
@@ -1431,29 +1468,16 @@ let isInputFocused = false; // Flag to track input focus state
 const handleViewportResize = () => {
     // Only run this logic on mobile devices
     if (!isMobile || !window.visualViewport) {
-        // Reset styles if not mobile or visualViewport is not supported
-        chatWindow.style.height = '';
-        chatWindow.style.top = '';
         return;
     }
 
     const vv = window.visualViewport;
 
     if (isInputFocused) {
-        // Keyboard is likely up (input has focus)
-        // Make the chat window exactly fill the VISIBLE area
-        chatWindow.style.height = `${vv.height}px`;
-        chatWindow.style.top = `${vv.offsetTop}px`; // Align top with visible area
-
-        // Ensure the input is visible within the new smaller area
-        // Using 'nearest' is often smoother than 'end' here
-        chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-    } else {
-        // Keyboard is likely down (input lost focus)
-        // Reset inline styles so the CSS (height: 100vh, top: 0) takes over
-        chatWindow.style.height = '';
-        chatWindow.style.top = '';
+        // When keyboard is up, we just need to ensure input remains visible
+        // No need to change window height/position since we're using position: fixed
+        // Just scroll the input into view within the fixed container
+        chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 };
 
@@ -1476,13 +1500,7 @@ chatInput.addEventListener('blur', () => {
     isInputFocused = false;
     // Stop listening for viewport changes WHEN input loses focus
     window.visualViewport.removeEventListener('resize', handleViewportResize);
-
-    // Call handler immediately on blur to reset the layout
-    // Use a small delay because blur might fire slightly before resize event finishes
-    setTimeout(handleViewportResize, 50);
 });
-
-// --- END: NEW CODE for VisualViewport Keyboard Handling ---
 
 // Reset chat functionality
 resetButton.addEventListener('click', async () => {
