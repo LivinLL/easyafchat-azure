@@ -139,8 +139,8 @@ header {
     font-size: 1rem;
     border: 2px solid #ddd;
     border-radius: 20px;
-    width: 60%;
-    max-width: 400px;
+    width: 100%;
+    max-width: 700px;
     outline: none;
     transition: border-color 0.3s ease;
     background-color: rgba(255, 255, 255, 0.9); /* Transparent white background */
