@@ -139,6 +139,9 @@ function initializeMarkedAndChatbot() {
                 overflow: hidden;
                 background-color: white !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+                /* Add safe area padding */
+                padding-bottom: env(safe-area-inset-bottom, 0px); /* Add padding for iOS bottom bar/notch */
+                box-sizing: border-box; /* Ensure padding is included in height */
             }
 
             .support-chat-window .support-card-header {
@@ -170,36 +173,75 @@ function initializeMarkedAndChatbot() {
                 background-color: #f3f5f7 !important;
                 border-top: 1px solid #e9ecef !important;
                 padding: 1rem !important;
+                flex-shrink: 0 !important; /* Prevent footer from shrinking */
+                border: 0px solid orange;
             }
 
             /* --- Updated Mobile Styles --- */
             @media (max-width: 767px) {
                 .support-chat-window {
-                    width: 100%;        /* Use full width */
-                    height: 100vh;       /* Use full viewport height */
-                    top: 0;             /* Position from the top edge */
-                    left: 0;            /* Position from the left edge */
-                    right: auto;        /* Remove specific right positioning */
-                    bottom: auto;       /* Remove specific bottom positioning */
-                    max-height: none;   /* Remove the max-height limit */
-                    border-radius: 0;   /* Remove rounded corners for full screen */
-                    /* Keep other essential styles like display, flex-direction, z-index, etc. */
+                    position: fixed !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    bottom: 0 !important;
+                    max-height: none !important;
+                    border-radius: 0 !important;
+                    z-index: 9999999 !important;
+                    overflow: hidden !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    background-color: white !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    padding-bottom: env(safe-area-inset-bottom, 0) !important;
+                }
+
+                .support-chat-window .support-card-header {
+                    flex-shrink: 0 !important;
+                }
+
+                .support-chat-window .support-card-body {
+                    flex: 1 !important;
+                    overflow-y: auto !important;
+                    position: relative !important;
+                }
+
+                .support-chat-window .support-card-footer {
+                    flex-shrink: 0 !important;
+                    background-color: #f3f5f7 !important;
+                    border-top: 1px solid #e9ecef !important;
+                    padding: 1rem !important;
+                    /* width: 100% !important; */
+                    position: relative !important;
+                    border: 0px solid orange;
                 }
 
                 .support-chat-window #support-close-chat {
-                    font-size: 24px !important; /* Kept existing style */
+                    font-size: 24px !important;
                 }
 
                 #support-reset-chat svg {
-                    width: 20px !important; /* Kept existing style */
-                    height: 20px !important; /* Kept existing style */
+                    width: 20px !important;
+                    height: 20px !important;
                 }
 
-                /* Styles for initial popup on mobile (preserved from original) */
-                .support-initial-popup {
-                    left: auto;
-                    right: 10px;
-                    width: 200px;
+                /* When chat is open on mobile, prevent scrolling the background page */
+                body.support-chat-open {
+                    overflow: hidden !important;
+                    position: fixed !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+
+                .support-input-wrapper {
+                    position: relative !important;
+                    /* width: 95% !important; */
+                    padding-right: 60px !important; /* Ensure there's always space for the button */
+                    box-sizing: border-box !important;
+                    border: 0px solid #00ff00 !important;
                 }
             }
             /* --- End Updated Mobile Styles --- */
@@ -219,6 +261,9 @@ function initializeMarkedAndChatbot() {
                 transition: transform 0.3s ease;
                 z-index: 999999;
                 box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                /* Add safe area padding to bubble position */
+                bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+                right: 20px; /* Keep right fixed */
             }
 
             .support-chat-bubble:hover {
@@ -273,7 +318,7 @@ function initializeMarkedAndChatbot() {
             }
 
             .support-chat-input {
-                width: 85% !important;
+                width: 100% !important;
                 padding: 0.5rem 0.75rem !important;
                 padding-right: 45px !important;
                 border: 1px solid #dee2e6 !important;
@@ -299,7 +344,7 @@ function initializeMarkedAndChatbot() {
 
             .support-send-icon-btn {
                 position: absolute !important;
-                right: 0 !important;
+                right: 10px; !important;
                 top: 50% !important;
                 transform: translateY(-50%) !important;
                 padding: 6px !important;
@@ -314,7 +359,10 @@ function initializeMarkedAndChatbot() {
 
             .support-input-wrapper {
                 position: relative !important;
-                width: 100% !important;
+                /* width: 100%; */
+                padding-right: 60px !important; /* Ensure there's always space for the button */
+                box-sizing: border-box !important;
+                border: 0px solid #ff0000;
             }
 
             .support-button {
@@ -384,6 +432,8 @@ function initializeMarkedAndChatbot() {
                 margin: 0.5rem 0 !important;
                 border: 1px solid #dee2e6 !important;
                 max-width: 100% !important;
+                margin-bottom: 1rem !important; /* Keep spacing below the form */
+                flex-shrink: 0 !important; /* Prevent form from shrinking weirdly */
             }
 
             .support-lead-form h3 {
@@ -453,6 +503,8 @@ function initializeMarkedAndChatbot() {
                 border-radius: 4px !important;
                 margin: 0.5rem 0 !important;
                 text-align: center !important;
+                margin-bottom: 1rem !important; /* Keep spacing below the thank you message */
+                flex-shrink: 0 !important; /* Prevent message from shrinking weirdly */
             }
 
             /* Initial popup with delay */
@@ -537,7 +589,7 @@ function initializeMarkedAndChatbot() {
                                 placeholder="Your message..." 
                                 required></textarea>
                                 <button type="submit" class="support-button support-send-icon-btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 20 20" fill="none" style="transform: rotate(0deg);">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 20 20" fill="none" style="transform: rotate(0deg);">
                                         <title>Paper Plane</title>
                                         <path fill="currentColor" d="M15.44 1.68c.69-.05 1.47.08 2.13.74.66.67.8 1.45.75 2.14-.03.47-.15 1-.25 1.4l-.09.35a43.7 43.7 0 0 1-3.83 10.67A2.52 2.52 0 0 1 9.7 17l-1.65-3.03a.83.83 0 0 1 .14-1l3.1-3.1a.83.83 0 1 0-1.18-1.17l-3.1 3.1a.83.83 0 0 1-.99.14L2.98 10.3a2.52 2.52 0 0 1 .04-4.45 43.7 43.7 0 0 1 11.02-3.9c.4-.1.92-.23 1.4-.26Z"></path>
                                     </svg>
@@ -577,22 +629,42 @@ function initializeMarkedAndChatbot() {
 
         // <<< --- START: ADDED EVENT LISTENER --- >>>
         chatBubble.addEventListener('click', () => {
-            // Remove the class that hides the window
-            chatWindow.classList.remove('support-d-none');
-            // Add the 'active' class to the bubble for visual feedback
-            chatBubble.classList.add('active');
-            // Optional: Focus the input field when opening
-            chatInput.focus();
-
-            // If this is the very first time opening and there are no messages,
-            // add the initial greeting and generate thread ID.
+            console.log('Chat bubble clicked');
+        
+            if (isMobile) {
+                // Move window to body before showing it on mobile
+                if (chatWindow.classList.contains('support-d-none')) {
+                    document.body.appendChild(chatWindow);
+                    mountPoint = document.body;
+                    console.log('Chat window moved to body for mobile');
+                }
+            }
+            
+            // Toggle visibility
+            if (chatWindow.classList.contains('support-d-none')) {
+                chatWindow.classList.remove('support-d-none');
+                chatBubble.classList.add('active');
+                // Add class to body to prevent background scrolling on mobile
+                if (isMobile) {
+                    document.body.classList.add('support-chat-open');
+                    // Reset any inline styles that might have been applied
+                    chatWindow.style.height = '';
+                    chatWindow.style.top = '';
+                }
+                console.log('Chat window opened');
+            } else {
+                chatWindow.classList.add('support-d-none');
+                chatBubble.classList.remove('active');
+                // Remove the class from body to restore background scrolling
+                if (isMobile) {
+                    document.body.classList.remove('support-chat-open');
+                }
+                console.log('Chat window closed');
+            }
+            
             if (messages.length === 0) {
-                    addMessage("Hi there! 👋 How can I help you?", 'assistant');
-                    // Initialize threadId here if not done elsewhere on first interaction
-                    if (!threadId) {
-                        threadId = `support_thread_${Date.now()}`;
-                        console.log('Initial open. Thread ID generated:', threadId);
-                    }
+                addMessage("Hi there! 👋 How can I help you?", 'assistant');
+                console.log('Added initial assistant greeting');
             }
         });
         // <<< --- END: ADDED EVENT LISTENER --- >>>
@@ -735,6 +807,10 @@ function initializeMarkedAndChatbot() {
                 }
             }
             
+            const chatForm = document.getElementById('support-chat-form');
+            // Get reference to the main chat window element
+            const chatWindow = document.querySelector('.support-chat-window'); 
+        
             try {
                 console.log('Submitting lead data with thread ID:', threadId);
                 const leadData = {
@@ -766,21 +842,43 @@ function initializeMarkedAndChatbot() {
                 thankYouDiv.className = 'support-lead-form-thanks';
                 thankYouDiv.textContent = 'Thank you! We have received your information.';
                 
-                if (leadForm) {
+                if (leadForm && chatWindow) { // Check if chatWindow exists
                     leadForm.parentNode.replaceChild(thankYouDiv, leadForm);
                     console.log('Lead form replaced with thank you message');
                     
                     // Re-enable chat form after successful submission
-                    const chatForm = document.getElementById('support-chat-form');
                     chatForm.classList.remove('support-d-none');
                     
+                    // Mobile layout reset logic after lead submit
+                    if (isMobile) {
+                        console.log('Running mobile reset logic after lead submit.');
+                        // Force remove inline styles potentially set by visualViewport handler
+                        chatWindow.style.height = '';
+                        chatWindow.style.top = '';
+                        isInputFocused = false; // Update state flag
+        
+                        // Give the browser a moment to apply the CSS (100vh) and redraw
+                        setTimeout(() => {
+                            console.log('Scrolling input into view after delay.');
+                            // Ensure the chat input area is visible using 'nearest'
+                            chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 250); // Increased delay slightly for stability
+                    }
+        
                     // Remove the thank you message after a few seconds
                     setTimeout(() => {
                         if (thankYouDiv.parentNode) {
                             thankYouDiv.parentNode.removeChild(thankYouDiv);
                             console.log('Thank you message removed');
+                            // Scroll again after thank you removed just in case layout shifted
+                            if (isMobile) {
+                                // Use requestAnimationFrame for smoother scroll after DOM change
+                                requestAnimationFrame(() => {
+                                   chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                });
+                            }
                         }
-                    }, 5000);
+                    }, 5000); 
                 }
                 
                 hasSubmittedLead = true;
@@ -790,9 +888,21 @@ function initializeMarkedAndChatbot() {
                 console.error('Error saving lead:', error);
                 alert('Sorry, there was an error saving your information. Please try again.');
                 
-                // Re-enable chat form even on error to prevent users from being stuck
-                const chatForm = document.getElementById('support-chat-form');
+                // Re-enable chat form even on error
                 chatForm.classList.remove('support-d-none');
+        
+                // Attempt layout reset even on error
+                if (isMobile && chatWindow) {
+                    console.log('Running mobile reset logic after lead submit error.');
+                    // Force remove inline styles
+                    chatWindow.style.height = '';
+                    chatWindow.style.top = '';
+                    isInputFocused = false; 
+        
+                    setTimeout(() => {
+                        chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 250);
+                }
             }
         }
 
@@ -1162,34 +1272,16 @@ function initializeMarkedAndChatbot() {
         const handleViewportResize = () => {
             // Only run this logic on mobile devices
             if (!isMobile || !window.visualViewport) {
-                // Reset styles if not mobile or visualViewport is not supported
-                chatWindow.style.height = '';
-                chatWindow.style.top = '';
                 return;
             }
 
             const vv = window.visualViewport;
 
             if (isInputFocused) {
-                // Keyboard is likely up (input has focus)
-                // Make the chat window exactly fill the VISIBLE area
-                // Use 100% of vv.height MINUS a small buffer (e.g., 1px) if needed to prevent layout shifts
-                chatWindow.style.height = `${vv.height}px`; 
-                chatWindow.style.top = `${vv.offsetTop}px`; // Align top with visible area
-
-                // Ensure the input is visible within the new smaller area
-                // Using 'nearest' is often smoother than 'end' here
-                // Small delay helps ensure layout calculation is complete
-                setTimeout(() => {
-                    chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 100);
-
-
-            } else {
-                // Keyboard is likely down (input lost focus)
-                // Reset inline styles so the CSS (height: 100vh, top: 0) takes over
-                chatWindow.style.height = '';
-                chatWindow.style.top = '';
+                // When keyboard is up, we just need to ensure input remains visible
+                // No need to change window height/position since we're using position: fixed
+                // Just scroll the input into view within the fixed container
+                chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         };
 
@@ -1199,13 +1291,10 @@ function initializeMarkedAndChatbot() {
 
             isInputFocused = true;
             // Start listening for viewport changes WHEN input gets focus
-            if (window.visualViewport) {
-                 window.visualViewport.addEventListener('resize', handleViewportResize);
-                 // Call handler immediately on focus in case viewport already changed
-                 handleViewportResize();
-            } else {
-                console.warn("VisualViewport API not supported on this browser.");
-            }
+            window.visualViewport.addEventListener('resize', handleViewportResize);
+
+            // Call handler immediately on focus in case viewport already changed
+            handleViewportResize();
         });
 
         // Add listener for input blur
@@ -1214,12 +1303,7 @@ function initializeMarkedAndChatbot() {
 
             isInputFocused = false;
             // Stop listening for viewport changes WHEN input loses focus
-            if (window.visualViewport) {
-                window.visualViewport.removeEventListener('resize', handleViewportResize);
-                // Call handler immediately on blur to reset the layout
-                // Use a small delay because blur might fire slightly before resize event finishes
-                setTimeout(handleViewportResize, 100); // Increased delay slightly
-            }
+            window.visualViewport.removeEventListener('resize', handleViewportResize);
         });
 
         // --- END: NEW CODE for VisualViewport Keyboard Handling ---
@@ -1259,6 +1343,11 @@ function initializeMarkedAndChatbot() {
 closeButton.addEventListener('click', () => {
     chatWindow.classList.add('support-d-none');
     chatBubble.classList.remove('active');
+    // Remove the class from body to restore background scrolling
+    if (isMobile) {
+        document.body.classList.remove('support-chat-open');
+    }
+    console.log('Chat window closed by close button');
 });
 
 // Call the showInitialPopup function with a delay
