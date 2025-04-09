@@ -7,7 +7,7 @@ from openai import OpenAI
 from pinecone import Pinecone
 from datetime import datetime, UTC
 from typing import List, Dict, Tuple, Optional
-from chat_handler import ChatPromptHandler
+from chat_handler import ChatPromptHandler, DEFAULT_SYSTEM_PROMPT
 from flask_cors import CORS
 from db_leads import leads_blueprint, init_leads_blueprint
 from flask_limiter import Limiter
@@ -1572,6 +1572,11 @@ def embed_chat():
         if system_prompt:
             print(f"Using custom system prompt for chatbot {chatbot_id}")
             handler.SYSTEM_PROMPT = system_prompt
+        else:
+            # Reset to default if no custom prompt is specified
+            # Using the imported DEFAULT_SYSTEM_PROMPT instead of hardcoded value
+            print(f"Using default system prompt for chatbot {chatbot_id}")
+            handler.SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
         
         # Ensure handler is using the frontend thread_id for every message in the conversation
         if thread_id and handler.thread_id != thread_id:
