@@ -794,10 +794,11 @@ def aggregate_usage_for_date(target_date: date) -> Dict[str, Any]:
         return results
 # END USAGE METRICS FUNCTION
 
-# BEGIN GET USAGE METRICS FOR RANGE
+# BEGIN GET USAGE METRICS FOR RANGE (Updated)
 def get_usage_metrics_for_range(start_date: date, end_date: date) -> List[Dict[str, Any]]:
     """
-    Retrieves aggregated usage metrics from the usage_metrics table for a given date range.
+    Retrieves aggregated usage metrics from the usage_metrics table joined with
+    company information (namespace) for a given date range.
 
     Args:
         start_date: The start date of the range (inclusive).
@@ -805,7 +806,7 @@ def get_usage_metrics_for_range(start_date: date, end_date: date) -> List[Dict[s
 
     Returns:
         A list of dictionaries, where each dictionary represents a row
-        from the usage_metrics table for the specified range.
+        from the usage_metrics table joined with company namespace for the specified range.
     """
     print(f"[db_metrics] Fetching usage metrics from {start_date.isoformat()} to {end_date.isoformat()}")
     metrics_data = []
@@ -813,26 +814,30 @@ def get_usage_metrics_for_range(start_date: date, end_date: date) -> List[Dict[s
         with connect_to_db() as conn:
             cursor = conn.cursor()
 
-            # Prepare query based on DB type
+            # Prepare query based on DB type, joining with companies table
             if DB_TYPE.lower() == 'postgresql':
                 query = f"""
                     SELECT
-                        usage_metric_id, chatbot_id, date, conversations, messages,
-                        tokens, costs, positive_feedback, negative_feedback, created_at
-                    FROM {DB_SCHEMA}.usage_metrics
-                    WHERE date >= %s AND date <= %s
-                    ORDER BY date ASC, chatbot_id ASC
+                        um.usage_metric_id, um.chatbot_id, c.pinecone_namespace as company_namespace,
+                        um.date, um.conversations, um.messages,
+                        um.tokens, um.costs, um.positive_feedback, um.negative_feedback, um.created_at
+                    FROM {DB_SCHEMA}.usage_metrics um
+                    LEFT JOIN {DB_SCHEMA}.companies c ON um.chatbot_id = c.chatbot_id
+                    WHERE um.date >= %s AND um.date <= %s
+                    ORDER BY um.date ASC, um.chatbot_id ASC
                 """
                 cursor.execute(query, (start_date, end_date))
             else:
                 # SQLite stores dates as strings typically
                 query = """
                     SELECT
-                        usage_metric_id, chatbot_id, date, conversations, messages,
-                        tokens, costs, positive_feedback, negative_feedback, created_at
-                    FROM usage_metrics
-                    WHERE date >= ? AND date <= ?
-                    ORDER BY date ASC, chatbot_id ASC
+                        um.usage_metric_id, um.chatbot_id, c.pinecone_namespace as company_namespace,
+                        um.date, um.conversations, um.messages,
+                        um.tokens, um.costs, um.positive_feedback, um.negative_feedback, um.created_at
+                    FROM usage_metrics um
+                    LEFT JOIN companies c ON um.chatbot_id = c.chatbot_id
+                    WHERE um.date >= ? AND um.date <= ?
+                    ORDER BY um.date ASC, um.chatbot_id ASC
                 """
                 cursor.execute(query, (start_date.isoformat(), end_date.isoformat()))
 
@@ -853,16 +858,22 @@ def get_usage_metrics_for_range(start_date: date, end_date: date) -> List[Dict[s
                 if isinstance(row_dict.get('created_at'), datetime):
                     row_dict['created_at'] = row_dict['created_at'].isoformat()
 
+                # Ensure company_namespace is included, default to '-' if null/missing
+                row_dict['company_namespace'] = row_dict.get('company_namespace', '-')
+                if row_dict['company_namespace'] is None:
+                    row_dict['company_namespace'] = '-'
+
+
                 metrics_data.append(row_dict)
 
-            print(f"[db_metrics] Found {len(metrics_data)} usage metric records.")
+            print(f"[db_metrics] Found {len(metrics_data)} usage metric records (with company namespace).")
             return metrics_data
 
     except Exception as e:
         print(f"[db_metrics] Error fetching usage metrics for range: {str(e)}")
         print(traceback.format_exc())
         return [] # Return empty list on error
-# END GET USAGE METRICS FOR RANGE
+# END GET USAGE METRICS FOR RANGE (Updated)
 
 # Route for submitting user feedback on a message
 @metrics_blueprint.route('/message-feedback', methods=['POST'])

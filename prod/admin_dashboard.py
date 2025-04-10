@@ -1280,8 +1280,7 @@ HTML = '''
             location.reload();
         }
 
-// --- NEW Usage Metrics Tab Functionality ---
-        // Function to display the report table
+        // Function to display the report table (Updated for Company column and shorter headers)
         function displayMetricsReport(data, serverTimeInfo) {
             console.log('[Admin JS] displayMetricsReport called with data:', data);
             const reportContainer = document.getElementById('metricsReportContainer');
@@ -1308,19 +1307,20 @@ HTML = '''
 
             console.log('[Admin JS] Data grouped by date:', groupedData);
 
-            // Create table structure
+            // Create table structure with updated headers
             let tableHTML = '<table class="table table-striped table-bordered table-sm">';
             tableHTML += `
                 <thead class="table-light">
                     <tr>
                         <th>Date</th>
                         <th>Chatbot ID</th>
-                        <th>Conversations</th>
-                        <th>Messages</th>
+                        <th>Company</th>
+                        <th>Cvs</th>
+                        <th>Msgs</th>
                         <th>Tokens</th>
                         <th>Costs ($)</th>
-                        <th>Positive Feedback</th>
-                        <th>Negative Feedback</th>
+                        <th>+F</th>
+                        <th>-F</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1345,7 +1345,7 @@ HTML = '''
                 let daySubtotalPositive = 0;
                 let daySubtotalNegative = 0;
 
-                // Add rows for the current day
+                // Add rows for the current day, including company namespace
                 dayData.forEach(row => {
                     // Safely parse cost, default to 0 if invalid
                     let costValue = 0;
@@ -1356,10 +1356,14 @@ HTML = '''
                         costValue = 0;
                     }
 
+                    // Ensure company_namespace exists, default to '-'
+                    const companyNamespace = row.company_namespace || '-';
+
                     tableHTML += `
                         <tr>
                             <td>${dateKey}</td>
                             <td>${row.chatbot_id || '-'}</td>
+                            <td>${companyNamespace}</td>
                             <td>${row.conversations || 0}</td>
                             <td>${row.messages || 0}</td>
                             <td>${row.tokens || 0}</td>
@@ -1377,10 +1381,10 @@ HTML = '''
                     daySubtotalNegative += parseInt(row.negative_feedback || 0);
                 });
 
-                // Add subtotal row for the day
+                // Add subtotal row for the day, adjusting colspan
                 tableHTML += `
                     <tr class="table-info fw-bold">
-                        <td colspan="2" class="text-end">Subtotal for ${dateKey}:</td>
+                        <td colspan="3" class="text-end">Subtotal for ${dateKey}:</td>
                         <td>${daySubtotalConversations}</td>
                         <td>${daySubtotalMessages}</td>
                         <td>${daySubtotalTokens}</td>
@@ -1401,11 +1405,11 @@ HTML = '''
 
             tableHTML += `</tbody>`;
 
-            // Add Grand Total footer
+            // Add Grand Total footer, adjusting colspan
             tableHTML += `
                 <tfoot class="table-dark fw-bold">
                     <tr>
-                        <td colspan="2" class="text-end">Grand Total:</td>
+                        <td colspan="3" class="text-end">Grand Total:</td>
                         <td>${grandTotalConversations}</td>
                         <td>${grandTotalMessages}</td>
                         <td>${grandTotalTokens}</td>
@@ -1418,7 +1422,7 @@ HTML = '''
 
             tableHTML += '</table>';
             reportContainer.innerHTML = tableHTML;
-            console.log('[Admin JS] Report table rendered.');
+            console.log('[Admin JS] Report table rendered with Company column.');
         }
 
         // Function to fetch and display metrics for the last N days
@@ -2954,52 +2958,73 @@ def handle_aggregate_yesterday():
     """
     API endpoint called by the admin dashboard to trigger the aggregation
     of yesterday's usage metrics.
+    After successful aggregation, it re-fetches the data for yesterday
+    using get_usage_metrics_for_range to include company namespace for display.
     """
     print("[admin_dashboard] Received request to aggregate yesterday's metrics.")
     try:
         # Determine yesterday's date based on server's local time
-        today_local = date.today() # Use date directly since it's imported
-        yesterday_local = today_local - timedelta(days=2) # Use timedelta directly
+        today_local = date.today()
+        # *** CORRECTION: yesterday is timedelta(days=1) ***
+        yesterday_local = today_local - timedelta(days=1)
         print(f"[admin_dashboard] Calculated yesterday's date (local): {yesterday_local.isoformat()}")
 
         # Get current server time and timezone for display
-        now_local = datetime.now() # Use datetime directly
-        # Use time.tzname to get timezone info reliably across platforms if possible
+        now_local = datetime.now()
         try:
-            # tzname can have two values (standard, daylight saving)
             current_tz_name = time.tzname[now_local.dst()] if now_local.dst() else time.tzname[0]
             server_time_str = now_local.strftime(f'%Y-%m-%d %H:%M:%S {current_tz_name}')
         except Exception:
-            # Fallback if tzname causes issues
-             server_time_str = now_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')
+            server_time_str = now_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')
 
         print(f"[admin_dashboard] Current server time for display: {server_time_str}")
 
         # Call the aggregation function from db_metrics
         aggregation_result = aggregate_usage_for_date(yesterday_local)
 
-        # Include server time in the response
-        aggregation_result["server_time_info"] = f"Server Time at Aggregation: {server_time_str}"
+        # Default response data in case aggregation fails or returns no data
+        response_data = {
+            "success": aggregation_result.get("success", False),
+            "message": aggregation_result.get("message", "Aggregation status unknown."),
+            "errors": aggregation_result.get("errors", []),
+            "aggregated_data": [], # Start with empty data
+            "server_time_info": f"Server Time at Aggregation: {server_time_str}"
+        }
+        status_code = 500 if not aggregation_result.get("success") else 200
 
         if aggregation_result.get("success"):
-            print("[admin_dashboard] Aggregation successful.")
-            return jsonify(aggregation_result)
+            print("[admin_dashboard] Aggregation successful. Re-fetching yesterday's data for display.")
+            # Aggregation succeeded, now fetch yesterday's data using the updated function
+            # which includes the company namespace.
+            yesterdays_data_with_namespace = get_usage_metrics_for_range(yesterday_local, yesterday_local)
+
+            # Update the response data with the fetched metrics
+            response_data["aggregated_data"] = yesterdays_data_with_namespace
+            # Keep the original success message from the aggregation process
+            response_data["message"] = aggregation_result.get("message", "Aggregation successful.")
+
+            print(f"[admin_dashboard] Fetched {len(yesterdays_data_with_namespace)} records for yesterday's report.")
+            return jsonify(response_data)
         else:
             print(f"[admin_dashboard] Aggregation failed: {aggregation_result.get('message')}")
-            # Return the error details but with a 500 status code if backend failed
-            return jsonify(aggregation_result), 500
+            # Return the error details from the aggregation attempt
+            return jsonify(response_data), status_code
 
     except Exception as e:
         print(f"[admin_dashboard] FATAL ERROR during aggregation trigger: {str(e)}")
         import traceback
         print(traceback.format_exc())
+        # Use the server time calculated earlier if available, otherwise generate new one
+        final_server_time = server_time_str if 'server_time_str' in locals() else datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z%z')
         return jsonify({
             "success": False,
-            "message": "An unexpected server error occurred.",
+            "message": "An unexpected server error occurred during the aggregation process.",
             "errors": [str(e)],
-            "server_time_info": datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z%z') # Still provide time
+            "aggregated_data": [],
+            "server_time_info": final_server_time # Provide time even on failure
         }), 500
-
+    
+    
 @admin_dashboard.route('/get-usage-metrics', methods=['GET'])
 def get_usage_metrics_report():
     """

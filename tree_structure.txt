@@ -10,16 +10,17 @@
     README.md
     prod/
         .env
+        settings_blueprint.py
+        chat_handler.py
+        admin_dashboard.py
         db_mgr.py
         screenshot.py
         easyafchat.db
+        db_metrics.py
         demo_format.html
         tree_structure.txt
         chat_manual.py
         prompt_log.txt
-        admin_dashboard.py
-        chat_handler.py
-        documents_handler.py
         documents_blueprint.py
         vector_cache.py
         database.py
@@ -30,6 +31,8 @@
         app.py
         db_leads.py
         blocked_domains.py
+        documents_handler.py
+        webjobs/
         static/
             css/
                 style.css
@@ -43,6 +46,7 @@
                 logo_120x40_ORIG.png
                 logo_120x40.png
                 goeasychat-support-icon-200x200.png
+                Bot-Create-Demo-v1.mp4
                 screenshots/
                     08655900893b47609371.png
                     44475314f5d54848be36.png
@@ -59,6 +63,7 @@
                 chatbot-embed-support.js
                 chatbot-embed.js
                 csrf.js
+                settings.js
         templates/
             chat_test.html
             chat_manual.html
@@ -71,13 +76,13 @@
                 reset_password.html
                 signin.html
                 signup.html
+                verify_email.html
         backups/
             Procfile
             requirements.txt
             main_easyafchat-v3-backup.yml
             app-screenshotone-version.py
             documents_blueprint.py
-            chat_handler.py
             03-11-2025-overview.txt
             google_client_secret_1081215761675-vuqqiig0hnndrh6lqgdj1olgjq11q471.apps.googleusercontent.com.json
             app_has_thum.py
@@ -86,28 +91,41 @@
             clean_db_companies_table.py
             clean_db_users_table_azure.py
             clean_db_users_table.py
-            landing.html
             landing_b4_bots.html
             app_b4_bots.py
             app_bot-protect.py
             landing_bot-protect.html
             admin_dashboard.py
-            chatbot-embed.js
             chatbot-embed_b4_img_url.js
             db_leads_add_cols.py
             scrape_site.py
             leads_691fa8dc53f5467dbf0e_20250325.csv
-            dashboard.html
             app.py
             Zoho-SMTP.png
             Zoho-Email-Settings.txt
             trigger-n8n-webhook.ps1
             README-03282025.md
+            chat_messages.csv
+            sqlite_chat_messages.py
+            trigger-n8n-webhook-new-lead.ps1
+            tables-schema-postgres.csv
+            chatbot_config.csv
+            chatbot-embed.js
+            landing.html
+            chatbot-embed-support.js
+            chat_handler.py
+            dashboard.html
+            companies.csv
+            admin_dashboard_shit.py
+            db_metrics_shit.py
         marketing/
             info.txt
             chatbase_signin.png
             chatbase_website_fetchlinks.mp4
             easyafchat-knowledge-doc.txt
+            Bot-Create-Demo-v1.mp4
+            aminos-stuff.txt
+            GoEasyChat-Home-Page.docx
         auth/
             models.py
             __init__.py
@@ -115,6 +133,7 @@
             routes.py
         flask_session/
             b490fc6ca3292e938b406ed0b04c217e
+            tmpvxh90nqp.__wz_cache
             e57b7f6daef3ca7f54ede5d989de76da
             7e0987edc0ba66889b59e52a170f7280
             9dbde3501c5f4c2d353e1f54da6c5f04
@@ -126,11 +145,22 @@
             4e4249671ffde0f1fcc4d0cc18342a7f
             f4e80265cb9aa86f02e2a518de0b1393
             a528e6b779bd218692c8ad28d8aab2f9
-            c7a4abcd6cc214cdd229da1e28cd6e48
+            c3a399440196db796913d5f5a3997b95
             82c82afaaf4a432c381bbd3ce351b474
             cec4b2b7fecb4953cd73f96b62d1a0b9
             20f0069f22e352c5cc68bc3f038baacc
+            bebb2a9eff16ba5703cd102d1f7c733e
+            a4960c360e3025be802ddd5e1281c593
+            9427b1fafb362838a632d6a0bfe182c2
+            615d7d75a1042fd3832df9195a8bec26
+            0d0f512412848cc22041b0c8eda378b9
+            ccf87b4ff2b714f4c04fc4748ff17944
+            2a1c9c15d9e6b019be494787ea841a62
+            e79bdcb0c312e9ed64390098a936bece
+            6a8caa329b6ba7cb57a442beff9937a5
+            5491aaea9bb340b90a9b983e59c204b4
             2029240f6d1128be89ddc32729463129
+            18ac2f3a58c9f86cb1c149b2c4bf628a
     .github/
         workflows/
             main_easyafchat-v3.yml
