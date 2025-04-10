@@ -1,9 +1,12 @@
 from flask import Blueprint, render_template_string, request, jsonify, Response, render_template
 import os
-from datetime import datetime, UTC
+from datetime import datetime, UTC, date, timedelta
+import time
 import csv
 import io
 import uuid
+from db_metrics import aggregate_usage_for_date
+from db_metrics import get_usage_metrics_for_range
 
 # Import connect_to_db from the database module
 from database import connect_to_db
@@ -99,6 +102,10 @@ HTML = '''
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="manual-add-tab" data-bs-toggle="tab" data-bs-target="#manual-add" type="button">Manual Add</button>
+    </li>
+    <!-- New Usage Metrics Tab -->
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="usage-metrics-tab" data-bs-toggle="tab" data-bs-target="#usage-metrics" type="button">Usage Metrics</button>
     </li>
     <li class="nav-item ms-auto">
         <button class="nav-link btn btn-warning" id="clearSessionBtn" type="button">
@@ -484,6 +491,48 @@ HTML = '''
             </div>
         </div>
     </div>
+
+    <!-- Usage Metrics Tab -->
+    <div class="tab-pane fade" id="usage-metrics" role="tabpanel">
+        <h4>Usage Metrics Aggregation and Reporting</h4>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p>Click the button below to aggregate usage data from the `chat_messages` table for **yesterday** and store it in the `usage_metrics` table. If data for yesterday already exists, it will be updated.</p>
+                        <button id="aggregateYesterdayBtn" class="btn btn-primary">
+                            <i class="bi bi-calculator"></i> Aggregate Yesterday's Metrics
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <p>Click the button below to view the aggregated usage metrics stored in the `usage_metrics` table for the **past 7 days**.</p>
+                        <button id="viewLast7DaysBtn" class="btn btn-info">
+                            <i class="bi bi-calendar-week"></i> View Last 7 Days Metrics
+                        </button>
+                    </div>
+                </div>
+                <div id="serverTimeInfo" class="mt-3 text-muted" style="font-size: 0.9em;">
+                    <!-- Server time will be loaded here -->
+                </div>
+                <div id="metricsStatus" class="mt-3 alert d-none">
+                    <!-- Status messages will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Metrics Report</h5>
+            </div>
+            <div class="card-body">
+                <div id="metricsReportContainer" class="table-responsive">
+                    <!-- Report table will be rendered here by JavaScript -->
+                    <p>Click one of the buttons above to generate or view a report.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Usage Metrics Tab -->
 
     <!-- Company Modal -->
     <div class="modal fade" id="recordModal" tabindex="-1">
@@ -1230,6 +1279,255 @@ HTML = '''
             // Reload the page to refresh the companies table
             location.reload();
         }
+
+// --- NEW Usage Metrics Tab Functionality ---
+        // Function to display the report table
+        function displayMetricsReport(data, serverTimeInfo) {
+            console.log('[Admin JS] displayMetricsReport called with data:', data);
+            const reportContainer = document.getElementById('metricsReportContainer');
+            const serverTimeDiv = document.getElementById('serverTimeInfo');
+            reportContainer.innerHTML = ''; // Clear previous report
+            serverTimeDiv.textContent = serverTimeInfo || ''; // Display server time info
+
+            if (!data || data.length === 0) {
+                reportContainer.innerHTML = '<p>No usage metrics found for the selected period.</p>';
+                console.log('[Admin JS] No data to display in report.');
+                return;
+            }
+
+            // Group data by date for subtotals
+            const groupedData = data.reduce((acc, row) => {
+                // Ensure date is just the date part (YYYY-MM-DD)
+                const dateKey = row.date.substring(0, 10);
+                if (!acc[dateKey]) {
+                    acc[dateKey] = [];
+                }
+                acc[dateKey].push(row);
+                return acc;
+            }, {});
+
+            console.log('[Admin JS] Data grouped by date:', groupedData);
+
+            // Create table structure
+            let tableHTML = '<table class="table table-striped table-bordered table-sm">';
+            tableHTML += `
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Chatbot ID</th>
+                        <th>Conversations</th>
+                        <th>Messages</th>
+                        <th>Tokens</th>
+                        <th>Costs ($)</th>
+                        <th>Positive Feedback</th>
+                        <th>Negative Feedback</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            let grandTotalConversations = 0;
+            let grandTotalMessages = 0;
+            let grandTotalTokens = 0;
+            let grandTotalCosts = 0; // Use number for summing
+            let grandTotalPositive = 0;
+            let grandTotalNegative = 0;
+
+            // Sort dates chronologically
+            const sortedDates = Object.keys(groupedData).sort();
+
+            sortedDates.forEach(dateKey => {
+                const dayData = groupedData[dateKey];
+                let daySubtotalConversations = 0;
+                let daySubtotalMessages = 0;
+                let daySubtotalTokens = 0;
+                let daySubtotalCosts = 0; // Use number for summing
+                let daySubtotalPositive = 0;
+                let daySubtotalNegative = 0;
+
+                // Add rows for the current day
+                dayData.forEach(row => {
+                    // Safely parse cost, default to 0 if invalid
+                    let costValue = 0;
+                    try {
+                        costValue = parseFloat(row.costs);
+                        if (isNaN(costValue)) costValue = 0;
+                    } catch {
+                        costValue = 0;
+                    }
+
+                    tableHTML += `
+                        <tr>
+                            <td>${dateKey}</td>
+                            <td>${row.chatbot_id || '-'}</td>
+                            <td>${row.conversations || 0}</td>
+                            <td>${row.messages || 0}</td>
+                            <td>${row.tokens || 0}</td>
+                            <td class="text-end">${costValue.toFixed(6)}</td>
+                            <td>${row.positive_feedback || 0}</td>
+                            <td>${row.negative_feedback || 0}</td>
+                        </tr>
+                    `;
+                    // Accumulate daily subtotals
+                    daySubtotalConversations += parseInt(row.conversations || 0);
+                    daySubtotalMessages += parseInt(row.messages || 0);
+                    daySubtotalTokens += parseInt(row.tokens || 0);
+                    daySubtotalCosts += costValue;
+                    daySubtotalPositive += parseInt(row.positive_feedback || 0);
+                    daySubtotalNegative += parseInt(row.negative_feedback || 0);
+                });
+
+                // Add subtotal row for the day
+                tableHTML += `
+                    <tr class="table-info fw-bold">
+                        <td colspan="2" class="text-end">Subtotal for ${dateKey}:</td>
+                        <td>${daySubtotalConversations}</td>
+                        <td>${daySubtotalMessages}</td>
+                        <td>${daySubtotalTokens}</td>
+                        <td class="text-end">${daySubtotalCosts.toFixed(6)}</td>
+                        <td>${daySubtotalPositive}</td>
+                        <td>${daySubtotalNegative}</td>
+                    </tr>
+                `;
+
+                // Accumulate grand totals
+                grandTotalConversations += daySubtotalConversations;
+                grandTotalMessages += daySubtotalMessages;
+                grandTotalTokens += daySubtotalTokens;
+                grandTotalCosts += daySubtotalCosts;
+                grandTotalPositive += daySubtotalPositive;
+                grandTotalNegative += daySubtotalNegative;
+            });
+
+            tableHTML += `</tbody>`;
+
+            // Add Grand Total footer
+            tableHTML += `
+                <tfoot class="table-dark fw-bold">
+                    <tr>
+                        <td colspan="2" class="text-end">Grand Total:</td>
+                        <td>${grandTotalConversations}</td>
+                        <td>${grandTotalMessages}</td>
+                        <td>${grandTotalTokens}</td>
+                        <td class="text-end">${grandTotalCosts.toFixed(6)}</td>
+                        <td>${grandTotalPositive}</td>
+                        <td>${grandTotalNegative}</td>
+                    </tr>
+                </tfoot>
+            `;
+
+            tableHTML += '</table>';
+            reportContainer.innerHTML = tableHTML;
+            console.log('[Admin JS] Report table rendered.');
+        }
+
+        // Function to fetch and display metrics for the last N days
+        async function fetchAndDisplayLastNDays(days) {
+            console.log(`[Admin JS] fetchAndDisplayLastNDays called for ${days} days.`);
+            const statusDiv = document.getElementById('metricsStatus');
+            const reportContainer = document.getElementById('metricsReportContainer');
+            statusDiv.className = 'alert alert-info';
+            statusDiv.textContent = `Fetching metrics for the last ${days} days...`;
+            statusDiv.classList.remove('d-none');
+            reportContainer.innerHTML = '<div class="spinner-border text-info" role="status"><span class="visually-hidden">Loading...</span></div>'; // Show spinner
+
+            try {
+                // ** NOTE: Need to create this route '/get-usage-metrics' next **
+                const response = await fetch(`/admin-dashboard-08x7z9y2-yoursecretword/get-usage-metrics?days=${days}`);
+                const result = await response.json();
+                console.log('[Admin JS] Received response from /get-usage-metrics:', result);
+
+                if (response.ok && result.success) {
+                    statusDiv.className = 'alert alert-success';
+                    statusDiv.textContent = `Successfully fetched metrics for the last ${days} days.`;
+                    displayMetricsReport(result.data, `Report for Last ${days} Days`);
+                } else {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.textContent = `Error fetching metrics: ${result.message || 'Unknown error'}`;
+                    reportContainer.innerHTML = `<p class="text-danger">Could not load metrics: ${result.message || response.statusText}</p>`;
+                }
+            } catch (error) {
+                console.error('[Admin JS] Error fetching last N days metrics:', error);
+                statusDiv.className = 'alert alert-danger';
+                statusDiv.textContent = `Network or server error fetching metrics: ${error.message}`;
+                reportContainer.innerHTML = `<p class="text-danger">An error occurred while fetching the report.</p>`;
+            }
+            // Hide status message after a few seconds unless it was an error
+            if (!statusDiv.classList.contains('alert-danger')) {
+                setTimeout(() => { statusDiv.classList.add('d-none'); }, 3000);
+            }
+        }
+       
+
+        // Add event listener for the "Aggregate Yesterday" button
+        document.getElementById('aggregateYesterdayBtn').addEventListener('click', async function() {
+            console.log('[Admin JS] "Aggregate Yesterday" button clicked.');
+            const statusDiv = document.getElementById('metricsStatus');
+            const reportContainer = document.getElementById('metricsReportContainer');
+            this.disabled = true; // Disable button during processing
+            statusDiv.className = 'alert alert-info';
+            statusDiv.textContent = 'Aggregating yesterdays metrics... Please wait.';
+            statusDiv.classList.remove('d-none');
+            reportContainer.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>'; // Show spinner
+
+            try {
+                const response = await fetch('/admin-dashboard-08x7z9y2-yoursecretword/aggregate-yesterday-metrics', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add CSRF token if needed, depends on how CSRF is handled for POST via JS
+                        // 'X-CSRFToken': '{{ csrf_token() }}' // Example if using Flask-WTF CSRF in template context
+                    }
+                });
+                const result = await response.json();
+                console.log('[Admin JS] Received response from /aggregate-yesterday-metrics:', result);
+
+                if (response.ok && result.success) {
+                    statusDiv.className = 'alert alert-success';
+                    statusDiv.textContent = `Aggregation successful! ${result.message || ''}`;
+                    // Display the newly aggregated data
+                    displayMetricsReport(result.aggregated_data, result.server_time_info);
+                } else {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.textContent = `Aggregation failed: ${result.message || 'Unknown error'} ${result.errors ? JSON.stringify(result.errors) : ''}`;
+                    reportContainer.innerHTML = `<p class="text-danger">Aggregation failed. See status message above.</p>`;
+                    document.getElementById('serverTimeInfo').textContent = result.server_time_info || ''; // Show server time even on failure
+                }
+            } catch (error) {
+                console.error('[Admin JS] Error during aggregation fetch:', error);
+                statusDiv.className = 'alert alert-danger';
+                statusDiv.textContent = `Network or server error during aggregation: ${error.message}`;
+                reportContainer.innerHTML = `<p class="text-danger">An error occurred while contacting the server.</p>`;
+            } finally {
+                this.disabled = false; // Re-enable button
+                // Hide status message after a few seconds unless it was an error
+                if (!statusDiv.classList.contains('alert-danger')) {
+                    setTimeout(() => { statusDiv.classList.add('d-none'); }, 5000);
+                }
+            }
+        });
+
+
+        // Add event listener for the "View Last 7 Days" button
+        document.getElementById('viewLast7DaysBtn').addEventListener('click', function() {
+            console.log('[Admin JS] "View Last 7 Days" button clicked.');
+            fetchAndDisplayLastNDays(7);
+        });
+
+        // Optional: Add event listener for when the Usage Metrics tab is shown
+        const usageMetricsTab = document.getElementById('usage-metrics-tab');
+        if (usageMetricsTab) {
+            usageMetricsTab.addEventListener('shown.bs.tab', function (event) {
+                console.log('[Admin JS] Usage Metrics tab shown.');
+                // Clear any previous status messages or reports when tab becomes active
+                document.getElementById('metricsStatus').classList.add('d-none');
+                document.getElementById('metricsReportContainer').innerHTML = '<p>Click one of the buttons above to generate or view a report.</p>';
+                document.getElementById('serverTimeInfo').textContent = ''; // Clear server time info
+                // Potentially auto-load last 7 days? Or leave it manual. Current setup is manual.
+                // fetchAndDisplayLastNDays(7); // Uncomment to auto-load
+            });
+        }
+
     </script>
 
     <script>
@@ -2649,4 +2947,109 @@ def manual_add_company():
         return jsonify({
             'success': False, 
             'error': f'Unexpected error: {str(e)}'
+        }), 500
+    
+@admin_dashboard.route('/aggregate-yesterday-metrics', methods=['POST'])
+def handle_aggregate_yesterday():
+    """
+    API endpoint called by the admin dashboard to trigger the aggregation
+    of yesterday's usage metrics.
+    """
+    print("[admin_dashboard] Received request to aggregate yesterday's metrics.")
+    try:
+        # Determine yesterday's date based on server's local time
+        today_local = date.today() # Use date directly since it's imported
+        yesterday_local = today_local - timedelta(days=2) # Use timedelta directly
+        print(f"[admin_dashboard] Calculated yesterday's date (local): {yesterday_local.isoformat()}")
+
+        # Get current server time and timezone for display
+        now_local = datetime.now() # Use datetime directly
+        # Use time.tzname to get timezone info reliably across platforms if possible
+        try:
+            # tzname can have two values (standard, daylight saving)
+            current_tz_name = time.tzname[now_local.dst()] if now_local.dst() else time.tzname[0]
+            server_time_str = now_local.strftime(f'%Y-%m-%d %H:%M:%S {current_tz_name}')
+        except Exception:
+            # Fallback if tzname causes issues
+             server_time_str = now_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')
+
+        print(f"[admin_dashboard] Current server time for display: {server_time_str}")
+
+        # Call the aggregation function from db_metrics
+        aggregation_result = aggregate_usage_for_date(yesterday_local)
+
+        # Include server time in the response
+        aggregation_result["server_time_info"] = f"Server Time at Aggregation: {server_time_str}"
+
+        if aggregation_result.get("success"):
+            print("[admin_dashboard] Aggregation successful.")
+            return jsonify(aggregation_result)
+        else:
+            print(f"[admin_dashboard] Aggregation failed: {aggregation_result.get('message')}")
+            # Return the error details but with a 500 status code if backend failed
+            return jsonify(aggregation_result), 500
+
+    except Exception as e:
+        print(f"[admin_dashboard] FATAL ERROR during aggregation trigger: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "message": "An unexpected server error occurred.",
+            "errors": [str(e)],
+            "server_time_info": datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z%z') # Still provide time
+        }), 500
+
+@admin_dashboard.route('/get-usage-metrics', methods=['GET'])
+def get_usage_metrics_report():
+    """
+    API endpoint to fetch aggregated usage metrics for a specified number of past days.
+    """
+    print("[admin_dashboard] Received request for usage metrics report.")
+    try:
+        # Get 'days' parameter from query string, default to 7
+        try:
+            days_param = request.args.get('days', '7')
+            days = int(days_param)
+            if days < 1:
+                days = 1 # Minimum 1 day
+            elif days > 90: # Add a reasonable upper limit
+                days = 90
+        except ValueError:
+            print(f"[admin_dashboard] Invalid 'days' parameter: {days_param}. Defaulting to 7.")
+            days = 7
+
+        print(f"[admin_dashboard] Fetching metrics for the last {days} days.")
+
+        # Calculate start and end dates using imported date and timedelta
+        today_local = date.today()
+        end_date = today_local # Include today if needed, or use today - 1 day for "up to yesterday"
+        start_date = today_local - timedelta(days=days - 1) # N days includes today
+
+        print(f"[admin_dashboard] Date range: {start_date.isoformat()} to {end_date.isoformat()}")
+
+        # Call the function from db_metrics to get data
+        metrics_data = get_usage_metrics_for_range(start_date, end_date)
+
+        # Check if data was retrieved (function returns empty list on error)
+        # Note: An empty list is also valid if no metrics exist for the range.
+        # The success status here indicates the route itself executed ok.
+        # We rely on the frontend to display "no data" if metrics_data is empty.
+
+        return jsonify({
+            "success": True,
+            "days": days,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "data": metrics_data # This list might be empty
+        })
+
+    except Exception as e:
+        print(f"[admin_dashboard] FATAL ERROR fetching usage metrics report: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "message": "An unexpected server error occurred while fetching the report.",
+            "errors": [str(e)]
         }), 500

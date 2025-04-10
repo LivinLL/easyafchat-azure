@@ -3,9 +3,24 @@ from database import connect_to_db
 import os
 import json
 import time
-import datetime
+from datetime import date, timedelta, datetime
 import traceback
 from typing import Dict, Any, List, Optional, Tuple, Union
+from decimal import Decimal, getcontext
+import pytz 
+
+# Set precision for Decimal calculations
+getcontext().prec = 18  # Sufficient precision for cost calculations
+
+# Constants for GPT-4o Pricing (adjust if necessary)
+# Prices per 1 Million tokens
+GPT4O_INPUT_COST_PER_MILLION_TOKENS = Decimal("5.00")
+GPT4O_OUTPUT_COST_PER_MILLION_TOKENS = Decimal("15.00")
+
+# Prices per token
+GPT4O_INPUT_COST_PER_TOKEN = GPT4O_INPUT_COST_PER_MILLION_TOKENS / Decimal("1000000")
+GPT4O_OUTPUT_COST_PER_TOKEN = GPT4O_OUTPUT_COST_PER_MILLION_TOKENS / Decimal("1000000")
+
 
 # Create the blueprint
 metrics_blueprint = Blueprint('metrics', __name__)
@@ -511,6 +526,343 @@ def get_message_by_id(message_id: int) -> Optional[Dict[str, Any]]:
         print(f"[db_metrics] Error getting message by ID: {str(e)}")
         print(traceback.format_exc())
         return None
+
+# USAGE METRICS FUNCTION NEW 04/10/2025
+def aggregate_usage_for_date(target_date: date) -> Dict[str, Any]:
+    """
+    Aggregates usage metrics from chat_messages for a specific date
+    and inserts/updates records in the usage_metrics table.
+
+    Args:
+        target_date: The specific date (datetime.date object) to aggregate for.
+
+    Returns:
+        A dictionary containing the status and aggregated data or errors.
+    """
+    print(f"[db_metrics] Starting aggregation for date: {target_date.isoformat()}")
+    results = {"success": True, "aggregated_data": [], "errors": []}
+    processed_chatbots = 0
+    updated_records = 0
+    inserted_records = 0
+
+    # First, import the time class from datetime module
+    from datetime import time as dt_time
+    
+    start_timestamp_dt = datetime.combine(target_date, dt_time.min)
+    end_timestamp_dt = datetime.combine(target_date, dt_time.max)
+
+    # Convert to UTC if created_at is timezone-naive UTC
+    # If your DB stores naive UTC timestamps:
+    try:
+        # Check if system timezone is UTC, otherwise convert
+        is_utc = time.tzname[0] == 'UTC'
+        if not is_utc:
+            # This conversion might need adjustment based on server environment
+             # Assuming target_date is local, convert to UTC start/end
+            local_tz = datetime.now().astimezone().tzinfo
+            utc_tz = pytz.utc
+
+            local_start = local_tz.localize(start_timestamp_dt)
+            local_end = local_tz.localize(end_timestamp_dt)
+
+            start_timestamp_utc = local_start.astimezone(utc_tz)
+            end_timestamp_utc = local_end.astimezone(utc_tz)
+            print(f"[db_metrics] Aggregating between UTC: {start_timestamp_utc} and {end_timestamp_utc}")
+        else:
+             # Server is already UTC
+             start_timestamp_utc = start_timestamp_dt
+             end_timestamp_utc = end_timestamp_dt
+             print(f"[db_metrics] Server is UTC. Aggregating between: {start_timestamp_utc} and {end_timestamp_utc}")
+
+    except Exception as tz_err:
+         print(f"[db_metrics] Timezone conversion error: {tz_err}. Falling back to naive comparison.")
+         # Fallback to naive comparison if timezone libraries fail
+         start_timestamp_utc = start_timestamp_dt
+         end_timestamp_utc = end_timestamp_dt
+
+
+    # Use the determined UTC start/end times for queries
+    start_timestamp_str = start_timestamp_utc.strftime('%Y-%m-%d %H:%M:%S')
+    end_timestamp_str = end_timestamp_utc.strftime('%Y-%m-%d %H:%M:%S')
+
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+
+            # 1. Get all active chatbot IDs
+            if DB_TYPE.lower() == 'postgresql':
+                cursor.execute(f"SELECT chatbot_id FROM {DB_SCHEMA}.companies")
+            else:
+                cursor.execute("SELECT chatbot_id FROM companies")
+            chatbot_ids = [row[0] for row in cursor.fetchall()]
+            print(f"[db_metrics] Found {len(chatbot_ids)} chatbots to process.")
+
+            if not chatbot_ids:
+                results["message"] = "No chatbots found in the companies table."
+                return results
+
+            # 2. Loop through each chatbot ID
+            for chatbot_id in chatbot_ids:
+                print(f"[db_metrics] Processing chatbot_id: {chatbot_id}")
+                try:
+                    # Query chat_messages for this chatbot and date range (using UTC timestamps)
+                    if DB_TYPE.lower() == 'postgresql':
+                        msg_query = f"""
+                            SELECT
+                                COUNT(DISTINCT thread_id) as conversations,
+                                COUNT(*) as messages,
+                                COALESCE(SUM(prompt_tokens), 0) as total_prompt_tokens,
+                                COALESCE(SUM(completion_tokens), 0) as total_completion_tokens,
+                                COALESCE(SUM(total_tokens), 0) as total_tokens,
+                                COUNT(CASE WHEN user_feedback = 'positive' THEN 1 END) as positive_feedback,
+                                COUNT(CASE WHEN user_feedback = 'negative' THEN 1 END) as negative_feedback
+                            FROM {DB_SCHEMA}.chat_messages
+                            WHERE chatbot_id = %s
+                              AND created_at >= %s::timestamp
+                              AND created_at <= %s::timestamp
+                        """
+                        cursor.execute(msg_query, (chatbot_id, start_timestamp_str, end_timestamp_str))
+                    else:
+                        msg_query = """
+                            SELECT
+                                COUNT(DISTINCT thread_id) as conversations,
+                                COUNT(*) as messages,
+                                COALESCE(SUM(prompt_tokens), 0) as total_prompt_tokens,
+                                COALESCE(SUM(completion_tokens), 0) as total_completion_tokens,
+                                COALESCE(SUM(total_tokens), 0) as total_tokens,
+                                COUNT(CASE WHEN user_feedback = 'positive' THEN 1 END) as positive_feedback,
+                                COUNT(CASE WHEN user_feedback = 'negative' THEN 1 END) as negative_feedback
+                            FROM chat_messages
+                            WHERE chatbot_id = ?
+                              AND created_at >= ?
+                              AND created_at <= ?
+                        """
+                        cursor.execute(msg_query, (chatbot_id, start_timestamp_str, end_timestamp_str))
+
+                    metrics = cursor.fetchone()
+
+                    if not metrics or metrics[1] == 0: # Check if messages count is 0
+                        print(f"[db_metrics] No messages found for {chatbot_id} on {target_date}. Skipping.")
+                        continue
+
+                    conversations = metrics[0]
+                    messages_count = metrics[1]
+                    prompt_tokens = metrics[2]
+                    completion_tokens = metrics[3]
+                    total_tokens = metrics[4]
+                    positive_feedback = metrics[5]
+                    negative_feedback = metrics[6]
+
+                    # Calculate cost
+                    cost = (Decimal(prompt_tokens) * GPT4O_INPUT_COST_PER_TOKEN) + \
+                           (Decimal(completion_tokens) * GPT4O_OUTPUT_COST_PER_TOKEN)
+
+                    # Format cost to a reasonable number of decimal places for storage
+                    cost = cost.quantize(Decimal("0.000001")) # E.g., $0.001234
+                    
+                    # Convert Decimal to float for SQLite compatibility
+                    cost_value = float(cost) if DB_TYPE.lower() != 'postgresql' else cost
+
+                    print(f"[db_metrics] Aggregated for {chatbot_id}: Msgs={messages_count}, Tokens={total_tokens}, Cost=${cost:.6f}")
+
+                    # Check if record exists in usage_metrics for this chatbot and date
+                    if DB_TYPE.lower() == 'postgresql':
+                        check_query = f"""
+                            SELECT usage_metric_id FROM {DB_SCHEMA}.usage_metrics
+                            WHERE chatbot_id = %s AND date = %s
+                        """
+                        cursor.execute(check_query, (chatbot_id, target_date))
+                    else:
+                        check_query = """
+                            SELECT usage_metric_id FROM usage_metrics
+                            WHERE chatbot_id = ? AND date = ?
+                        """
+                        cursor.execute(check_query, (chatbot_id, target_date.isoformat()))
+
+                    existing_record = cursor.fetchone()
+
+                    metric_data = {
+                        "chatbot_id": chatbot_id,
+                        "date": target_date,
+                        "conversations": conversations,
+                        "messages": messages_count,
+                        "tokens": total_tokens,
+                        "costs": cost_value,
+                        "positive_feedback": positive_feedback,
+                        "negative_feedback": negative_feedback
+                    }
+
+                    if existing_record:
+                        # Update existing record
+                        usage_metric_id = existing_record[0]
+                        print(f"[db_metrics] Updating existing record ID: {usage_metric_id}")
+                        if DB_TYPE.lower() == 'postgresql':
+                            update_query = f"""
+                                UPDATE {DB_SCHEMA}.usage_metrics SET
+                                    conversations = %s, messages = %s, tokens = %s, costs = %s,
+                                    positive_feedback = %s, negative_feedback = %s,
+                                    created_at = NOW()
+                                WHERE usage_metric_id = %s
+                            """
+                            cursor.execute(update_query, (
+                                conversations, messages_count, total_tokens, cost_value,
+                                positive_feedback, negative_feedback, usage_metric_id
+                            ))
+                        else:
+                            update_query = """
+                                UPDATE usage_metrics SET
+                                    conversations = ?, messages = ?, tokens = ?, costs = ?,
+                                    positive_feedback = ?, negative_feedback = ?,
+                                    created_at = CURRENT_TIMESTAMP
+                                WHERE usage_metric_id = ?
+                            """
+                            cursor.execute(update_query, (
+                                conversations, messages_count, total_tokens, cost_value,
+                                positive_feedback, negative_feedback, usage_metric_id
+                            ))
+                        updated_records += 1
+                        metric_data["usage_metric_id"] = usage_metric_id # Add id for reference
+                        results["aggregated_data"].append(metric_data)
+
+                    else:
+                        # Insert new record
+                        print(f"[db_metrics] Inserting new record for {chatbot_id} on {target_date}")
+                        if DB_TYPE.lower() == 'postgresql':
+                            insert_query = f"""
+                                INSERT INTO {DB_SCHEMA}.usage_metrics
+                                (chatbot_id, date, conversations, messages, tokens, costs, positive_feedback, negative_feedback)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                RETURNING usage_metric_id
+                            """
+                            cursor.execute(insert_query, (
+                                chatbot_id, target_date, conversations, messages_count, total_tokens, cost_value,
+                                positive_feedback, negative_feedback
+                            ))
+                            new_id = cursor.fetchone()[0]
+                        else:
+                            insert_query = """
+                                INSERT INTO usage_metrics
+                                (chatbot_id, date, conversations, messages, tokens, costs, positive_feedback, negative_feedback)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """
+                            cursor.execute(insert_query, (
+                                chatbot_id, target_date.isoformat(), conversations, messages_count, total_tokens, cost_value,
+                                positive_feedback, negative_feedback
+                            ))
+                            new_id = cursor.lastrowid
+
+                        inserted_records += 1
+                        metric_data["usage_metric_id"] = new_id # Add id for reference
+                        results["aggregated_data"].append(metric_data)
+
+                    processed_chatbots += 1
+
+                except Exception as e:
+                    error_msg = f"Failed to process chatbot_id {chatbot_id}: {str(e)}"
+                    print(f"[db_metrics] ERROR: {error_msg}")
+                    print(traceback.format_exc())
+                    results["success"] = False
+                    results["errors"].append(error_msg)
+                    conn.rollback() # Rollback transaction for this specific chatbot if needed, or handle errors globally
+
+            # Commit all successful operations if no major errors occurred or handled per-chatbot
+            if not results["errors"]: # Or adjust based on desired error handling
+                conn.commit()
+            else:
+                # Decide if partial success is okay or if all should be rolled back
+                print("[db_metrics] Rolling back due to errors during processing.")
+                conn.rollback()
+
+
+        results["message"] = (f"Aggregation complete for {target_date.isoformat()}. "
+                              f"Processed: {processed_chatbots} chatbots. "
+                              f"Inserted: {inserted_records} records. "
+                              f"Updated: {updated_records} records.")
+        if results["errors"]:
+             results["message"] += f" Encountered {len(results['errors'])} errors."
+
+        print(f"[db_metrics] {results['message']}")
+        return results
+
+    except Exception as e:
+        error_msg = f"Major error during aggregation for {target_date.isoformat()}: {str(e)}"
+        print(f"[db_metrics] FATAL ERROR: {error_msg}")
+        print(traceback.format_exc())
+        results["success"] = False
+        results["errors"].append(error_msg)
+        results["message"] = error_msg
+        return results
+# END USAGE METRICS FUNCTION
+
+# BEGIN GET USAGE METRICS FOR RANGE
+def get_usage_metrics_for_range(start_date: date, end_date: date) -> List[Dict[str, Any]]:
+    """
+    Retrieves aggregated usage metrics from the usage_metrics table for a given date range.
+
+    Args:
+        start_date: The start date of the range (inclusive).
+        end_date: The end date of the range (inclusive).
+
+    Returns:
+        A list of dictionaries, where each dictionary represents a row
+        from the usage_metrics table for the specified range.
+    """
+    print(f"[db_metrics] Fetching usage metrics from {start_date.isoformat()} to {end_date.isoformat()}")
+    metrics_data = []
+    try:
+        with connect_to_db() as conn:
+            cursor = conn.cursor()
+
+            # Prepare query based on DB type
+            if DB_TYPE.lower() == 'postgresql':
+                query = f"""
+                    SELECT
+                        usage_metric_id, chatbot_id, date, conversations, messages,
+                        tokens, costs, positive_feedback, negative_feedback, created_at
+                    FROM {DB_SCHEMA}.usage_metrics
+                    WHERE date >= %s AND date <= %s
+                    ORDER BY date ASC, chatbot_id ASC
+                """
+                cursor.execute(query, (start_date, end_date))
+            else:
+                # SQLite stores dates as strings typically
+                query = """
+                    SELECT
+                        usage_metric_id, chatbot_id, date, conversations, messages,
+                        tokens, costs, positive_feedback, negative_feedback, created_at
+                    FROM usage_metrics
+                    WHERE date >= ? AND date <= ?
+                    ORDER BY date ASC, chatbot_id ASC
+                """
+                cursor.execute(query, (start_date.isoformat(), end_date.isoformat()))
+
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+
+            for row in rows:
+                row_dict = dict(zip(columns, row))
+                # Ensure cost is a string representation of a float for JSON compatibility
+                if isinstance(row_dict.get('costs'), Decimal):
+                     row_dict['costs'] = f"{row_dict['costs']:.6f}" # Format as string with 6 decimals
+                elif isinstance(row_dict.get('costs'), (int, float)):
+                     row_dict['costs'] = f"{row_dict['costs']:.6f}"
+                # Ensure date is in ISO format string
+                if isinstance(row_dict.get('date'), date):
+                    row_dict['date'] = row_dict['date'].isoformat()
+                # Ensure created_at is ISO format string
+                if isinstance(row_dict.get('created_at'), datetime):
+                    row_dict['created_at'] = row_dict['created_at'].isoformat()
+
+                metrics_data.append(row_dict)
+
+            print(f"[db_metrics] Found {len(metrics_data)} usage metric records.")
+            return metrics_data
+
+    except Exception as e:
+        print(f"[db_metrics] Error fetching usage metrics for range: {str(e)}")
+        print(traceback.format_exc())
+        return [] # Return empty list on error
+# END GET USAGE METRICS FOR RANGE
 
 # Route for submitting user feedback on a message
 @metrics_blueprint.route('/message-feedback', methods=['POST'])
