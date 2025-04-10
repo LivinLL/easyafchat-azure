@@ -3,7 +3,7 @@ from database import connect_to_db
 import os
 import json
 import time
-from datetime import date, timedelta, datetime
+import datetime
 import traceback
 from typing import Dict, Any, List, Optional, Tuple, Union
 from decimal import Decimal, getcontext
@@ -528,7 +528,7 @@ def get_message_by_id(message_id: int) -> Optional[Dict[str, Any]]:
         return None
 
 # USAGE METRICS FUNCTION NEW 04/10/2025
-def aggregate_usage_for_date(target_date: date) -> Dict[str, Any]:
+def aggregate_usage_for_date(target_date: datetime.date) -> Dict[str, Any]:
     """
     Aggregates usage metrics from chat_messages for a specific date
     and inserts/updates records in the usage_metrics table.
@@ -545,11 +545,8 @@ def aggregate_usage_for_date(target_date: date) -> Dict[str, Any]:
     updated_records = 0
     inserted_records = 0
 
-    # First, import the time class from datetime module
-    from datetime import time as dt_time
-    
-    start_timestamp_dt = datetime.combine(target_date, dt_time.min)
-    end_timestamp_dt = datetime.combine(target_date, dt_time.max)
+    start_timestamp_dt = datetime.datetime.combine(target_date, datetime.time.min)
+    end_timestamp_dt = datetime.datetime.combine(target_date, datetime.time.max)
 
     # Convert to UTC if created_at is timezone-naive UTC
     # If your DB stores naive UTC timestamps:
@@ -559,7 +556,7 @@ def aggregate_usage_for_date(target_date: date) -> Dict[str, Any]:
         if not is_utc:
             # This conversion might need adjustment based on server environment
              # Assuming target_date is local, convert to UTC start/end
-            local_tz = datetime.now().astimezone().tzinfo
+            local_tz = datetime.datetime.now().astimezone().tzinfo
             utc_tz = pytz.utc
 
             local_start = local_tz.localize(start_timestamp_dt)
@@ -795,7 +792,8 @@ def aggregate_usage_for_date(target_date: date) -> Dict[str, Any]:
 # END USAGE METRICS FUNCTION
 
 # BEGIN GET USAGE METRICS FOR RANGE (Updated)
-def get_usage_metrics_for_range(start_date: date, end_date: date) -> List[Dict[str, Any]]:
+def get_usage_metrics_for_range(start_date: datetime.date, end_date: datetime.date) -> List[Dict[str, Any]]:
+
     """
     Retrieves aggregated usage metrics from the usage_metrics table joined with
     company information (namespace) for a given date range.
@@ -852,10 +850,10 @@ def get_usage_metrics_for_range(start_date: date, end_date: date) -> List[Dict[s
                 elif isinstance(row_dict.get('costs'), (int, float)):
                      row_dict['costs'] = f"{row_dict['costs']:.6f}"
                 # Ensure date is in ISO format string
-                if isinstance(row_dict.get('date'), date):
+                if isinstance(row_dict.get('date'), datetime.date):
                     row_dict['date'] = row_dict['date'].isoformat()
                 # Ensure created_at is ISO format string
-                if isinstance(row_dict.get('created_at'), datetime):
+                if isinstance(row_dict.get('created_at'), datetime.datetime):
                     row_dict['created_at'] = row_dict['created_at'].isoformat()
 
                 # Ensure company_namespace is included, default to '-' if null/missing
