@@ -814,7 +814,7 @@ function initializeMarkedAndChatbot() {
             try {
                 console.log('Submitting lead data with thread ID:', threadId);
                 const leadData = {
-                    chatbot_id: chatbotId,
+                    chatbot_id: chatbotId, // FIXED: Add chatbotId to ensure lead is saved with correct association
                     thread_id: threadId,
                     name,
                     email,
@@ -870,13 +870,13 @@ function initializeMarkedAndChatbot() {
                         if (thankYouDiv.parentNode) {
                             thankYouDiv.parentNode.removeChild(thankYouDiv);
                             console.log('Thank you message removed');
-                            // Scroll again after thank you removed just in case layout shifted
-                            if (isMobile) {
-                                // Use requestAnimationFrame for smoother scroll after DOM change
-                                requestAnimationFrame(() => {
-                                   chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                                });
-                            }
+                             // Scroll again after thank you removed just in case layout shifted
+                             if (isMobile) {
+                                 // Use requestAnimationFrame for smoother scroll after DOM change
+                                 requestAnimationFrame(() => {
+                                    chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                 });
+                             }
                         }
                     }, 5000); 
                 }
@@ -891,18 +891,18 @@ function initializeMarkedAndChatbot() {
                 // Re-enable chat form even on error
                 chatForm.classList.remove('support-d-none');
         
-                // Attempt layout reset even on error
-                if (isMobile && chatWindow) {
-                    console.log('Running mobile reset logic after lead submit error.');
-                    // Force remove inline styles
-                    chatWindow.style.height = '';
-                    chatWindow.style.top = '';
-                    isInputFocused = false; 
+                 // Attempt layout reset even on error
+                 if (isMobile && chatWindow) {
+                     console.log('Running mobile reset logic after lead submit error.');
+                     // Force remove inline styles
+                     chatWindow.style.height = '';
+                     chatWindow.style.top = '';
+                     isInputFocused = false; 
         
-                    setTimeout(() => {
-                        chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 250);
-                }
+                     setTimeout(() => {
+                         chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                     }, 250);
+                 }
             }
         }
 
