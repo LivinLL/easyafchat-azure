@@ -22,7 +22,7 @@
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
     <meta name="theme-color" content="#ffffff">
     
-    <!-- Additional styles for processing overlay -->
+    <!-- Styles for processing overlay -->
     <style>
         .processing-overlay {
             position: fixed;
@@ -104,6 +104,17 @@
         .processing-step.completed {
             color: #198754 !important;
             font-weight: 600 !important;
+        }
+
+        /* Mobile-specific styles for processing modal */
+        @media (max-width: 768px) {
+            .processing-overlay .processing-content {
+                width: 90% !important; /* Force 90% width on mobile */
+                max-width: 500px;
+                margin: 0 auto;
+                padding: 20px; /* Slightly reduced padding for mobile */
+                box-sizing: border-box; /* Ensure padding is included in width */
+            }
         }
 
 /* =============================================== */
@@ -378,7 +389,47 @@ function onSubmitForm(e) {
                 const processingSteps = document.querySelector('.processing-steps');
                 let timerInterval;
                 
-                // Function to reset everything to initial state
+                // Function to handle step progression during processing
+                function setupStepProgression() {
+                    // Time intervals for each step (in milliseconds)
+                    const STEP_DURATION = 5000; // 5 seconds per step
+                    
+                    // Define the steps
+                    const steps = [
+                        document.getElementById('step1'),
+                        document.getElementById('step2'),
+                        document.getElementById('step3'),
+                        document.getElementById('step4')
+                    ];
+                    
+                    // Start with step 1 active
+                    steps[0].classList.add('active');
+                    
+                    // Setup timers for step transitions
+                    setTimeout(() => {
+                        // Step 1 → Step 2
+                        steps[0].classList.remove('active');
+                        steps[0].classList.add('completed');
+                        steps[1].classList.add('active');
+                        
+                        setTimeout(() => {
+                            // Step 2 → Step 3
+                            steps[1].classList.remove('active');
+                            steps[1].classList.add('completed');
+                            steps[2].classList.add('active');
+                            
+                            setTimeout(() => {
+                                // Step 3 → Step 4
+                                steps[2].classList.remove('active');
+                                steps[2].classList.add('completed');
+                                steps[3].classList.add('active');
+                                // Step 4 stays active until processing completes
+                            }, STEP_DURATION);
+                        }, STEP_DURATION);
+                    }, STEP_DURATION);
+                }
+
+                // Modify the existing resetProcessingModal function to include our new step progression
                 function resetProcessingModal() {
                     console.log('[FormSubmit] Resetting processing modal');
                     // Reset UI elements
@@ -397,12 +448,12 @@ function onSubmitForm(e) {
                     document.getElementById('step3').classList.remove('active', 'completed');
                     document.getElementById('step4').classList.remove('active', 'completed');
                     
-                    // Make first step active
-                    document.getElementById('step1').classList.add('active');
-                    
                     // Remove any buttons we added
                     const addedButton = processingContent.querySelector('button');
                     if (addedButton) addedButton.remove();
+                    
+                    // Start the step progression
+                    setupStepProgression();
                 }
                 
                 // Function to show clean error screen
@@ -617,8 +668,8 @@ function onSubmitForm(e) {
                     
                     <div class="processing-steps">
                         <div class="processing-step" id="step1">1. Analyzing your website content</div>
-                        <div class="processing-step" id="step2">2. Processing with AI to create knowledge base</div>
-                        <div class="processing-step" id="step3">3. Preparing vector embeddings</div>
+                        <div class="processing-step" id="step2">2. Teaching your chatbot about your business</div>
+                        <div class="processing-step" id="step3">3. Building your chatbot's customer service skills</div>
                         <div class="processing-step" id="step4">4. Finalizing your chatbot</div>
                     </div>
                     

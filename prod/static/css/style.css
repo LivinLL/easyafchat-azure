@@ -591,6 +591,20 @@ footer {
     text-align: center;
 }
 
+/* Add this to your style.css file, after the existing processing overlay styles */
+#processingMessage {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #0d384d; /* Matches your brand color used in headings */
+    margin-bottom: 0.8rem;
+}
+
+.processing-content h3 {
+    font-size: 1.4rem;
+    color: #0d384d;
+    margin-bottom: 1rem;
+}
+
 .spinner {
     width: 50px;
     height: 50px;
