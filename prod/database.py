@@ -523,6 +523,50 @@ def upgrade_database(verbose=False):
                 
                 if verbose:
                     print(f"Created indexes for chat_messages table")
+
+            # Check if usage_metrics table exists
+            cursor.execute(f"""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_name = 'usage_metrics'
+            )
+            """)
+            usage_metrics_table_exists = cursor.fetchone()[0]
+
+            if not usage_metrics_table_exists:
+                # Create the usage_metrics table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new usage_metrics table in {DB_SCHEMA} schema")
+                cursor.execute(f"""
+                CREATE TABLE {DB_SCHEMA}.usage_metrics (
+                    usage_metric_id SERIAL PRIMARY KEY,
+                    chatbot_id TEXT NOT NULL REFERENCES {DB_SCHEMA}.companies(chatbot_id),
+                    date DATE NOT NULL,
+                    conversations INTEGER DEFAULT 0,
+                    messages INTEGER DEFAULT 0,
+                    tokens INTEGER DEFAULT 0,
+                    costs NUMERIC(10,4) DEFAULT 0,
+                    positive_feedback INTEGER DEFAULT 0,
+                    negative_feedback INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(chatbot_id, date)
+                )
+                """)
+                
+                # Create indexes for efficient querying
+                cursor.execute(f"""
+                CREATE INDEX idx_usage_metrics_chatbot 
+                ON {DB_SCHEMA}.usage_metrics(chatbot_id)
+                """)
+                
+                cursor.execute(f"""
+                CREATE INDEX idx_usage_metrics_date 
+                ON {DB_SCHEMA}.usage_metrics(date)
+                """)
+                
+                if verbose:
+                    print(f"Created indexes for usage_metrics table")
                 
         else:
             # SQLite handling
@@ -715,6 +759,38 @@ def upgrade_database(verbose=False):
             
             if verbose:
                 print("Created chat_messages table and indexes in SQLite")
+
+            # Create usage_metrics table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usage_metrics (
+                usage_metric_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chatbot_id TEXT NOT NULL,
+                date DATE NOT NULL,
+                conversations INTEGER DEFAULT 0,
+                messages INTEGER DEFAULT 0,
+                tokens INTEGER DEFAULT 0,
+                costs REAL DEFAULT 0,
+                positive_feedback INTEGER DEFAULT 0,
+                negative_feedback INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chatbot_id) REFERENCES companies(chatbot_id),
+                UNIQUE(chatbot_id, date)
+            )
+            ''')
+
+            # Create indexes for usage_metrics table
+            cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_usage_metrics_chatbot 
+            ON usage_metrics(chatbot_id)
+            ''')
+
+            cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_usage_metrics_date 
+            ON usage_metrics(date)
+            ''')
+
+            if verbose:
+                print("Created usage_metrics table and indexes in SQLite")
 
             # Check if the old fields exist and migrate data if needed
             try:
