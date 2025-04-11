@@ -44,7 +44,9 @@ def validate_webhook_url(url):
     # Domain patterns to match (e.g., *.app.n8n.cloud)
     domain_patterns = [
         '.app.n8n.cloud',  # Any n8n cloud domain
-        '.n8n.io'          # Any n8n.io domain
+        '.n8n.io',         # Any n8n.io domain
+        '.make.com',       # Any make.com domain
+        '.zoho.com'        # Any zoho.com domain
     ]
     
     try:
