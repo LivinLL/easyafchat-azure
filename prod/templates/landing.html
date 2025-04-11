@@ -247,7 +247,232 @@
         gap: 20px;             /* Reduce gap between cards */
     }
 }
-    </style>
+
+/* =============================================== */
+/* == Pricing Section Styles == */
+/* =============================================== */
+.pricing-section {
+    padding: 80px 0;
+    background-color: #f8f9fa;
+}
+
+.pricing-section h2 {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #0d384d;
+    font-size: 2.2rem;
+}
+
+.pricing-intro {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 50px;
+    color: #495057;
+    font-size: 1.1rem;
+}
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.pricing-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    height: 100%;
+}
+
+.pricing-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.pricing-card.featured {
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    border: 2px solid #0d6efd;
+}
+
+.pricing-card.featured:hover {
+    transform: scale(1.05) translateY(-5px);
+}
+
+.pricing-card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background-color: #0d6efd;
+    color: white;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 20px;
+}
+
+.pricing-card-header {
+    padding: 25px 25px 15px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.pricing-card-header h3 {
+    margin: 0 0 15px;
+    color: #0d384d;
+    font-size: 1.5rem;
+}
+
+.pricing-price {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.pricing-price .price {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #0d384d;
+}
+
+.pricing-price .period {
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+.pricing-price .plus {
+    margin: 0 8px;
+    font-size: 1.5rem;
+    color: #6c757d;
+}
+
+.pricing-card-body {
+    padding: 20px 25px;
+    flex-grow: 1;
+}
+
+.pricing-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pricing-features li {
+    padding: 8px 0 8px 25px;
+    position: relative;
+    color: #495057;
+}
+
+.pricing-features li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #0d6efd;
+    font-weight: bold;
+}
+
+.pricing-features li.highlight {
+    font-weight: 600;
+}
+
+.pricing-features li i {
+    font-style: italic;
+    color: #6c757d;
+}
+
+.pricing-card-footer {
+    padding: 20px 25px 30px;
+    text-align: center;
+}
+
+.pricing-section .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    width: 100%;
+}
+
+.pricing-section .btn-primary {
+    background-color: #0d6efd;
+    color: white;
+    border: 2px solid #0d6efd;
+}
+
+.pricing-section .btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0b5ed7;
+}
+
+.pricing-section .btn-outline {
+    background-color: transparent;
+    color: #0d6efd;
+    border: 2px solid #0d6efd;
+}
+
+.pricing-section .btn-outline:hover {
+    background-color: #f0f7ff;
+}
+
+/* =============================================== */
+/* == Responsive Adjustments for Pricing Section == */
+/* =============================================== */
+
+/* Medium screens (Tablets) */
+@media (max-width: 992px) {
+    .pricing-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+    
+    .pricing-card.featured {
+        transform: scale(1.03);
+    }
+    
+    .pricing-card.featured:hover {
+        transform: scale(1.03) translateY(-5px);
+    }
+    
+    .pricing-price .price {
+        font-size: 2.2rem;
+    }
+}
+
+/* Small screens (Small Tablets) */
+@media (max-width: 820px) {
+    .pricing-grid {
+        grid-template-columns: repeat(1, 1fr);
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .pricing-card {
+        margin-bottom: 20px;
+    }
+    
+    .pricing-card.featured {
+        transform: scale(1);
+        order: -1;
+    }
+    
+    .pricing-card.featured:hover {
+        transform: translateY(-5px);
+    }
+}
+
+</style>
 
 <script>
     // Client-side URL validation with detailed logging
@@ -765,6 +990,93 @@ function onSubmitForm(e) {
                                     <p>Integrate your chatbot with just a few lines of code.</p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section class="pricing-section" id="pricing">
+            <div class="container">
+                <h2>Simple, Transparent Pricing</h2>
+                <p class="pricing-intro">Choose the plan that's right for your business needs</p>
+                
+                <div class="pricing-grid">
+                    <!-- Card 1: FREE Trial -->
+                    <div class="pricing-card">
+                        <div class="pricing-card-header">
+                            <h3>FREE Trial</h3>
+                            <div class="pricing-price">
+                                <span class="price">$0</span>
+                                <span class="period">for 7 days</span>
+                            </div>
+                        </div>
+                        <div class="pricing-card-body">
+                            <ul class="pricing-features">
+                                <li>Build your site's bot in less than a minute</li>
+                                <li>Get 7 days FREE <strong>OR</strong> 100 message exchanges</li>
+                                <li><i>Whichever comes first</i></li>
+                                <li>No credit card needed</li>
+                                <li>We'll notify you about signing up when it's time</li>
+                            </ul>
+                        </div>
+                        <div class="pricing-card-footer">
+                            <a href="#" class="btn btn-outline">Get Started Free</a>
+                        </div>
+                    </div>
+                    
+                    <!-- Card 2: GoEasyChat+ -->
+                    <div class="pricing-card featured">
+                        <div class="pricing-card-badge">Most Popular</div>
+                        <div class="pricing-card-header">
+                            <h3>GoEasyChat+</h3>
+                            <div class="pricing-price">
+                                <span class="price">$19</span>
+                                <span class="period">/month</span>
+                            </div>
+                        </div>
+                        <div class="pricing-card-body">
+                            <ul class="pricing-features">
+                                <li>Build your site's bot in less than a minute</li>
+                                <li>500 message exchanges / month</li>
+                                <li>Customize your welcome message</li>
+                                <li>Customize your agent's name</li>
+                                <li>Customize your chat colors</li>
+                                <li>Add a custom avatar</li>
+                                <li>Upload documents about your company</li>
+                                <li>Lead capture</li>
+                                <li>Connect to Zapier, Make, n8n and more!</li>
+                            </ul>
+                        </div>
+                        <div class="pricing-card-footer">
+                            <a href="#" class="btn btn-primary">Choose GoEasyChat+</a>
+                        </div>
+                    </div>
+                    
+                    <!-- Card 3: GoEasyChat DFY -->
+                    <div class="pricing-card">
+                        <div class="pricing-card-header">
+                            <h3>GoEasyChat DFY</h3>
+                            <div class="pricing-price">
+                                <span class="price">$100</span>
+                                <span class="period">one-time</span>
+                                <span class="plus">+</span>
+                                <span class="price">$19</span>
+                                <span class="period">/month</span>
+                            </div>
+                        </div>
+                        <div class="pricing-card-body">
+                            <ul class="pricing-features">
+                                <li>Everything in GoEasyChat+</li>
+                                <li class="highlight">We will take care of building your bot</li>
+                                <li class="highlight">Adding knowledge documents</li>
+                                <li class="highlight">Getting the snippet of code to your web team</li>
+                                <li>Easy peasy implementation!</li>
+                            </ul>
+                        </div>
+                        <div class="pricing-card-footer">
+                            <a href="#" class="btn btn-outline">Choose DFY Package</a>
                         </div>
                     </div>
                 </div>

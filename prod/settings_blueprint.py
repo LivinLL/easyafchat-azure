@@ -26,26 +26,17 @@ def validate_webhook_url(url):
         
     # List of allowed webhook providers
     allowed_domains = [
-        'hooks.zapier.com',
-        'hook.us1.make.com',
-        'hook.eu1.make.com',
-        'hook.make.com',
-        'cloud.n8n.io',
-        'endpoint.pipedream.net',
-        'maker.ifttt.com',
-        'wh.automate.io',
-        'logic.azure.com',  # Microsoft Power Automate
-        'hook.integromat.com',
-        'api.webhookrelay.com',
-        'flowservice.realm.io',
-        'hooks.slack.com',
-        'api.platformable.com',
-        'webhooks.data8.app',
+        'zapier.com',
+        'make.com',
+        'n8n.io',
+        'pipedream.net',
+        'zoho.com',
+        'ifttt.com',
+        'automate.io',
+        'azure.com',  # Microsoft Power Automate
+        'integromat.com',
+        'slack.com',
         'automate.io',  # Generic domain
-        'workflow.adalo.com',
-        'dsl.pipedream.net',
-        'chatflow.io',
-        'sendymail.com',
         'localhost',  # For local testing
         '127.0.0.1'   # For local testing
     ]
