@@ -385,7 +385,19 @@
 }
 
 .pricing-features li.highlight::before {
-    color: #FFD700; /* Gold checkmark */
+    content: "✓";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+    color: white;
+    margin-right: 8px;
+    font-size: 14px;
+    line-height: 1;
+    font-weight: bold;
 }
 
 .pricing-features li:last-child {
@@ -1001,43 +1013,41 @@ function onSubmitForm(e) {
                 <p class="pricing-intro">Choose the plan that's right for your business needs</p>
                 
                 <div class="pricing-grid">
-                    <!-- Card 1: FREE Trial -->
+                    <!-- Card 1: Starter -->
                     <div class="pricing-card">
                         <div class="pricing-card-inner">
                             <div class="pricing-card-header">
-                                <h3>FREE Trial</h3>
+                                <h3>Starter</h3>
                                 <div class="pricing-price">
-                                    <span class="price">$0</span>
+                                    <span class="price">$14</span>
+                                    <span class="period">/month</span>
                                 </div>
                             </div>
                             <div class="pricing-card-body">
                                 <ul class="pricing-features">
-                                    <li>Build your site's bot in less than a minute</li>
-                                    <li>Get 7 days FREE
-                                        <div class="pricing-subtext">
-                                            OR<br>
-                                            100 message exchanges<br>
-                                            <i>Whichever comes first</i>
-                                        </div>
-                                    </li>
+                                    <li>Build your bot in less than a minute</li>
+                                    <li>FREE for 7 days or 100 message credits</li>
+                                    <li>Customize your welcome message</li>
+                                    <li>Customize your agent's name</li>
+                                    <li>Customize your chat colors</li>
+                                    <li>Customize your avatar</li>
+                                    <li>Upload documents to make your bot even smarter</li>
+                                    <li>1 AI agent</li>
+                                    <li>250 message credits/month</li>
                                 </ul>
-                                <div class="pricing-note">
-                                    <p>No credit card needed</p>
-                                    <p>We'll notify you about signing up when it's time.</p>
-                                </div>
                             </div>
                         </div>
                         <div class="pricing-card-footer">
-                            <a href="#" class="pricing-btn pricing-btn-primary">Start Free Trial</a>
+                            <a href="#" class="pricing-btn pricing-btn-primary">Subscribe</a>
                         </div>
                     </div>
                     
-                    <!-- Card 2: GoEasyChat+ -->
+                    <!-- Card 2: Plus -->
                     <div class="pricing-card featured">
                         <div class="pricing-card-inner">
                             <div class="pricing-card-badge">Popular</div>
                             <div class="pricing-card-header">
-                                <h3>GoEasyChat+</h3>
+                                <h3>Plus</h3>
                                 <div class="pricing-price">
                                     <span class="price">$19</span>
                                     <span class="period">/month</span>
@@ -1045,27 +1055,29 @@ function onSubmitForm(e) {
                             </div>
                             <div class="pricing-card-body">
                                 <ul class="pricing-features">
-                                    <li>Build your site's bot in less than a minute</li>
-                                    <li>500 message exchanges / month</li>
+                                    <li>Build your bot in less than a minute</li>
+                                    <li>FREE for 7 days or 100 message credits</li>
                                     <li>Customize your welcome message</li>
                                     <li>Customize your agent's name</li>
                                     <li>Customize your chat colors</li>
-                                    <li>Add a custom avatar</li>
-                                    <li>Upload documents to make your bot smarter</li>
-                                    <li>Lead capture</li>
+                                    <li>Customize your avatar</li>
+                                    <li>Upload documents to make your bot even smarter</li>
+                                    <li>2 AI agents</li>
+                                    <li>500 message credits/month</li>
+                                    <li>Lead capture built-in</li>
                                 </ul>
                             </div>
                         </div>
                         <div class="pricing-card-footer">
-                            <a href="#" class="pricing-btn pricing-btn-primary">Subscribe Now</a>
+                            <a href="#" class="pricing-btn pricing-btn-primary">Subscribe</a>
                         </div>
                     </div>
                     
-                    <!-- Card 3: GoEasyChat Pro -->
+                    <!-- Card 3: Pro -->
                     <div class="pricing-card">
                         <div class="pricing-card-inner">
                             <div class="pricing-card-header">
-                                <h3>GoEasyChat Pro</h3>
+                                <h3>Pro</h3>
                                 <div class="pricing-price">
                                     <span class="price">$24</span>
                                     <span class="period">/month</span>
@@ -1073,20 +1085,22 @@ function onSubmitForm(e) {
                             </div>
                             <div class="pricing-card-body">
                                 <ul class="pricing-features">
-                                    <li>Build your site's bot in less than a minute</li>
-                                    <li>500 message exchanges / month</li>
+                                    <li>Build your bot in less than a minute</li>
+                                    <li>FREE for 7 days or 100 message credits</li>
                                     <li>Customize your welcome message</li>
                                     <li>Customize your agent's name</li>
                                     <li>Customize your chat colors</li>
-                                    <li>Add a custom avatar</li>
-                                    <li>Upload documents to make your bot smarter</li>
-                                    <li>Lead capture</li>
+                                    <li>Customize your avatar</li>
+                                    <li>Upload documents to make your bot even smarter</li>
+                                    <li>3 AI agents</li>
+                                    <li>1000 message credits/month</li>
+                                    <li>Lead capture built-in</li>
                                     <li class="highlight">Connect to Zapier, Make, n8n and more!</li>
                                 </ul>
                             </div>
                         </div>
                         <div class="pricing-card-footer">
-                            <a href="#" class="pricing-btn pricing-btn-primary">Subscribe Now</a>
+                            <a href="#" class="pricing-btn pricing-btn-primary">Subscribe</a>
                         </div>
                     </div>
                 </div>
