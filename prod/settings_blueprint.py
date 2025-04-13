@@ -512,22 +512,29 @@ def test_webhook(chatbot_id):
             }
         }
         
-        # Send the test webhook
+        # SEND TEST WEBHOOK
+        # This calls the send_webhook function which will:
+        # 1. Look up this chatbot's configuration in the database
+        # 2. Check if "new_company" is included in the comma-separated webhook_triggers column
+        # 3. If the event type is allowed, it will attempt to send the webhook to the configured URL
+        # 4. Returns a tuple with success status, payload sent, and response details
         success, payload, response_data, *_ = send_webhook(chatbot_id, "new_lead", dummy_payload)
-        
+
         if success:
+            # If webhook was sent successfully (got HTTP 2xx response)
             return jsonify({
                 "success": True,
                 "message": "Webhook test was successful",
-                "payload": payload,
-                "response": response_data
+                "payload": payload,  # The actual JSON data that was sent to the webhook URL
+                "response": response_data  # Response details from the webhook endpoint
             })
         else:
+            # If webhook sending failed (invalid URL, event type not in triggers, rate limit, etc.)
             return jsonify({
                 "success": False,
                 "error": "Webhook test failed",
-                "payload": payload,
-                "details": response_data
+                "payload": payload,  # May be None if webhook wasn't sent
+                "details": response_data  # Contains error information about why it failed
             }), 400
             
     except Exception as e:
