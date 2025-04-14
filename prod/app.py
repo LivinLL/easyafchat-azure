@@ -1786,7 +1786,7 @@ def standalone_test_with_id(session_id):
     # Pass the chatbot ID to the template
     return render_template('standalone_test.html', chatbot_id=session_id, website_url=website_url)
 
-# user dashboard
+# USER DASHBOARD
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
@@ -1795,6 +1795,14 @@ def dashboard():
     
     try:
         print(f"Dashboard access - user_id: {session.get('user_id')}")
+        
+        # Get admin user IDs from environment variables
+        admin_user_id_local = os.getenv('ADMIN_USER_ID_LOCAL', '')
+        admin_user_id_prod = os.getenv('ADMIN_USER_ID_PROD', '')
+        
+        # Check if current user is admin
+        current_user_id = session.get('user_id')
+        is_admin = current_user_id in (admin_user_id_local, admin_user_id_prod)
         
         # Get user's chatbots
         conn = get_db_connection()
@@ -1812,18 +1820,30 @@ def dashboard():
                 print(f"User not found in database: {session['user_id']}")
                 flash('User account not found', 'error')
                 return redirect(url_for('home'))
-                
-            # Get user's chatbots
-            if os.environ.get('DB_TYPE') == 'postgresql':
-                cursor.execute(
-                    "SELECT * FROM companies WHERE user_id = %s ORDER BY created_at DESC",
-                    (session['user_id'],)
-                )
+            
+            # Get chatbots - if admin, get ALL chatbots, otherwise just the user's chatbots
+            if is_admin:
+                print(f"Admin user detected, retrieving ALL chatbots")
+                if os.environ.get('DB_TYPE') == 'postgresql':
+                    cursor.execute(
+                        "SELECT * FROM companies ORDER BY created_at DESC"
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM companies ORDER BY created_at DESC"
+                    )
             else:
-                cursor.execute(
-                    "SELECT * FROM companies WHERE user_id = ? ORDER BY created_at DESC",
-                    (session['user_id'],)
-                )
+                # Normal user - only get their chatbots
+                if os.environ.get('DB_TYPE') == 'postgresql':
+                    cursor.execute(
+                        "SELECT * FROM companies WHERE user_id = %s ORDER BY created_at DESC",
+                        (session['user_id'],)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM companies WHERE user_id = ? ORDER BY created_at DESC",
+                        (session['user_id'],)
+                    )
                 
             chatbots = cursor.fetchall()
             print(f"Found {len(chatbots)} chatbots for user")
@@ -1861,10 +1881,16 @@ def dashboard():
                 
                 chatbot_list.append(chatbot_dict)
             
+            # Add an indicator in the user name if this is an admin view
+            user_name = session.get('name', '')
+            if is_admin:
+                user_name += " (ADMIN VIEW)"
+            
             return render_template('dashboard.html', 
                                chatbots=chatbot_list, 
-                               user_name=session.get('name', ''),
-                               user_email=session.get('email', ''))
+                               user_name=user_name,
+                               user_email=session.get('email', ''),
+                               is_admin_view=is_admin)
         
         except (sqlite3.Error, psycopg2.Error) as e:
             print(f"Database error in dashboard: {str(e)}")
