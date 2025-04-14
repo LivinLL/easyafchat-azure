@@ -338,7 +338,7 @@ def get_chatbot_config(chatbot_id):
                     "Hi there! 👋 How can I help you?",
                     "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                     "#0084ff",
-                    "#ffffff",
+                    "#e9ecef",
                     "Yes"
                 ))
                 
@@ -371,7 +371,7 @@ def get_chatbot_config(chatbot_id):
                 "chat_subtitle": "Hi there! 👋 How can I help you?",
                 "lead_form_title": "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                 "primary_color": "#0084ff",
-                "accent_color": "#ffffff",
+                "accent_color": "#e9ecef",
                 "show_lead_form": "Yes"
             }
             
@@ -475,7 +475,7 @@ def update_chatbot_config(chatbot_id):
                     "Hi there! 👋 How can I help you?",
                     "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                     "#0084ff",
-                    "#ffffff",
+                    "#e9ecef",
                     "Yes"
                 ))
                 
