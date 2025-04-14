@@ -1826,22 +1826,22 @@ def dashboard():
                 print(f"Admin user detected, retrieving ALL chatbots")
                 if os.environ.get('DB_TYPE') == 'postgresql':
                     cursor.execute(
-                        "SELECT * FROM companies ORDER BY created_at DESC"
+                        "SELECT * FROM companies ORDER BY pinecone_namespace ASC"
                     )
                 else:
                     cursor.execute(
-                        "SELECT * FROM companies ORDER BY created_at DESC"
+                        "SELECT * FROM companies ORDER BY pinecone_namespace ASC"
                     )
             else:
                 # Normal user - only get their chatbots
                 if os.environ.get('DB_TYPE') == 'postgresql':
                     cursor.execute(
-                        "SELECT * FROM companies WHERE user_id = %s ORDER BY created_at DESC",
+                        "SELECT * FROM companies WHERE user_id = %s ORDER BY pinecone_namespace ASC",
                         (session['user_id'],)
                     )
                 else:
                     cursor.execute(
-                        "SELECT * FROM companies WHERE user_id = ? ORDER BY created_at DESC",
+                        "SELECT * FROM companies WHERE user_id = ? ORDER BY pinecone_namespace ASC",
                         (session['user_id'],)
                     )
                 
