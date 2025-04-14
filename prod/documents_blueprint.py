@@ -408,6 +408,18 @@ def delete_document(doc_id):
 @documents_blueprint.route('/upload-document', methods=['POST'])
 def upload_document():
     """Upload and process a new document"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    user_id = session['user_id']
+    
+    # Get admin user IDs from environment variables
+    admin_user_id_local = os.getenv('ADMIN_USER_ID_LOCAL', '')
+    admin_user_id_prod = os.getenv('ADMIN_USER_ID_PROD', '')
+    
+    # Check if current user is admin
+    is_admin = user_id in (admin_user_id_local, admin_user_id_prod)
+    
     try:
         # Get form data
         chatbot_id = request.form.get('chatbot_id')
@@ -420,15 +432,40 @@ def upload_document():
         with connect_to_db() as conn:
             cursor = conn.cursor()
             
-            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                cursor.execute('SELECT pinecone_namespace FROM companies WHERE chatbot_id = %s', (chatbot_id,))
+            # If admin, no need to check ownership
+            if is_admin:
+                print(f"Admin access detected - bypassing ownership check for upload to chatbot {chatbot_id}")
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        SELECT pinecone_namespace
+                        FROM companies
+                        WHERE chatbot_id = %s
+                    ''', (chatbot_id,))
+                else:
+                    cursor.execute('''
+                        SELECT pinecone_namespace
+                        FROM companies
+                        WHERE chatbot_id = ?
+                    ''', (chatbot_id,))
             else:
-                cursor.execute('SELECT pinecone_namespace FROM companies WHERE chatbot_id = ?', (chatbot_id,))
+                # Regular user - verify ownership
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        SELECT pinecone_namespace
+                        FROM companies
+                        WHERE chatbot_id = %s AND user_id = %s
+                    ''', (chatbot_id, user_id))
+                else:
+                    cursor.execute('''
+                        SELECT pinecone_namespace
+                        FROM companies
+                        WHERE chatbot_id = ? AND user_id = ?
+                    ''', (chatbot_id, user_id))
                 
             row = cursor.fetchone()
             
             if not row:
-                return jsonify({'error': 'Company not found'}), 404
+                return jsonify({'error': 'Company not found or access denied'}), 404
                 
             namespace = row[0]
             
@@ -575,47 +612,76 @@ def user_documents():
         
     user_id = session['user_id']
     
+    # Get admin user IDs from environment variables
+    admin_user_id_local = os.getenv('ADMIN_USER_ID_LOCAL', '')
+    admin_user_id_prod = os.getenv('ADMIN_USER_ID_PROD', '')
+    
+    # Check if current user is admin
+    is_admin = user_id in (admin_user_id_local, admin_user_id_prod)
+    
     try:
         with connect_to_db() as conn:
             cursor = conn.cursor()
             
-            # Get all chatbots for this user
-            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                cursor.execute('SELECT chatbot_id FROM companies WHERE user_id = %s', (user_id,))
+            # If admin, get all chatbots, otherwise just user's chatbots
+            if is_admin:
+                print(f"Admin access detected - retrieving all chatbots documents")
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    # Get all documents from all chatbots for admin
+                    cursor.execute('''
+                        SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
+                               d.vectors_count, LEFT(d.content, 1000) as content_preview, c.company_url
+                        FROM documents d
+                        LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
+                        ORDER BY d.created_at DESC
+                    ''')
+                else:
+                    # SQLite version
+                    cursor.execute('''
+                        SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
+                               d.vectors_count, substr(d.content, 1, 1000) as content_preview, c.company_url
+                        FROM documents d
+                        LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
+                        ORDER BY d.created_at DESC
+                    ''')
             else:
-                cursor.execute('SELECT chatbot_id FROM companies WHERE user_id = ?', (user_id,))
+                # Get all chatbots for this user (non-admin)
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('SELECT chatbot_id FROM companies WHERE user_id = %s', (user_id,))
+                else:
+                    cursor.execute('SELECT chatbot_id FROM companies WHERE user_id = ?', (user_id,))
+                    
+                user_chatbots = [row[0] for row in cursor.fetchall()]
                 
-            user_chatbots = [row[0] for row in cursor.fetchall()]
-            
-            if not user_chatbots:
-                return jsonify({'documents': []})
-                
-            # Format the list for SQL IN clause
-            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                chatbot_ids_str = ','.join([f"'{chatbot_id}'" for chatbot_id in user_chatbots])
-                
-                # Get all documents for these chatbots
-                cursor.execute(f'''
-                    SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
-                           d.vectors_count, LEFT(d.content, 1000) as content_preview, c.company_url
-                    FROM documents d
-                    LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
-                    WHERE d.chatbot_id IN ({chatbot_ids_str})
-                    ORDER BY d.created_at DESC
-                ''')
-            else:
-                # SQLite uses ? placeholders
-                placeholders = ','.join(['?'] * len(user_chatbots))
-                
-                # Get all documents for these chatbots
-                cursor.execute(f'''
-                    SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
-                           d.vectors_count, substr(d.content, 1, 1000) as content_preview, c.company_url
-                    FROM documents d
-                    LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
-                    WHERE d.chatbot_id IN ({placeholders})
-                    ORDER BY d.created_at DESC
-                ''', user_chatbots)
+                if not user_chatbots:
+                    return jsonify({'documents': []})
+                    
+                # Format the list for SQL IN clause
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    chatbot_ids_str = ','.join([f"'{chatbot_id}'" for chatbot_id in user_chatbots])
+                    
+                    # Get all documents for these chatbots
+                    cursor.execute(f'''
+                        SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
+                               d.vectors_count, LEFT(d.content, 1000) as content_preview, c.company_url
+                        FROM documents d
+                        LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
+                        WHERE d.chatbot_id IN ({chatbot_ids_str})
+                        ORDER BY d.created_at DESC
+                    ''')
+                else:
+                    # SQLite uses ? placeholders
+                    placeholders = ','.join(['?'] * len(user_chatbots))
+                    
+                    # Get all documents for these chatbots
+                    cursor.execute(f'''
+                        SELECT d.doc_id, d.chatbot_id, d.doc_name, d.doc_type, d.created_at, d.updated_at, 
+                               d.vectors_count, substr(d.content, 1, 1000) as content_preview, c.company_url
+                        FROM documents d
+                        LEFT JOIN companies c ON d.chatbot_id = c.chatbot_id
+                        WHERE d.chatbot_id IN ({placeholders})
+                        ORDER BY d.created_at DESC
+                    ''', user_chatbots)
                 
             documents = []
             for row in cursor.fetchall():
@@ -642,25 +708,50 @@ def document_processing_status(doc_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
         
+    user_id = session['user_id']
+    
+    # Get admin user IDs from environment variables
+    admin_user_id_local = os.getenv('ADMIN_USER_ID_LOCAL', '')
+    admin_user_id_prod = os.getenv('ADMIN_USER_ID_PROD', '')
+    
+    # Check if current user is admin
+    is_admin = user_id in (admin_user_id_local, admin_user_id_prod)
+    
     try:
         with connect_to_db() as conn:
             cursor = conn.cursor()
             
-            # First verify that this document belongs to one of the user's chatbots
-            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                cursor.execute('''
-                    SELECT d.vectors_count
-                    FROM documents d
-                    JOIN companies c ON d.chatbot_id = c.chatbot_id
-                    WHERE d.doc_id = %s AND c.user_id = %s
-                ''', (doc_id, session['user_id']))
+            # If admin, bypass ownership check
+            if is_admin:
+                print(f"Admin access detected - bypassing ownership check for document {doc_id}")
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        SELECT vectors_count
+                        FROM documents
+                        WHERE doc_id = %s
+                    ''', (doc_id,))
+                else:
+                    cursor.execute('''
+                        SELECT vectors_count
+                        FROM documents
+                        WHERE doc_id = ?
+                    ''', (doc_id,))
             else:
-                cursor.execute('''
-                    SELECT d.vectors_count
-                    FROM documents d
-                    JOIN companies c ON d.chatbot_id = c.chatbot_id
-                    WHERE d.doc_id = ? AND c.user_id = ?
-                ''', (doc_id, session['user_id']))
+                # Regular user - verify document belongs to one of their chatbots
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        SELECT d.vectors_count
+                        FROM documents d
+                        JOIN companies c ON d.chatbot_id = c.chatbot_id
+                        WHERE d.doc_id = %s AND c.user_id = %s
+                    ''', (doc_id, session['user_id']))
+                else:
+                    cursor.execute('''
+                        SELECT d.vectors_count
+                        FROM documents d
+                        JOIN companies c ON d.chatbot_id = c.chatbot_id
+                        WHERE d.doc_id = ? AND c.user_id = ?
+                    ''', (doc_id, session['user_id']))
                 
             result = cursor.fetchone()
             
@@ -684,23 +775,48 @@ def retrain_agent(chatbot_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
         
+    user_id = session['user_id']
+    
+    # Get admin user IDs from environment variables
+    admin_user_id_local = os.getenv('ADMIN_USER_ID_LOCAL', '')
+    admin_user_id_prod = os.getenv('ADMIN_USER_ID_PROD', '')
+    
+    # Check if current user is admin
+    is_admin = user_id in (admin_user_id_local, admin_user_id_prod)
+    
     try:
-        # First, verify the user owns this chatbot
+        # First, verify the user owns this chatbot or is an admin
         with connect_to_db() as conn:
             cursor = conn.cursor()
             
-            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
-                cursor.execute('''
-                    SELECT pinecone_namespace, processed_content
-                    FROM companies
-                    WHERE chatbot_id = %s AND user_id = %s
-                ''', (chatbot_id, session['user_id']))
+            if is_admin:
+                print(f"Admin access detected - bypassing ownership check for chatbot {chatbot_id}")
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        SELECT pinecone_namespace, processed_content
+                        FROM companies
+                        WHERE chatbot_id = %s
+                    ''', (chatbot_id,))
+                else:
+                    cursor.execute('''
+                        SELECT pinecone_namespace, processed_content
+                        FROM companies
+                        WHERE chatbot_id = ?
+                    ''', (chatbot_id,))
             else:
-                cursor.execute('''
-                    SELECT pinecone_namespace, processed_content
-                    FROM companies
-                    WHERE chatbot_id = ? AND user_id = ?
-                ''', (chatbot_id, session['user_id']))
+                # Regular user - verify ownership
+                if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                    cursor.execute('''
+                        SELECT pinecone_namespace, processed_content
+                        FROM companies
+                        WHERE chatbot_id = %s AND user_id = %s
+                    ''', (chatbot_id, user_id))
+                else:
+                    cursor.execute('''
+                        SELECT pinecone_namespace, processed_content
+                        FROM companies
+                        WHERE chatbot_id = ? AND user_id = ?
+                    ''', (chatbot_id, user_id))
                 
             company = cursor.fetchone()
             
