@@ -856,6 +856,7 @@ function onSubmitForm(e) {
                 <ul class="nav-links">
                     <li><a href="#features">Features</a></li>
                     <li><a href="#pricing">Pricing</a></li>
+                    <li><a href="#faq">FAQs</a></li>
                     {% if user %}
                     <li><a href="/dashboard">Dashboard</a></li>
                     <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
@@ -916,8 +917,8 @@ function onSubmitForm(e) {
         </section>
 
         <!-- Benefits Section -->
-        <section class="gec-benefits-section">
-            <div class="container">  <!-- Ensures content is contained and centered -->
+        <section class="gec-benefits-section" id="features">
+            <div class="container">
                 <h2>Effortlessly Grow Your Business with AI</h2>
                 <p class="gec-section-intro">You've worked hard to create your product, services and website. Wouldn't it be nice if, for a change, it was REALLY easy to boost your reputation with visitors, easily answer their questions, level up customer relationships, generate fresh leads, and all without adding any employees? Welcome to GoEasyChat!</p>
                 <div class="grid">
@@ -1037,9 +1038,11 @@ function onSubmitForm(e) {
                                 </ul>
                             </div>
                         </div>
+                        <!--
                         <div class="pricing-card-footer">
                             <a href="#" class="pricing-btn pricing-btn-primary">Subscribe</a>
                         </div>
+                        -->
                     </div>
                     
                     <!-- Card 2: Plus -->
@@ -1068,9 +1071,11 @@ function onSubmitForm(e) {
                                 </ul>
                             </div>
                         </div>
+                        <!--
                         <div class="pricing-card-footer">
                             <a href="#" class="pricing-btn pricing-btn-primary">Subscribe</a>
                         </div>
+                        -->
                     </div>
                     
                     <!-- Card 3: Pro -->
@@ -1099,16 +1104,18 @@ function onSubmitForm(e) {
                                 </ul>
                             </div>
                         </div>
+                        <!--
                         <div class="pricing-card-footer">
                             <a href="#" class="pricing-btn pricing-btn-primary">Subscribe</a>
                         </div>
+                        -->
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- FAQ Section -->
-        <section class="faq">
+        <section class="faq" id="faq">
             <div class="container">
                 <h2>Frequently Asked Questions</h2>
                 <div class="faq-list">
@@ -1170,10 +1177,9 @@ function onSubmitForm(e) {
     <footer>
         <div class="footer-container">
             <ul class="footer-links">
-                <li><a href="/">Home</a></li>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#pricing">Pricing</a></li>
-                <li><a href="#contact">Contact</a></li>
+                <li><a href="#faq">FAQs</a></li>
             </ul>
         </div>
     </footer>

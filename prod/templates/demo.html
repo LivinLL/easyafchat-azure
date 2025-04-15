@@ -146,15 +146,9 @@
                 </div>
                 <ul class="nav-links">
                     <li><a href="/">Home</a></li>
-                    <li><a href="#features">Features</a></li>
-                    <li><a href="#pricing">Pricing</a></li>
-                    <li><a href="#contact">Contact</a></li>
-                    {% if session.get('user_id') %}
-                    <li><a href="/dashboard">Dashboard</a></li>
-                    <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
-                    {% else %}
-                    <li><a href="{{ url_for('auth.signin') }}">Sign In</a></li>
-                    {% endif %}
+                    <li><a href="/#features">Features</a></li>
+                    <li><a href="/#pricing">Pricing</a></li>
+                    <li><a href="/#faq">FAQs</a></li>
                 </ul>
             </div>
         </nav>
@@ -218,9 +212,9 @@
         <div class="footer-container">
             <ul class="footer-links">
                 <li><a href="/">Home</a></li>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#pricing">Pricing</a></li>
-                <li><a href="#contact">Contact</a></li>
+                <li><a href="/#features">Features</a></li>
+                <li><a href="/#pricing">Pricing</a></li>
+                <li><a href="/#faq">FAQs</a></li>
             </ul>
         </div>
     </footer>
