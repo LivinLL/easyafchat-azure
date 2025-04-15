@@ -38,6 +38,180 @@ MS_GRAPH_URL = "https://graph.microsoft.com/v1.0/me"
 def get_google_provider_cfg():
     return requests.get(GOOGLE_DISCOVERY_URL).json()
 
+def trigger_bot_claimed_webhook(chatbot_id, user_id):
+    """
+    Trigger a webhook for the 'new_bot_claimed' event when a user claims a chatbot.
+    
+    Args:
+        chatbot_id (str): The ID of the claimed chatbot
+        user_id (str): The ID of the user who claimed the chatbot
+        
+    Returns:
+        bool: True if webhook was triggered successfully, False otherwise
+    """
+    print(f"[trigger_bot_claimed_webhook] Starting for chatbot_id: {chatbot_id}, user_id: {user_id}")
+    try:
+        # Import the webhook trigger function
+        from app import send_webhook
+        print(f"[trigger_bot_claimed_webhook] Successfully imported send_webhook")
+        
+        # Get necessary data from companies table
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get company data
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            cursor.execute("""
+                SELECT chatbot_id, company_url, pinecone_namespace, created_at, updated_at
+                FROM companies
+                WHERE chatbot_id = %s
+            """, (chatbot_id,))
+        else:
+            cursor.execute("""
+                SELECT chatbot_id, company_url, pinecone_namespace, created_at, updated_at
+                FROM companies
+                WHERE chatbot_id = ?
+            """, (chatbot_id,))
+            
+        company = cursor.fetchone()
+        if not company:
+            print(f"[trigger_bot_claimed_webhook] Chatbot not found: {chatbot_id}")
+            return False
+            
+        columns = [desc[0] for desc in cursor.description]
+        company_dict = dict(zip(columns, company))
+        print(f"[trigger_bot_claimed_webhook] Company data retrieved: {company_dict.get('chatbot_id')}, {company_dict.get('company_url')}")
+        
+        # Get user data
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            cursor.execute("""
+                SELECT email, name, created_at
+                FROM users
+                WHERE user_id = %s
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT email, name, created_at
+                FROM users
+                WHERE user_id = ?
+            """, (user_id,))
+            
+        user = cursor.fetchone()
+        if not user:
+            print(f"[trigger_bot_claimed_webhook] User not found: {user_id}")
+            return False
+            
+        columns = [desc[0] for desc in cursor.description]
+        user_dict = dict(zip(columns, user))
+        print(f"[trigger_bot_claimed_webhook] User data retrieved: {user_dict.get('email')}, {user_dict.get('name')}")
+        
+        # Extract first name from full name
+        full_name = user_dict.get('name', '')
+        first_name = ""
+        
+        if full_name:
+            # Split by spaces and take the first part
+            name_parts = full_name.strip().split()
+            if name_parts:
+                # Extract first part and ensure proper case
+                first_name = name_parts[0]
+                # Convert to proper case (first letter uppercase, rest lowercase)
+                first_name = first_name[0].upper() + first_name[1:].lower() if len(first_name) > 1 else first_name.upper()
+        
+        print(f"[trigger_bot_claimed_webhook] Extracted first name: {first_name}")
+        
+        # Handle datetime fields - check if they're strings or datetime objects
+        created_at = company_dict.get('created_at')
+        updated_at = company_dict.get('updated_at')
+        user_created_at = user_dict.get('created_at')
+        
+        print(f"[trigger_bot_claimed_webhook] Date types - created_at: {type(created_at)}, updated_at: {type(updated_at)}")
+        
+        # Convert to string if needed
+        if created_at and hasattr(created_at, 'isoformat'):
+            created_at = created_at.isoformat()
+        
+        if updated_at and hasattr(updated_at, 'isoformat'):
+            updated_at = updated_at.isoformat()
+            
+        if user_created_at and hasattr(user_created_at, 'isoformat'):
+            user_created_at = user_created_at.isoformat()
+        
+        # Create webhook payload
+        payload = {
+            "company": {
+                "chatbot_id": company_dict.get('chatbot_id'),
+                "url": company_dict.get('company_url'),
+                "namespace": company_dict.get('pinecone_namespace'),
+                "created_at": created_at,
+                "claimed_at": updated_at
+            },
+            "user": {
+                "user_id": user_id,
+                "email": user_dict.get('email'),
+                "name": user_dict.get('name'),
+                "first_name": first_name,
+                "created_at": user_created_at
+            }
+        }
+        
+        print(f"[trigger_bot_claimed_webhook] Prepared payload with data")
+        
+        # Check if there's a webhook_url configured for this chatbot
+        webhook_url_query = "SELECT webhook_url FROM chatbot_config WHERE chatbot_id = ?"
+        webhook_url_params = (chatbot_id,)
+        
+        if os.environ.get('DB_TYPE') == 'postgresql':
+            webhook_url_query = webhook_url_query.replace('?', '%s')
+            
+        cursor.execute(webhook_url_query, webhook_url_params)
+        webhook_result = cursor.fetchone()
+        
+        if not webhook_result or not webhook_result[0]:
+            print(f"[trigger_bot_claimed_webhook] No webhook URL configured for chatbot {chatbot_id}")
+            
+            # Try to use the GEC_CHATBOT_ID instead
+            gec_chatbot_id = os.getenv('GEC_CHATBOT_ID')
+            print(f"[trigger_bot_claimed_webhook] Trying with GEC_CHATBOT_ID: {gec_chatbot_id}")
+            
+            if gec_chatbot_id:
+                # Use the GEC_CHATBOT_ID instead
+                chatbot_id_for_webhook = gec_chatbot_id
+                
+                # Check if that chatbot has a webhook URL
+                if os.environ.get('DB_TYPE') == 'postgresql':
+                    cursor.execute("SELECT webhook_url FROM chatbot_config WHERE chatbot_id = %s", (chatbot_id_for_webhook,))
+                else:
+                    cursor.execute("SELECT webhook_url FROM chatbot_config WHERE chatbot_id = ?", (chatbot_id_for_webhook,))
+                    
+                webhook_result = cursor.fetchone()
+                if not webhook_result or not webhook_result[0]:
+                    print(f"[trigger_bot_claimed_webhook] No webhook URL for GEC_CHATBOT_ID either: {gec_chatbot_id}")
+                    return False
+                    
+                print(f"[trigger_bot_claimed_webhook] Using GEC_CHATBOT_ID instead: {chatbot_id_for_webhook}")
+            else:
+                print(f"[trigger_bot_claimed_webhook] GEC_CHATBOT_ID not set in environment")
+                return False
+        else:
+            # Use the original chatbot_id
+            chatbot_id_for_webhook = chatbot_id
+            print(f"[trigger_bot_claimed_webhook] Using original chatbot_id: {chatbot_id_for_webhook}")
+        
+        # Return the company's own chatbot_id for triggering the webhook
+        result = send_webhook(chatbot_id_for_webhook, "new_bot_claimed", payload)
+        print(f"[trigger_bot_claimed_webhook] Webhook result: {result}")
+        return result
+        
+    except Exception as e:
+        import traceback
+        print(f"[trigger_bot_claimed_webhook] Error: {e}")
+        print(traceback.format_exc())
+        return False
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
+
 @auth_bp.route('/signin', methods=['GET', 'POST'])
 def signin():
     if request.method == 'GET':
@@ -210,6 +384,8 @@ def signup():
                                 (user_id, datetime.utcnow(), chatbot_id)
                             )
                         conn.commit()
+                        # Trigger the new_bot_claimed webhook
+                        trigger_bot_claimed_webhook(chatbot_id, user_id)
                         flash('Chatbot claimed successfully!', 'success')
                 
                 return redirect(url_for('dashboard'))
@@ -494,6 +670,8 @@ def microsoft_callback():
                                     (user_id, datetime.utcnow(), chatbot_id)
                                 )
                             conn.commit()
+                            # Trigger the new_bot_claimed webhook
+                            trigger_bot_claimed_webhook(chatbot_id, user_id)
                             flash('Chatbot claimed successfully!', 'success')
                     
                     # Clear chatbot_id from session
@@ -703,6 +881,8 @@ def google_callback():
                                     (user_id, datetime.utcnow(), chatbot_id)
                                 )
                             conn.commit()
+                            # Trigger the new_bot_claimed webhook
+                            trigger_bot_claimed_webhook(chatbot_id, user_id)
                             flash('Chatbot claimed successfully!', 'success')
                     
                     # Clear chatbot_id from session
@@ -823,6 +1003,12 @@ def verify_email(token):
                     "UPDATE companies SET user_id = ?, updated_at = ? WHERE chatbot_id = ? AND (user_id IS NULL OR user_id = ?)",
                     (user_dict.get('user_id'), datetime.utcnow(), chatbot_id, user_dict.get('user_id'))
                 )
+            
+            # Check if the update actually claimed the bot (affected rows > 0)
+            if cursor.rowcount > 0:
+                # Trigger the new_bot_claimed webhook
+                trigger_bot_claimed_webhook(chatbot_id, user_dict.get('user_id'))
+                
             conn.commit()
             
             # Clear chatbot_id from session
@@ -1131,6 +1317,9 @@ def claim_chatbot(chatbot_id):
                 (user_id, datetime.utcnow(), chatbot_id)
             )
         conn.commit()
+        
+        # Trigger the new_bot_claimed webhook
+        trigger_bot_claimed_webhook(chatbot_id, user_id)
         
         return jsonify({'success': True, 'message': 'Chatbot claimed successfully'})
         

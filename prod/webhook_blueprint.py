@@ -150,8 +150,8 @@ def send_webhook(chatbot_id, event_type, payload_data):
             
             result = cursor.fetchone()
             
-            if not result or not result[0] or not result[1]:
-                # No webhook configured or no triggers set
+            if not result or not result[0]:
+                # No webhook configured
                 return False
                 
             webhook_url, webhook_triggers = result
@@ -161,13 +161,22 @@ def send_webhook(chatbot_id, event_type, payload_data):
                 print(f"[webhook] Invalid webhook URL for chatbot {chatbot_id}: {webhook_url}")
                 return False
                 
-            # Parse the comma-separated triggers
-            triggers = [t.strip() for t in webhook_triggers.split(',')]
-            
-            # Check if this specific event type is in the triggers
-            if event_type not in triggers:
-                print(f"[webhook] Event type {event_type} not in triggers for chatbot {chatbot_id}")
-                return False
+            # For "new_bot_claimed" events, bypass the trigger check - this is a system event
+            if event_type != "new_bot_claimed":
+                # For all other events, check if the event type is in the triggers list
+                if not webhook_triggers:
+                    print(f"[webhook] No webhook triggers configured for chatbot {chatbot_id}")
+                    return False
+                    
+                # Parse the comma-separated triggers
+                triggers = [t.strip() for t in webhook_triggers.split(',')]
+                
+                # Check if this specific event type is in the triggers
+                if event_type not in triggers:
+                    print(f"[webhook] Event type {event_type} not in triggers for chatbot {chatbot_id}")
+                    return False
+            else:
+                print(f"[webhook] Processing special event type {event_type} - bypassing trigger check")
                 
             # Check rate limit
             if not check_rate_limit(webhook_url):
