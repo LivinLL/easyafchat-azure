@@ -123,20 +123,24 @@
             display: block;
         }
 
+        /* ================================= */
         /* Playground Header */
         .playground-header {
             display: flex;
+            flex-direction: row;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .playground-header h1 {
-            margin: 0;
+            margin: 0 0 10px 0;
             font-size: 24px;
             font-weight: 500;
             margin-right: 20px;
             display: flex;
             align-items: center;
+            width: auto;
         }
 
         .info-icon {
@@ -149,6 +153,8 @@
         /* Bot Selector */
         .bot-dropdown {
             position: relative;
+            width: auto;
+            max-width: 300px;
         }
 
         .bot-dropdown-button {
@@ -160,12 +166,18 @@
             display: flex;
             align-items: center;
             cursor: pointer;
+            justify-content: space-between;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
         }
 
         .bot-dropdown-button:after {
             content: '▼';
             font-size: 12px;
             margin-left: 10px;
+            flex-shrink: 0;
         }
 
         .bot-dropdown-content {
@@ -173,6 +185,8 @@
             position: absolute;
             background-color: white;
             min-width: 250px;
+            width: 100%;
+            max-width: 300px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
             z-index: 10;
             border-radius: 4px;
@@ -185,6 +199,9 @@
             display: block;
             color: #333;
             text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .bot-dropdown-content a:hover {
@@ -291,13 +308,14 @@
             position: relative !important;
             bottom: auto !important;
             right: auto !important;
-            width: 475px !important;  
-            height: 475px !important; /* Fixed height for better proportions */
-            max-height: 650px !important; /* Match fixed height */
+            width: 100% !important;  
+            max-width: 600px !important;
+            height: 600px !important;
+            max-height: 650px !important;
             border-radius: 8px !important;
-            margin: 0 auto !important; /* Center the chat window */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important; /* Add subtle shadow */
-            background-color: white !important; /* Ensure white background */
+            margin: 0 auto !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+            background-color: white !important;
         }
 
         /* Hide the user's chatbox closing "X" as it can't close so don't show it */
@@ -307,16 +325,54 @@
 
         /* Add responsive behavior for mobile devices */
         @media (max-width: 768px) {
+            .playground-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .playground-header h1 {
+                margin-bottom: 15px;
+                font-size: 22px;
+                width: 100%;
+            }
+            
+            .bot-dropdown {
+                max-width: 100%;
+                width: 100%;
+            }
+            
+            .bot-dropdown-content {
+                max-width: 100%;
+            }
+            
             #playground-container .daves-chat-window {
-                width: 95% !important; /* Use more width on mobile */
-                height: 600px !important; /* Slightly smaller height on mobile */
-                max-height: 600px !important;
+                width: 100% !important;
+                height: 500px !important;
+            }
+            
+            .playground-container {
+                height: auto;
+                min-height: 550px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .playground-header h1 {
+                font-size: 20px;
+            }
+            
+            #playground-container .daves-chat-window {
+                height: 450px !important;
+            }
+            
+            .playground-container {
+                min-height: 500px;
             }
         }
 
 /* Sources Tab Styles */
 .sources-container {
-    max-width: 800px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 20px;
 }
@@ -334,14 +390,16 @@
     margin-bottom: 15px;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .retrain-btn {
-    margin-left: 15px;
+    margin-left: auto;
     background-color: #1a1a1a;
     color: white;
     border: none;
-    padding: 5px 15px;
+    padding: 8px 15px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
@@ -362,6 +420,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding: 15px;
 }
 
 .file-types {
@@ -374,9 +433,10 @@
     background-color: #0d6efd;
     color: white;
     border: none;
-    padding: 5px 15px;
+    padding: 8px 15px;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 16px;
 }
 
 #no-documents-message {
@@ -392,6 +452,8 @@
     margin-bottom: 20px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    background-color: white;
+    overflow: hidden;
 }
 
 .processing-indicator {
@@ -493,6 +555,8 @@
 
 .custom-modal-body {
     padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
 .custom-modal-footer {
@@ -529,18 +593,237 @@
     background-color: #c82333;
 }
 
+/* Document card responsive improvements */
+.document-card-header {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.document-card-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.document-type-badge {
+    background: #e7f3ff;
+    color: #0d6efd;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.document-card-content {
+    padding: 15px;
+}
+
+.document-metadata {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: #666;
+    font-size: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.document-preview {
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 13px;
+    max-height: 100px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.document-card-footer {
+    padding: 10px 15px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.document-card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.view-doc-btn, .delete-doc-btn {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    min-width: 80px;
+    text-align: center;
+}
+
+.view-doc-btn {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.delete-doc-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Document upload processing */
+.processing-progress {
+    width: 100%;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    margin-top: 15px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #0d6efd;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .sources-container {
+        padding: 15px;
+    }
+    
+    .sources-stats-line {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .retrain-btn {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+    }
+    
+    .document-card-footer {
+        flex-direction: column;
+    }
+    
+    .document-card-actions {
+        width: 100%;
+    }
+    
+    .view-doc-btn, .delete-doc-btn {
+        flex: 1;
+    }
+    
+    .custom-modal-content {
+        max-width: 100%;
+        margin: 0 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sources-container h2 {
+        font-size: 20px;
+    }
+    
+    #dropzone {
+        min-height: 120px;
+        padding: 10px;
+    }
+    
+    .select-files-btn {
+        width: 100%;
+    }
+    
+    .document-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .document-type-badge {
+        align-self: flex-start;
+    }
+}
+
 /* ============================== */
 /* Leads Tab Styles */
 .leads-container {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+}
+
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+#exportLeadsBtn {
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+#exportLeadsBtn:hover {
+    background-color: #0b5ed7;
+}
+
+#leadsErrorMessage {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+#leadsLoadingIndicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    margin: 20px 0;
+}
+
+#noLeadsMessage {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+#noLeadsMessage h4 {
+    margin-bottom: 10px;
+    color: #333;
 }
 
 #leadsTable {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 #leadsTable th {
@@ -589,9 +872,25 @@
     transition: background-color 0.3s ease;
 }
 
-#leadsTable .delete-lead-btn {
+.lead-data-cell {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.delete-lead-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
     padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
     font-size: 13px;
+}
+
+.delete-lead-btn:hover {
+    background-color: #c82333;
 }
 
 /* Loading spinner animation */
@@ -609,30 +908,129 @@
     animation: spin 1s infinite linear;
 }
 
-/* Export button styling */
-#exportLeadsBtn {
-    white-space: nowrap;
+/* Card-style mobile view */
+.lead-card {
+    display: none;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 15px;
+    padding: 15px;
 }
 
-/* Makes the table more responsive on small screens */
+.lead-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.lead-card-name {
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.lead-card-date {
+    color: #666;
+    font-size: 13px;
+}
+
+.lead-card-body {
+    margin-bottom: 15px;
+}
+
+.lead-card-field {
+    margin-bottom: 8px;
+}
+
+.lead-card-label {
+    color: #666;
+    font-size: 13px;
+    display: block;
+    margin-bottom: 3px;
+}
+
+.lead-card-value {
+    font-size: 15px;
+    word-break: break-word;
+}
+
+.lead-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+    .lead-data-cell {
+        max-width: 200px;
+    }
+}
+
 @media (max-width: 768px) {
+    .leads-container {
+        padding: 15px;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .header-actions h2 {
+        margin-bottom: 10px;
+    }
+    
+    #exportLeadsBtn {
+        width: 100%;
+    }
+    
     #leadsTable {
         display: block;
         width: 100%;
         overflow-x: auto;
+        white-space: nowrap;
+        box-shadow: none;
+        border: 1px solid #e0e0e0;
     }
     
-    .leads-container {
-        padding: 10px;
+    #leadsTable th, 
+    #leadsTable td {
+        padding: 10px 12px;
+    }
+    
+    /* Enable card view for very small screens */
+    @media (max-width: 480px) {
+        #leadsTable {
+            display: none;
+        }
+        
+        .lead-card {
+            display: block;
+        }
     }
 }
 
 
 /* Chat Logs Styles */
 .chat-logs-container {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+}
+
+.chat-logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .chat-logs-content {
@@ -691,6 +1089,8 @@
 
 .message-container {
     padding: 20px;
+    display: flex;
+    flex-direction: column;
 }
 
 .chat-message {
@@ -754,28 +1154,127 @@
     align-self: flex-end;
 }
 
+/* Loading indicators */
+#threadsLoadingIndicator,
+#messagesLoadingIndicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    height: 100%;
+}
+
+#noThreadsMessage,
+#noMessagesMessage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px;
+    height: 100%;
+    color: #666;
+}
+
+#noThreadsMessage h4,
+#noMessagesMessage h4 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
 /* Responsive styles */
+@media (max-width: 992px) {
+    .chat-logs-threads {
+        width: 40%;
+    }
+    
+    .chat-logs-messages {
+        width: 60%;
+    }
+    
+    .chat-message {
+        max-width: 90%;
+    }
+}
+
 @media (max-width: 768px) {
+    .chat-logs-container {
+        padding: 15px;
+    }
+    
     .chat-logs-content {
         flex-direction: column;
         height: auto;
+        min-height: 700px;
     }
     
     .chat-logs-threads,
     .chat-logs-messages {
         width: 100%;
-        height: 400px;
+        height: 350px;
     }
     
     .chat-logs-threads {
         border-right: none;
         border-bottom: 1px solid #e0e0e0;
     }
+    
+    .message-container {
+        padding: 15px;
+    }
+    
+    .message-bubble {
+        padding: 8px 12px;
+    }
+    
+    .message-bubble.assistant {
+        padding-left: 35px;
+    }
+    
+    .message-bubble.assistant::before {
+        width: 20px;
+        height: 20px;
+        left: 8px;
+        top: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chat-logs-content {
+        min-height: 600px;
+    }
+    
+    .chat-logs-threads,
+    .chat-logs-messages {
+        height: 300px;
+    }
+    
+    .thread-item {
+        padding: 12px;
+    }
+    
+    .thread-preview {
+        font-size: 13px;
+    }
+    
+    .thread-time {
+        font-size: 11px;
+    }
+    
+    .chat-message {
+        max-width: 95%;
+    }
+    
+    .message-bubble {
+        font-size: 14px;
+    }
 }
 
 /* =========================================== */
 /* Settings Tab Styles */
 .settings-container {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
@@ -800,12 +1299,15 @@
     width: 250px;
     border-right: 1px solid #e0e0e0;
     background-color: #f9f9f9;
+    flex-shrink: 0;
 }
 
 .settings-menu {
     list-style: none;
     padding: 0;
     margin: 0;
+    position: sticky;
+    top: 0;
 }
 
 .settings-menu li {
@@ -838,6 +1340,7 @@
     flex: 1;
     padding: 30px;
     min-height: 600px;
+    overflow-x: auto;
 }
 
 .settings-loading {
@@ -857,7 +1360,7 @@
 }
 
 .settings-form {
-    max-width: 700px;
+    max-width: 100%;
 }
 
 .settings-form h3 {
@@ -892,6 +1395,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 14px;
     resize: vertical;
+    min-height: 100px;
 }
 
 .settings-text-input {
@@ -912,20 +1416,28 @@
 .color-input-container {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.color-input {
+    flex: 1;
+    min-width: 200px;
 }
 
 .color-preview {
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
     border-radius: 4px;
-    margin-left: 10px;
     border: 1px solid #ddd;
+    flex-shrink: 0;
 }
 
 .color-presets {
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    flex-wrap: wrap;
 }
 
 .color-preset {
@@ -942,11 +1454,11 @@
 }
 
 .radio-option {
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
 .radio-option label {
-    margin-left: 5px;
+    margin-left: 8px;
     cursor: pointer;
 }
 
@@ -956,8 +1468,8 @@
 }
 
 .icon-preview {
-    max-width: 300px;
-    max-height: 300px;
+    max-width: 250px;
+    max-height: 250px;
     border: 1px solid #ddd;
     border-radius: 8px;
 }
@@ -977,17 +1489,19 @@
 .settings-actions {
     display: flex;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 30px;
+    flex-wrap: wrap;
 }
 
 .settings-save-btn {
     background-color: #0084ff;
     color: white;
     border: none;
-    padding: 8px 15px;
+    padding: 10px 20px;
     border-radius: 4px;
     cursor: pointer;
     font-weight: 500;
+    min-width: 100px;
 }
 
 .settings-save-btn:hover {
@@ -998,10 +1512,11 @@
     background-color: #6c757d;
     color: white;
     border: none;
-    padding: 8px 15px;
+    padding: 10px 20px;
     border-radius: 4px;
     cursor: pointer;
     font-weight: 500;
+    min-width: 100px;
 }
 
 .settings-test-btn:hover {
@@ -1011,7 +1526,7 @@
 .settings-message {
     padding: 10px;
     border-radius: 4px;
-    margin-top: 10px;
+    margin-top: 15px;
     display: none;
 }
 
@@ -1046,47 +1561,8 @@
     margin-bottom: 15px;
 }
 
-.webhook-success {
-    background-color: #d4edda;
-    color: #155724;
-    padding: 10px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.webhook-error {
-    background-color: #f8d7da;
-    color: #721c24;
-    padding: 10px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.webhook-testing {
-    background-color: #e7f3ff;
-    color: #0c5460;
-    padding: 10px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.webhook-icon {
-    font-size: 18px;
-    margin-right: 10px;
-}
-
 .webhook-payload {
-    margin-top: 10px;
-}
-
-.webhook-payload h5 {
-    margin-bottom: 10px;
+    margin-top: 15px;
 }
 
 .webhook-payload pre {
@@ -1099,10 +1575,199 @@
     overflow-x: auto;
     max-height: 300px;
     overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
-/* Responsive Styles */
+/* Mobile navigation for settings */
+.settings-mobile-nav-toggle {
+    display: none;
+    width: 100%;
+    padding: 12px 15px;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    text-align: left;
+    position: relative;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.settings-mobile-nav-toggle:after {
+    content: '▼';
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+    .settings-nav {
+        width: 200px;
+    }
+    
+    .settings-content {
+        padding: 20px;
+    }
+    
+    .settings-form {
+        max-width: 100%;
+    }
+}
+
 @media (max-width: 768px) {
+    .settings-container {
+        padding: 15px;
+    }
+    
+    .settings-layout {
+        flex-direction: column;
+    }
+    
+    .settings-mobile-nav-toggle {
+        display: block;
+    }
+    
+    .settings-nav {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+        display: none;
+    }
+    
+    .settings-nav.active {
+        display: block;
+    }
+    
+    .settings-content {
+        padding: 15px;
+    }
+    
+    .settings-actions {
+        flex-direction: column;
+    }
+    
+    .settings-save-btn,
+    .settings-test-btn {
+        width: 100%;
+    }
+    
+    .color-input-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .color-preview {
+        margin-left: 0;
+        margin-top: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-header {
+        font-size: 20px;
+    }
+    
+    .settings-form h3 {
+        font-size: 16px;
+    }
+    
+    .settings-content {
+        padding: 10px;
+    }
+    
+    .webhook-payload pre {
+        font-size: 12px;
+    }
+}
+
+/* ================================ */
+/* Responsive styles */
+@media (max-width: 768px) {
+    .mobile-menu-button {
+        display: block;
+    }
+    
+    .header-container {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 15px;
+        height: auto;
+    }
+    
+    .logo {
+        margin-bottom: 15px;
+        margin-right: 0;
+        padding-right: 50px; /* Make room for menu button */
+    }
+    
+    .nav-container {
+        flex-direction: column;
+        width: 100%;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.5s ease;
+    }
+    
+    .nav-container.active {
+        max-height: 500px;
+    }
+    
+    .nav-links {
+        flex-direction: column;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .nav-links li {
+        margin: 0;
+        width: 100%;
+    }
+    
+    .nav-links a {
+        padding: 15px 0;
+        width: 100%;
+        display: block;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .dropdown-content {
+        position: static;
+        box-shadow: none;
+        width: 100%;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s;
+        opacity: 0;
+        visibility: hidden;
+    }
+    
+    .nav-links li.dropdown-active .dropdown-content {
+        max-height: 300px;
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .user-links {
+        border-top: 1px solid #ddd;
+        padding-top: 10px;
+    }
+    
+    .user-links a {
+        color: #0084ff;
+    }
+
+    /* Responsive playground */
+    #playground-container .daves-chat-window {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 550px !important;
+    }
+    
+    /* Responsive settings page */
     .settings-layout {
         flex-direction: column;
     }
@@ -1118,58 +1783,40 @@
     }
 }
 
-/* Cloudinary Image Upload */
-.icon-upload-container {
-    margin-bottom: 20px;
-}
-
-.settings-upload-btn {
-    background-color: #f8f9fa;
-    border: 1px solid #ddd;
-    color: #333;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.settings-upload-btn:hover {
-    background-color: #e9ecef;
-}
-
-.spinner-container {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    margin: 15px 0;
-}
-
-.spinner-container .spinner {
-    width: 30px;
-    height: 30px;
-    margin-bottom: 10px;
-}
-
-#image-preview-container {
-    margin-top: 10px;
-}
-
-.image-preview {
-    max-width: 300px;
-    max-height: 300px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin-top: 10px;
+/* Additional responsive styles for very small screens */
+@media (max-width: 480px) {
+    .dashboard-container {
+        padding: 10px;
+    }
+    
+    .page-content {
+        padding: 15px;
+        min-height: 400px;
+    }
+    
+    #playground-container .daves-chat-window {
+        height: 450px !important;
+    }
+    
+    .bot-dropdown-button {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }
 
     </style>
 </head>
 <body>
     <header>
+        <!-- Mobile navigation menu toggle button -->
+        <div class="mobile-menu-button">
+            <button id="mobile-menu-toggle">
+                <span class="menu-icon"></span>
+            </button>
+        </div>
+
         <div class="header-container">
             <div class="logo">
                 <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="GoEasyChat Logo">
@@ -1185,7 +1832,7 @@
                         <a href="javascript:void(0);" onclick="openPage('settings')">Settings</a>
                     </li>
                 </ul>
-                <ul class="nav-links">
+                <ul class="nav-links user-links">
                     <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
                 </ul>
             </div>
@@ -3028,6 +3675,103 @@ function formatRelativeTime(dateStr) {
         loadChatThreads();
     }
 });
+</script>
+
+<script>
+// Mobile Menu Toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const navContainer = document.querySelector('.nav-container');
+    const navLinks = document.querySelectorAll('.nav-links > li > a');
+    
+    if (mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', function() {
+            this.classList.toggle('active');
+            navContainer.classList.toggle('active');
+        });
+    }
+    
+    // Close mobile menu when a link is clicked
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                navContainer.classList.remove('active');
+                if (mobileMenuToggle) {
+                    mobileMenuToggle.classList.remove('active');
+                }
+            }
+        });
+    });
+    
+    // Handle dropdown menus on mobile
+    const dropdownLinks = document.querySelectorAll('.nav-links > li:has(.dropdown-content) > a');
+    
+    dropdownLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (window.innerWidth <= 768) {
+                e.preventDefault();
+                const parentLi = this.parentElement;
+                parentLi.classList.toggle('dropdown-active');
+            }
+        });
+    });
+    
+    // Close menu on window resize if width > 768px
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) {
+            navContainer.classList.remove('active');
+            if (mobileMenuToggle) {
+                mobileMenuToggle.classList.remove('active');
+            }
+            
+            // Reset dropdown active states
+            document.querySelectorAll('.nav-links > li').forEach(li => {
+                li.classList.remove('dropdown-active');
+            });
+        }
+    });
+});
+
+// Settings Mobile Navigation
+document.addEventListener('DOMContentLoaded', function() {
+    // Create the mobile nav toggle button
+    const settingsPage = document.getElementById('settings');
+    const settingsNav = document.querySelector('.settings-nav');
+    
+    if (settingsPage && settingsNav) {
+        // Create the toggle button element
+        const mobileNavToggle = document.createElement('button');
+        mobileNavToggle.className = 'settings-mobile-nav-toggle';
+        mobileNavToggle.textContent = 'Settings Menu';
+        mobileNavToggle.type = 'button';
+        
+        // Get the settings layout element to insert the toggle before the nav
+        const settingsLayout = document.querySelector('.settings-layout');
+        
+        if (settingsLayout) {
+            // Insert the toggle button before the settings layout
+            settingsLayout.parentNode.insertBefore(mobileNavToggle, settingsLayout);
+            
+            // Add click event to toggle the nav
+            mobileNavToggle.addEventListener('click', function() {
+                settingsNav.classList.toggle('active');
+                this.textContent = settingsNav.classList.contains('active') ? 'Hide Menu' : 'Settings Menu';
+            });
+            
+            // Close menu when a nav item is clicked
+            const navItems = settingsNav.querySelectorAll('.settings-nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        settingsNav.classList.remove('active');
+                        mobileNavToggle.textContent = 'Settings Menu';
+                    }
+                });
+            });
+        }
+    }
+});
+
 </script>
 
 
