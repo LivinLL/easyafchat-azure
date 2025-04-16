@@ -34,7 +34,6 @@ openai_client = None
 pinecone_client = None
 DB_PATH = None
 PINECONE_INDEX = None
-document_handler = None
 
 def update_pinecone_index(namespace, text_chunks, embeddings, old_namespace=None):
     """Update Pinecone index with new vectors"""
@@ -93,9 +92,6 @@ HTML = '''
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">Users</button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link" href="/documents">Documents</a>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="db-management-tab" data-bs-toggle="tab" data-bs-target="#db-management" type="button">DB Management</button>
@@ -369,21 +365,7 @@ HTML = '''
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div class="col-md-4 mb-3">
-                                <div class="card">
-                                    <div class="card-header bg-danger">
-                                        <h6 class="mb-0 text-white">Documents Table</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <p>Delete all document records.</p>
-                                        <button id="truncateDocumentsBtn" class="btn btn-danger">
-                                            <i class="bi bi-trash"></i> Empty Documents Table
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
+                           
                             <div class="col-md-4 mb-3">
                                 <div class="card">
                                     <div class="card-header bg-danger">
@@ -1257,10 +1239,6 @@ HTML = '''
         // Add event listeners for each truncate button
         document.getElementById('truncateCompaniesBtn').addEventListener('click', function() {
             truncateTable('companies');
-        });
-
-        document.getElementById('truncateDocumentsBtn').addEventListener('click', function() {
-            truncateTable('documents');
         });
 
         document.getElementById('truncateLeadsBtn').addEventListener('click', function() {
@@ -2781,15 +2759,6 @@ def init_admin_dashboard(app_openai_client, app_pinecone_client, app_db_path, ap
     DB_PATH = app_db_path
     PINECONE_INDEX = app_pinecone_index
     
-    # Initialize document handler
-    document_handler = DocumentsHandler(
-        openai_client=openai_client,
-        pinecone_client=pinecone_client,
-        pinecone_index=PINECONE_INDEX
-    )
-
-# Add this function to admin_dashboard.py
-
 @admin_dashboard.route('/nuclear-reset/<id>', methods=['POST'])
 def nuclear_reset(id):
     """
