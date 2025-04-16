@@ -2849,14 +2849,20 @@ def nuclear_reset(id):
                 cursor.execute('DELETE FROM chatbot_incidents WHERE chatbot_id = %s', (id,))
             else:
                 cursor.execute('DELETE FROM chatbot_incidents WHERE chatbot_id = ?', (id,))
+                
+            # 6. Delete any usage metrics records for this chatbot
+            if os.getenv('DB_TYPE', '').lower() == 'postgresql':
+                cursor.execute('DELETE FROM usage_metrics WHERE chatbot_id = %s', (id,))
+            else:
+                cursor.execute('DELETE FROM usage_metrics WHERE chatbot_id = ?', (id,))
             
-            # 6. Remove the company record (break the foreign key relationship)
+            # 7. Remove the company record (break the foreign key relationship)
             if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                 cursor.execute('DELETE FROM companies WHERE chatbot_id = %s', (id,))
             else:
                 cursor.execute('DELETE FROM companies WHERE chatbot_id = ?', (id,))
             
-            # 7. Now see if we need to delete the user (if they don't have any other chatbots)
+            # 8. Now see if we need to delete the user (if they don't have any other chatbots)
             if user_id:
                 if os.getenv('DB_TYPE', '').lower() == 'postgresql':
                     # Check if this user has other chatbots
