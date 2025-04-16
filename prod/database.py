@@ -856,4 +856,4 @@ def initialize_database(verbose=False):
     upgrade_database(verbose=verbose)
 
 if __name__ == "__main__":
-    initialize_database(verbose=True)  # Show messages when run directly
+    initialize_database(verbose=False)  # Show messages when run directly

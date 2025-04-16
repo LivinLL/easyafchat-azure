@@ -21,7 +21,7 @@ def init_webhook_function(webhook_function):
     """Initialize the webhook function reference"""
     global send_webhook_func
     send_webhook_func = webhook_function
-    print(f"Webhook function initialized: {webhook_function is not None}")
+    # print(f"Webhook function initialized: {webhook_function is not None}")
     return send_webhook_func
 
 def trigger_webhook(chatbot_id, event_type, payload):

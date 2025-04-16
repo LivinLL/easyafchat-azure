@@ -16,8 +16,8 @@ from dotenv import load_dotenv
 load_dotenv()  # Load .env file directly in the module
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-print(f"AUTH ROUTES - Google Client ID: {GOOGLE_CLIENT_ID}")
-print(f"AUTH ROUTES - Google Client Secret: {'[REDACTED]' if GOOGLE_CLIENT_SECRET else 'None'}")
+# print(f"AUTH ROUTES - Google Client ID: {GOOGLE_CLIENT_ID}")
+# print(f"AUTH ROUTES - Google Client Secret: {'[REDACTED]' if GOOGLE_CLIENT_SECRET else 'None'}")
 
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
@@ -27,8 +27,8 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 # Microsoft OAuth Configuration
 MS_AUTH_CLIENT_ID = os.environ.get('MS_AUTH_CLIENT_ID')
 MS_AUTH_CLIENT_SECRET = os.environ.get('MS_AUTH_CLIENT_SECRET')
-print(f"AUTH ROUTES - Microsoft Client ID: {MS_AUTH_CLIENT_ID}")
-print(f"AUTH ROUTES - Microsoft Client Secret: {'[REDACTED]' if MS_AUTH_CLIENT_SECRET else 'None'}")
+# print(f"AUTH ROUTES - Microsoft Client ID: {MS_AUTH_CLIENT_ID}")
+# print(f"AUTH ROUTES - Microsoft Client Secret: {'[REDACTED]' if MS_AUTH_CLIENT_SECRET else 'None'}")
 
 # Microsoft OAuth endpoints
 MS_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"

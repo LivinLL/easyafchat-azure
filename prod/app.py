@@ -59,7 +59,7 @@ if not MS_AUTH_CLIENT_ID or not MS_AUTH_CLIENT_SECRET:
 from database import initialize_database, connect_to_db
 
 # Initialize the database
-initialize_database(verbose=True)
+initialize_database(verbose=False)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -2252,7 +2252,7 @@ def check_active_status(chatbot_id):
 try:
     from db_leads import init_webhook_function
     init_webhook_function(send_webhook)
-    print("Webhook function initialized in leads blueprint")
+    # print("Webhook function initialized in leads blueprint")
 except ImportError:
     print("Warning: Could not initialize webhook function in leads blueprint")
 except Exception as e:
