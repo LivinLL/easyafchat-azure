@@ -568,6 +568,84 @@ def upgrade_database(verbose=False):
                 if verbose:
                     print(f"Created indexes for usage_metrics table")
                 
+            # Check if customer_plans table exists
+            cursor.execute(sql.SQL("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_schema = %s
+                AND table_name = 'customer_plans'
+            )
+            """), (DB_SCHEMA,))
+            plans_table_exists = cursor.fetchone()[0]
+
+            if not plans_table_exists:
+                # Create the customer_plans table if it doesn't exist yet
+                if verbose:
+                    print(f"Creating new customer_plans table in {DB_SCHEMA} schema")
+                # Use sql.SQL and sql.Identifier for safe dynamic schema/table names
+                create_table_query = sql.SQL("""
+                CREATE TABLE {schema}.customer_plans (
+                    plan_id SERIAL PRIMARY KEY,
+                    chatbot_id TEXT UNIQUE NOT NULL REFERENCES {schema}.companies(chatbot_id) ON DELETE CASCADE,
+                    plan_type TEXT NOT NULL CHECK (plan_type IN ('free', 'starter', 'plus', 'pro')),
+                    monthly_token_limit INTEGER, -- Defaults to NULL
+                    is_active BOOLEAN DEFAULT TRUE,
+                    start_date TIMESTAMP,
+                    renewal_date TIMESTAMP,
+                    stripe_subscription_id TEXT NULL,
+                    stripe_customer_id TEXT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """).format(schema=sql.Identifier(DB_SCHEMA))
+                cursor.execute(create_table_query)
+
+                # Optional: Add index on chatbot_id for faster lookups
+                create_index_query = sql.SQL("""
+                CREATE INDEX idx_customer_plans_chatbot_id
+                ON {schema}.customer_plans(chatbot_id)
+                """).format(schema=sql.Identifier(DB_SCHEMA))
+                cursor.execute(create_index_query)
+
+                if verbose:
+                    print(f"Created customer_plans table and index in {DB_SCHEMA} schema")
+
+            else:
+                # If table exists, check for potentially missing columns (like stripe IDs)
+                if verbose:
+                    print(f"Checking columns for existing customer_plans table in {DB_SCHEMA} schema")
+
+                columns_to_check = {
+                    'stripe_subscription_id': 'TEXT NULL',
+                    'stripe_customer_id': 'TEXT NULL'
+                    # Add other columns here if you modify the table later
+                }
+
+                for col_name, col_type in columns_to_check.items():
+                    # Check if column exists using information_schema
+                    cursor.execute(sql.SQL("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = %s
+                    AND table_name = 'customer_plans'
+                    AND column_name = %s
+                    """), (DB_SCHEMA, col_name))
+
+                    if not cursor.fetchone():
+                        # Column does not exist, add it
+                        if verbose:
+                            print(f"Adding missing column '{col_name}' to customer_plans table in {DB_SCHEMA}")
+                        # Use sql.SQL and sql.Identifier for safety
+                        alter_query = sql.SQL("ALTER TABLE {schema}.customer_plans ADD COLUMN {column_name} ") + sql.SQL(col_type)
+                        cursor.execute(alter_query.format(
+                            schema=sql.Identifier(DB_SCHEMA),
+                            column_name=sql.Identifier(col_name)
+                        ))
+                        if verbose:
+                           print(f"Successfully added column '{col_name}'")
+
+            # --- End of customer_plans table block ---
+
         else:
             # SQLite handling
             # Create companies table if not exists
@@ -792,6 +870,64 @@ def upgrade_database(verbose=False):
             if verbose:
                 print("Created usage_metrics table and indexes in SQLite")
 
+            # Create customer_plans table if not exists
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS customer_plans (
+                plan_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chatbot_id TEXT UNIQUE NOT NULL REFERENCES companies(chatbot_id) ON DELETE CASCADE,
+                plan_type TEXT NOT NULL, -- CHECK constraint not reliably enforced in older SQLite
+                monthly_token_limit INTEGER, -- Defaults to NULL
+                is_active INTEGER DEFAULT 1, -- Use 0/1 for boolean
+                start_date DATETIME,
+                renewal_date DATETIME,
+                stripe_subscription_id TEXT NULL,
+                stripe_customer_id TEXT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            ''')
+            if verbose:
+                print("Ensured customer_plans table exists in SQLite")
+
+            # Check if columns exist in customer_plans table and add them if needed
+            cursor.execute("PRAGMA table_info(customer_plans)")
+            plan_columns_info = cursor.fetchall() # Fetch all details first
+            plan_columns = [column[1] for column in plan_columns_info] # Extract just names
+
+            # Define columns to add with their types for SQLite
+            plan_columns_to_add = {
+                'stripe_subscription_id': 'TEXT NULL',
+                'stripe_customer_id': 'TEXT NULL'
+            }
+
+            # Loop through columns to add and execute ALTER TABLE if missing
+            for col_name, col_type in plan_columns_to_add.items():
+                 if col_name not in plan_columns:
+                    try:
+                        # Use f-string carefully here as table/column names are controlled
+                        cursor.execute(f'ALTER TABLE customer_plans ADD COLUMN {col_name} {col_type}')
+                        if verbose:
+                            print(f"Added missing column '{col_name}' to customer_plans table in SQLite")
+                    except sqlite3.OperationalError as e:
+                         # Handle cases where column might exist despite PRAGMA check (less likely but safe)
+                         if "duplicate column name" in str(e):
+                             if verbose:
+                                 print(f"Column '{col_name}' already exists in customer_plans (SQLite).")
+                         else:
+                             # Re-raise other operational errors
+                             raise e
+
+
+            # Create index on chatbot_id for faster lookups if it doesn't exist
+            cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_customer_plans_chatbot_id
+            ON customer_plans(chatbot_id)
+            ''')
+            if verbose:
+                print("Ensured idx_customer_plans_chatbot_id index exists in SQLite")
+
+            # --- End of customer_plans table block ---
+            
             # Check if the old fields exist and migrate data if needed
             try:
                 cursor.execute("PRAGMA table_info(companies)")
