@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>GoEasyChat</title>
+    <meta name="description" content="Create a smart AI agent chatbot for your website in under a minute with GoEasyChat. Boost reputation, generate leads, and provide instant support 24/7. Try free!">
+    <title>A Smart AI-agent Chatbot for Your Website in Under a Minute | GoEasyChat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon/easyafchat_favicon_16x16.png') }}">
@@ -22,6 +23,112 @@
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
     <meta name="theme-color" content="#ffffff">
     
+    <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "GoEasyChat",
+          "url": "https://goeasychat.com/" // <-- Replace with your actual homepage URL
+        }
+        </script>
+
+        <script type="application/ld+json">
+            {
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "GoEasyChat",
+              "description": "An AI agent chatbot creator that builds a smart chatbot for your website in under a minute to boost reputation, generate leads, and provide instant customer support.",
+              "applicationCategory": ["BusinessApplication", "WebApplication", "CustomerSupportService", "LeadGenerationService"],
+              "operatingSystem": "Web Platform", // Indicates it's a web-based application
+              "url": "https://goeasychat.com/", // Link back to the main page or product page
+              "offers": [
+                {
+                  "@type": "Offer",
+                  "name": "Starter Plan",
+                  "price": "14.00",
+                  "priceCurrency": "USD", // Assuming USD, change if different
+                  "description": "Includes 1 AI agent, 250 conversations/month, customization, document uploads. Free 7-day/100 message trial.",
+                  "availability": "https://schema.org/OnlineOnly",
+                  "url": "https://goeasychat.com/#pricing" // Direct link to the pricing section/plan
+                },
+                {
+                  "@type": "Offer",
+                  "name": "Plus Plan",
+                  "price": "19.00",
+                  "priceCurrency": "USD",
+                  "description": "Includes 2 AI agents, 500 conversations/month, lead capture, customization, document uploads. Free 7-day/100 message trial. Popular plan.",
+                  "availability": "https://schema.org/OnlineOnly",
+                  "url": "https://goeasychat.com/#pricing"
+                },
+                {
+                  "@type": "Offer",
+                  "name": "Pro Plan",
+                  "price": "24.00",
+                  "priceCurrency": "USD",
+                  "description": "Includes 3 AI agents, 1000 conversations/month, lead capture, integrations (Zapier, etc.), customization, document uploads. Free 7-day/100 message trial.",
+                  "availability": "https://schema.org/OnlineOnly",
+                  "url": "https://goeasychat.com/#pricing"
+                }
+              ]
+              // Optional: Add aggregateRating or review sections later if you collect reviews
+              // "aggregateRating": {
+              //   "@type": "AggregateRating",
+              //   "ratingValue": "4.8", // Example
+              //   "reviewCount": "55" // Example
+              // },
+            }
+            </script>
+
+            <script type="application/ld+json">
+                {
+                  "@context": "https://schema.org",
+                  "@type": "FAQPage",
+                  "mainEntity": [
+                    {
+                      "@type": "Question",
+                      "name": "What is GoEasyChat?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "GoEasyChat is a smart AI chatbot that helps you provide instant support to your customers. It's easy to set up and requires no coding."
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "How do I create a chatbot?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Simply enter your website URL in the input field above and click \"Create My Chatbot.\" Your chatbot will be ready in under a minute!" // Note the escaped quote \"
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "Can I customize the chatbot?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Yes, you can customize your chatbot's avatar, welcome message and even add documents to make your bot super smart about your company!"
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "Is GoEasyChat free?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "Try it for free for 7 days. Then once you see you love it just upgrade to one of our paid plans."
+                      }
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "How do I integrate the chatbot on my website?",
+                      "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": "After creating your chatbot, you can claim your chatbot, sign in, copy and paste a snippet of code that's just a few lines into your website's HTML, and the chatbot will appear instantly."
+                      }
+                    }
+                    // Add more questions here if you expand the FAQ section
+                  ]
+                }
+                </script>
+
     <!-- Styles for processing overlay -->
     <style>
         .processing-overlay {
@@ -844,7 +951,7 @@ function onSubmitForm(e) {
             <div class="nav-container">
                 <!-- Logo -->
                 <div class="logo">
-                    <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="GoEasyChat Logo">
+                    <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="GoEasyChat AI Chatbot Creator Logo">
                 </div>
                 <!-- Hamburger Menu -->
                 <div class="hamburger" onclick="toggleMobileMenu()">
@@ -926,7 +1033,7 @@ function onSubmitForm(e) {
                      <div class="gec-benefit-card">
                          <div class="gec-card-icon">
                              <img src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230d6efd%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2022s8-4%208-10V5l-8-3-8%203v7c0%206%208%2010%208%2010z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E'
-                                  alt="Reputation Icon"
+                                  alt="Icon representing company reputation enhancement through AI chatbot"
                                   onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default-icon.png') }}';">
                          </div>
                          <h3>Boost Your Reputation</h3>
@@ -936,7 +1043,7 @@ function onSubmitForm(e) {
                      <div class="gec-benefit-card">
                          <div class="gec-card-icon">
                              <img src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230d6efd%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M17%2021v-2a4%204%200%200%200-4-4H5a4%204%200%200%200-4%204v2%22%3E%3C%2Fpath%3E%3Ccircle%20cx%3D%229%22%20cy%3D%227%22%20r%3D%224%22%3E%3C%2Fcircle%3E%3Cpath%20d%3D%22M23%2021v-2a4%204%200%200%200-3-3.87%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M16%203.13a4%204%200%200%201%200%207.75%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E'
-                                  alt="Leads Icon"
+                                  alt="Icon representing lead generation ability through AI chatbot"
                                   onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default-icon.png') }}';">
                          </div>
                          <h3>Generate Fresh Leads</h3>
@@ -947,7 +1054,7 @@ function onSubmitForm(e) {
                         <div class="gec-card-icon">
                             <!-- MODIFIED ICON BELOW -->
                             <img src='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230d6efd%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2020h18%22%2F%3E%3Cpath%20d%3D%22M6%2016v4%22%2F%3E%3Cpath%20d%3D%22M10%2012v8%22%2F%3E%3Cpath%20d%3D%22M14%208v12%22%2F%3E%3Cpath%20d%3D%22M18%204v16%22%2F%3E%3Cpolyline%20points%3D%223%2017%208%2012%2013%2014%2021%206%22%2F%3E%3Cpolyline%20points%3D%2217%206%2021%206%2021%2010%22%2F%3E%3C%2Fsvg%3E'
-                                 alt="Scale Icon"
+                                 alt="Add customer service 24/7 without adding employees icon"
                                  onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default-icon.png') }}';">
                         </div>
                         <h3>Scale Without Adding Staff</h3>
@@ -1166,7 +1273,7 @@ function onSubmitForm(e) {
                             <span class="arrow"></span>
                         </div>
                         <div class="faq-answer">
-                            <p>After creating your chatbot, you can claim your chatbot, sign in, copy and paste a snippet of code that's just five lines into your website's HTML, and the chatbot will appear instantly.</p>
+                            <p>After creating your chatbot, you can claim your chatbot, sign in, copy and paste a snippet of code that's just a few lines into your website's HTML, and the chatbot will appear instantly.</p>
                         </div>
                     </div>
                 </div>
