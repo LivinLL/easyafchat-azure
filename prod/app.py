@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
@@ -1056,6 +1056,12 @@ def log_chatbot_incident(chatbot_id, incident_type, incident_details=None, ip_ad
     except Exception as e:
         print(f"[INCIDENT] Error logging incident: {str(e)}")
         return False
+
+# Robots route
+@app.route('/robots.txt')
+def robots_txt():
+    # Serves robots.txt from the configured static folder ('prod/static/')
+    return send_from_directory(app.static_folder, 'robots.txt')
 
 # Flask routes
 @app.route('/chat-test')

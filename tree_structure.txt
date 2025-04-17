@@ -10,13 +10,14 @@
     README.md
     prod/
         .env
-        settings_blueprint.py
+        webhook_blueprint.py
         chat_handler.py
-        admin_dashboard.py
+        settings_blueprint.py
         db_mgr.py
         screenshot.py
         easyafchat.db
         db_metrics.py
+        admin_dashboard.py
         demo_format.html
         tree_structure.txt
         chat_manual.py
@@ -34,8 +35,10 @@
         documents_handler.py
         webjobs/
         static/
+            site.webmanifest
             css/
                 style.css
+                dashboard_style.css
             images/
                 easyafchat_favicon_1080x1080.png
                 hero-2.png
@@ -96,11 +99,8 @@
             app_bot-protect.py
             landing_bot-protect.html
             admin_dashboard.py
-            chatbot-embed_b4_img_url.js
-            db_leads_add_cols.py
             scrape_site.py
             leads_691fa8dc53f5467dbf0e_20250325.csv
-            app.py
             Zoho-SMTP.png
             Zoho-Email-Settings.txt
             trigger-n8n-webhook.ps1
@@ -112,12 +112,17 @@
             chatbot_config.csv
             chatbot-embed.js
             landing.html
-            chatbot-embed-support.js
             chat_handler.py
-            dashboard.html
             companies.csv
-            admin_dashboard_shit.py
-            db_metrics_shit.py
+            admin_dashboard_0718am.py
+            db_metrics.py
+            chatbot-embed-support.js
+            settings_blueprint.py
+            dashboard.html
+            app.py
+            database.py
+            routes.py
+            db_leads.py
         marketing/
             info.txt
             chatbase_signin.png
@@ -159,8 +164,24 @@
             e79bdcb0c312e9ed64390098a936bece
             6a8caa329b6ba7cb57a442beff9937a5
             5491aaea9bb340b90a9b983e59c204b4
+            e68c5cf73010050844faea0a70aaceca
+            c7e8baba399bfaaeec7aabfb47102fe0
+            db0678eb5a7181a2133ab48efc8073e7
+            f7c3ac10b172300a489e00664c6fea60
+            b2a5342db0d4c8ecb22742245f23019a
+            15ca478a1cd416a83b184aa260b110d3
+            969cd1498065b94dfc37711b983ae323
+            dc34d12e1939820d2367efa656586c1e
+            db3bc7e47f8a931b2f8d5ea6bfe5d985
+            db413dd2413ef60e9aa128acbcad80bf
+            12f11728d43c58b1a1d233950b50fa75
+            b9b6cc9d6623c1bef8a39365956885c9
+            4b3d320fcf2914932ef42e4eaca1de57
+            1d1dc28e3454bfadd9dcdd4b32dacb02
+            6090ea2f5a3ec4decad3e4f2156016d9
+            46a1cfd4036b45e949f44878941e3641
+            740d51de9ec2bc36bfdbb7c84cb43f56
             2029240f6d1128be89ddc32729463129
-            18ac2f3a58c9f86cb1c149b2c4bf628a
     .github/
         workflows/
             main_easyafchat-v3.yml
