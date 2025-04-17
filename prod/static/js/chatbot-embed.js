@@ -1504,7 +1504,7 @@ chatInput.addEventListener('focus', () => {
     window.visualViewport.addEventListener('resize', handleViewportResize);
 
     // Call handler immediately on focus in case viewport already changed
-    handleViewportResize();
+    // handleViewportResize();
 });
 
 // Add listener for input blur
