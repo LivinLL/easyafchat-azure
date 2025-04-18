@@ -767,38 +767,121 @@ def scrape_page(url):
         return None
 
 def find_about_page(base_url):
-    """Find the About page URL"""
+    """Find the About page URL, using proxy configuration if enabled."""
+    print(f"[find_about_page] Attempting to find About page for {base_url} via proxy")
+
+    # --- Get Proxy Configuration ---
+    PROXY_ENABLED = os.getenv('PROXY_ENABLED', 'false').lower() == 'true'
+    PROXY_HOST = os.getenv('PROXY_HOST')
+    PROXY_PORT = os.getenv('PROXY_PORT')
+    PROXY_USER = os.getenv('PROXY_USER')
+    PROXY_PASS = os.getenv('PROXY_PASS')
+
+    proxies = None
+    verify_ssl = True # Default to verifying SSL
+    if PROXY_ENABLED and PROXY_HOST and PROXY_PORT and PROXY_USER and PROXY_PASS:
+        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+        proxies = {
+            "http": proxy_url,
+            "https": proxy_url,
+        }
+        verify_ssl = False # Skip SSL verification when using proxy
+        print(f"[find_about_page] Using proxy configuration: {PROXY_HOST}:{PROXY_PORT}")
+    else:
+        print("[find_about_page] Proxy not enabled or fully configured. Making direct request.")
+    # --- End Proxy Configuration ---
+
     try:
-        response = requests.get(base_url, timeout=10, headers={
+        # Get the base page content to search for links
+        headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        })
+        }
+        response = requests.get(
+            base_url,
+            timeout=15, # Increased timeout
+            headers=headers,
+            proxies=proxies,
+            verify=verify_ssl # Use configured verify setting
+        )
+        response.raise_for_status() # Check for HTTP errors
         soup = BeautifulSoup(response.text, 'html.parser')
-        
+
         # Common about page indicators
         about_keywords = ['about', 'about us', 'about-us', 'aboutus', 'our story', 'our-story', 'ourstory', 'who we are', 'company']
-        
+
         # Check all links
         for link in soup.find_all('a', href=True):
-            href = link['href'].lower()
+            href = link.get('href', '').lower()
             text = link.get_text(strip=True).lower()
+
+            # Basic check to avoid javascript:, mailto:, etc.
+            if not href or href.startswith(('javascript:', 'mailto:', '#')):
+                continue
+
             if any(keyword in href for keyword in about_keywords) or any(keyword in text for keyword in about_keywords):
-                return urljoin(base_url.rstrip('/'), link['href'])
-                
+                found_url = urljoin(base_url.rstrip('/'), link['href'])
+                print(f"[find_about_page] Found potential About page via link text/href: {found_url}")
+                # Optional: Add a HEAD request here to confirm the found URL is valid before returning
+                try:
+                    head_response = requests.head(
+                        found_url,
+                        timeout=10, # Shorter timeout for HEAD check
+                        headers=headers,
+                        proxies=proxies,
+                        verify=verify_ssl,
+                        allow_redirects=True # Allow redirects for HEAD
+                    )
+                    if head_response.status_code < 400:
+                        print(f"[find_about_page] Confirmed valid About page: {found_url}")
+                        return found_url
+                    else:
+                         print(f"[find_about_page] Potential About page {found_url} returned status {head_response.status_code}. Ignoring.")
+                except requests.exceptions.RequestException as head_err:
+                    print(f"[find_about_page] Error checking potential About page {found_url}: {head_err}. Ignoring.")
+                # Continue searching if HEAD check fails or returns error status
+
+        print("[find_about_page] No clear About link found in initial scan. Checking common paths.")
         # If still not found, try common about page patterns
         common_about_paths = ['/about', '/about-us', '/aboutus', '/about_us', '/our-story', '/company']
         for path in common_about_paths:
             about_url = urljoin(base_url.rstrip('/'), path)
             try:
-                about_response = requests.head(about_url, timeout=5)
-                if about_response.status_code == 200:
+                # Using HEAD request to check existence
+                about_response = requests.head(
+                    about_url,
+                    timeout=10, # Shorter timeout for check
+                    headers=headers,
+                    proxies=proxies,
+                    verify=verify_ssl,
+                    allow_redirects=True # Important for HEAD requests that might redirect
+                )
+                if about_response.status_code < 400: # Check for success status (2xx or 3xx)
+                    print(f"[find_about_page] Found valid About page via common path: {about_url}")
                     return about_url
-            except:
-                continue
-                
-        return None
+                else:
+                    print(f"[find_about_page] Checked common path {about_url}, status: {about_response.status_code}")
+            except requests.exceptions.ProxyError as pe:
+                 print(f"[find_about_page] PROXY ERROR checking common path {about_url}: {pe}")
+                 # If proxy fails here, likely won't succeed elsewhere, maybe stop? Or continue cautiously.
+                 # For now, just log and continue to next path.
+            except requests.exceptions.RequestException as e:
+                print(f"[find_about_page] Error checking common path {about_url}: {e}")
+                continue # Try next path
+
+        print(f"[find_about_page] About page not found for {base_url}")
+        return None # Return None if no exception but not found
+
+    except requests.exceptions.ProxyError as pe:
+        print(f"[find_about_page] PROXY ERROR accessing base URL {base_url}: {pe}")
+        return None # Cannot proceed if base URL fetch fails via proxy
+    except requests.exceptions.RequestException as e:
+        print(f"[find_about_page] Error accessing base URL {base_url}: {e}")
+        return None # Cannot proceed if base URL fetch fails
     except Exception as e:
-        print(f"Error finding About page: {e}")
-        return None
+        print(f"[find_about_page] Unexpected error processing {base_url}: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return None # Return None on unexpected errors
 
 def process_simple_content(home_data, about_data):
     """Process the scraped content with OpenAI and return both prompt and response"""
