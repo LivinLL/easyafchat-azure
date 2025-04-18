@@ -563,7 +563,7 @@ function initializeMarkedAndChatbot() {
                 <div style="display: flex; align-items: center;">
                     <div style="width: 28px; height: 28px; margin-right: 8px;">
                         <img src="https://res.cloudinary.com/dd19jhkar/image/upload/v1741958811/gtmxjoyfymndnxepoubl.png" 
-                             alt="Agent d-A-v-I-d Avatar" 
+                             alt="AgentEasy Avatar" 
                              style="width: 100%; height: 100%; border-radius: 50%;">
                     </div>
                     <span>GoEasyChat Support</span>

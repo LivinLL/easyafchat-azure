@@ -334,7 +334,7 @@ def get_chatbot_config(chatbot_id):
                 """, (
                     chatbot_id, 
                     default_system_prompt,
-                    "Agent d-A-v-I-d",
+                    "Agent AskMe!",
                     "Hi there! 👋 How can I help you?",
                     "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                     "#0084ff",
@@ -367,7 +367,7 @@ def get_chatbot_config(chatbot_id):
             default_values = {
                 # Use the imported default system prompt
                 "system_prompt": DEFAULT_SYSTEM_PROMPT,
-                "chat_title": "Agent d-A-v-I-d",
+                "chat_title": "Agent AskMe!",
                 "chat_subtitle": "Hi there! 👋 How can I help you?",
                 "lead_form_title": "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                 "primary_color": "#0084ff",
@@ -471,7 +471,7 @@ def update_chatbot_config(chatbot_id):
                 """, (
                     chatbot_id, 
                     default_system_prompt,
-                    "Agent d-A-v-I-d",
+                    "Agent AskMe!",
                     "Hi there! 👋 How can I help you?",
                     "Want us to reach out? Need to keep this chat going? Just fill out the info below.",
                     "#0084ff",
