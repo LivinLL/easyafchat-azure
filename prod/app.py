@@ -933,7 +933,7 @@ def validate_website_url(url, recaptcha_token, remote_ip, honeypot_value=None):
             result["message"] = f"We couldn't access this website (HTTP {response.status_code}). Please check the URL and try again."
             return result
     except requests.exceptions.RequestException as e:
-        print(f"[validate_website_url] Error accessing domain: {e}")
+        print(f"[validate_website_url] Error accessing domain ({type(e).__name__}): {e}") # Log exception type
         result["message"] = "We couldn't connect to this website. Please check the URL and try again."
         return result
     
