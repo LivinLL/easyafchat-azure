@@ -692,8 +692,30 @@ def extract_meta_tags(html_content):
 
 def simple_scrape_page(url):
     """Simplified scraper that extracts all visible text from a page"""
+    print(f"[simple_scrape_page] Attempting to scrape URL via proxy: {url}") # Added proxy mention
+
+    # --- Get Proxy Configuration ---
+    # Repeated here for encapsulation, could be refactored later if desired
+    PROXY_ENABLED = os.getenv('PROXY_ENABLED', 'false').lower() == 'true'
+    PROXY_HOST = os.getenv('PROXY_HOST')
+    PROXY_PORT = os.getenv('PROXY_PORT')
+    PROXY_USER = os.getenv('PROXY_USER')
+    PROXY_PASS = os.getenv('PROXY_PASS')
+
+    proxies = None
+    if PROXY_ENABLED and PROXY_HOST and PROXY_PORT and PROXY_USER and PROXY_PASS:
+        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+        proxies = {
+            "http": proxy_url,
+            "https": proxy_url,
+        }
+        print(f"[simple_scrape_page] Using proxy configuration: {PROXY_HOST}:{PROXY_PORT}")
+    else:
+        print("[simple_scrape_page] Proxy not enabled or fully configured. Making direct request.")
+    # --- End Proxy Configuration ---
+
     try:
-        # Use requests to get the full HTML with enhanced headers
+        # Use requests to get the full HTML with enhanced headers, proxy, and verify=False
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -701,22 +723,38 @@ def simple_scrape_page(url):
             "Referer": "https://www.google.com/",
             "Cache-Control": "no-cache"
         }
-        response = requests.get(url, timeout=10, headers=headers)
+        response = requests.get(
+            url,
+            timeout=15, # Increased timeout consistent with validation step
+            headers=headers,
+            proxies=proxies, # Pass the proxy settings
+            verify=False     # Skip SSL verification
+        )
+        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
         html_content = response.text
-        
+
         # Extract all visible text
         all_text = extract_all_text(html_content)
-        
+
         # Extract basic meta information
         meta_info = extract_meta_tags(html_content)
-        
+
+        print(f"[simple_scrape_page] Successfully scraped URL: {url}") # Added success log
         return {
             "all_text": all_text,
             "meta_info": meta_info
         }
+    except requests.exceptions.ProxyError as e:
+        print(f"[simple_scrape_page] PROXY ERROR scraping {url}: {e}")
+        return {"all_text": "", "meta_info": {"title": "", "description": ""}} # Return empty on proxy error
+    except requests.exceptions.RequestException as e:
+        print(f"[simple_scrape_page] Error scraping {url}: {e}")
+        return {"all_text": "", "meta_info": {"title": "", "description": ""}} # Return empty on other request errors
     except Exception as e:
-        print(f"Error in simple scraping: {e}")
-        return {"all_text": "", "meta_info": {"title": "", "description": ""}}
+        print(f"[simple_scrape_page] Unexpected error scraping {url}: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return {"all_text": "", "meta_info": {"title": "", "description": ""}} # Return empty on unexpected errors
 
 def scrape_page(url):
     """Original scrape_page function maintained for compatibility"""
@@ -870,7 +908,7 @@ def validate_website_url(url, recaptcha_token, remote_ip, honeypot_value=None):
     Returns dictionary with validation results.
     """
     print(f"[validate_website_url] Starting validation for URL: {url}")
-    
+
     # Results dictionary to track validation results
     result = {
         "is_valid": False,
@@ -881,7 +919,7 @@ def validate_website_url(url, recaptcha_token, remote_ip, honeypot_value=None):
         "namespace": None,
         "validated_url": url  # Initialize with original URL
     }
-    
+
     # Check 4: Honeypot check (bot detection)
     if honeypot_value:
         print(f"[validate_website_url] Honeypot field filled, likely bot activity")
@@ -892,27 +930,27 @@ def validate_website_url(url, recaptcha_token, remote_ip, honeypot_value=None):
         fake_chatbot_id = str(uuid.uuid4()).replace('-', '')[:20]
         result["chatbot_id"] = fake_chatbot_id
         return result
-    
+
     # Auto-correct URLs without protocol (needed for validation and processing)
     if url and not url.startswith(('http://', 'https://')):
         url = 'https://' + url
         result["validated_url"] = url
         print(f"[validate_website_url] Auto-corrected URL to: {url}")
-    
+
     # Check 5: reCAPTCHA verification
     print(f"[validate_website_url] Verifying reCAPTCHA token")
     if not verify_recaptcha(recaptcha_token, remote_ip):
         print(f"[validate_website_url] reCAPTCHA verification failed")
         result["message"] = "reCAPTCHA verification failed. Please try again."
         return result
-    
+
     # Check 6: URL validity check
     print(f"[validate_website_url] Checking URL validity")
     if not validators.url(url):
         print(f"[validate_website_url] Invalid URL format: {url}")
         result["message"] = "Please enter a valid URL that includes a domain name."
         return result
-    
+
     # Check 7: Blocked domain check
     print(f"[validate_website_url] Checking for blocked domain")
     from blocked_domains import is_domain_blocked
@@ -921,23 +959,67 @@ def validate_website_url(url, recaptcha_token, remote_ip, honeypot_value=None):
         result["message"] = "Sorry, we can't process this website. Please try a different domain."
         result["status_code"] = 403
         return result
-    
-    # Check 8: Domain accessibility check
-    print(f"[validate_website_url] Checking domain accessibility")
+
+    # Check 8: Domain accessibility check (NOW USING PROXY)
+    print(f"[validate_website_url] Checking domain accessibility VIA PROXY")
+
+    # --- Get Proxy Configuration (Best practice: use environment variables) ---
+    PROXY_ENABLED = os.getenv('PROXY_ENABLED', 'false').lower() == 'true' # Flag to easily turn on/off
+    PROXY_HOST = os.getenv('PROXY_HOST') # e.g., 'brd.superproxy.io'
+    PROXY_PORT = os.getenv('PROXY_PORT') # e.g., '22225' or '33335'
+    PROXY_USER = os.getenv('PROXY_USER') # e.g., 'brd-customer-...'
+    PROXY_PASS = os.getenv('PROXY_PASS') # e.g., '...'
+
+    proxies = None
+    if PROXY_ENABLED and PROXY_HOST and PROXY_PORT and PROXY_USER and PROXY_PASS:
+        # Format for authenticated proxy
+        # Use port 22225 as the standard, unless testing specific commands require others
+        # Ensure the f-string correctly formats the http proxy URL structure
+        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+
+        proxies = {
+            "http": proxy_url,
+            "https": proxy_url, # Apply to both http and https requests
+        }
+        print(f"[validate_website_url] Using proxy configuration: {PROXY_HOST}:{PROXY_PORT}")
+    else:
+        print("[validate_website_url] Proxy not enabled or fully configured. Making direct request.")
+
     try:
-        response = requests.head(url, timeout=5, headers={
+        headers = { # Keep your existing headers
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-        })
+        }
+
+        # --- Make the request using the 'proxies' dictionary and verify=False ---
+        # Using requests.get() for potentially better compatibility than head()
+        response = requests.get(
+            url,
+            timeout=15, # Slightly increased timeout for proxy latency
+            headers=headers,
+            proxies=proxies, # Pass the configured proxies dictionary here
+            verify=False     # <<< --- ADDED THIS to skip SSL verification ---
+        )
+        # --- End of key change ---
+
+        # We check the status code from the response
         if response.status_code >= 400:
-            print(f"[validate_website_url] Domain not accessible: HTTP {response.status_code}")
+            print(f"[validate_website_url] Domain accessible via proxy, but returned status: HTTP {response.status_code}")
             result["message"] = f"We couldn't access this website (HTTP {response.status_code}). Please check the URL and try again."
-            return result
+            # Keep status_code as 400 to indicate failure to the frontend
+            result["status_code"] = 400 # Keep failure status code
+            return result # Return the result dict with failure message
+
+    except requests.exceptions.ProxyError as e:
+        print(f"[validate_website_url] PROXY ERROR accessing domain: {e}")
+        result["message"] = "Error connecting via the proxy server. Please check proxy configuration or try again later."
+        return result # Return result with error message
     except requests.exceptions.RequestException as e:
-        print(f"[validate_website_url] Error accessing domain ({type(e).__name__}): {e}") # Log exception type
+        # This will catch connection errors even when using a proxy
+        print(f"[validate_website_url] Error accessing domain ({type(e).__name__}): {e}")
         result["message"] = "We couldn't connect to this website. Please check the URL and try again."
-        return result
-    
-    # Check 10: Existing record check
+        return result # Return result with error message
+
+    # Check 10: Existing record check (only if accessible)
     print(f"[validate_website_url] Checking for existing record")
     existing_record = get_existing_record(url)
     if existing_record:
@@ -951,13 +1033,13 @@ def validate_website_url(url, recaptcha_token, remote_ip, honeypot_value=None):
         result["chatbot_id"] = generate_chatbot_id()
         result["namespace"], _ = check_namespace(url)
         print(f"[validate_website_url] New chatbot_id: {result['chatbot_id']}, namespace: {result['namespace']}")
-    
+
     # All checks passed
     print(f"[validate_website_url] All validation checks passed")
     result["is_valid"] = True
     result["message"] = "Validation successful"
     result["status_code"] = 200
-    
+
     return result
 
 @app.errorhandler(429)
