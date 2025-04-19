@@ -1742,3 +1742,33 @@ header {
         padding: 20px;
     }
 }
+
+/* HELP ICON */
+.help-icon {
+    display: inline-flex; /* Use inline-flex to align items easily */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+    
+    width: 1em;        /* Adjust size as needed */
+    height: 1em;       /* Make width and height equal for a circle */
+    margin-left: 5px;    /* Space it out from the text */
+    
+    background-color: #25a7e1; /* Light blue background (adjust color) */
+    color: white;          /* White question mark */
+    font-size: 0.8em;      /* Size of the question mark relative to surrounding text */
+    font-weight: bold;     
+    line-height: 1;        /* Ensure consistent vertical alignment */
+    text-align: center;    
+    
+    border-radius: 50%; /* This makes it a circle! */
+    
+    /* cursor: help; */       /* Change cursor on hover to indicate help */
+    
+    /* Optional: Smooth transition for hover effect */
+    transition: background-color 0.2s ease; 
+  }
+  
+  /* Optional: Darken slightly on hover */
+  .help-icon:hover {
+    background-color: #79b7d1; /* Slightly darker blue */
+  }

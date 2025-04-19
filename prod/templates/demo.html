@@ -53,28 +53,52 @@
         .already-claimed:hover {
             background-color: #218838;
         }
+
         .feature-list {
-            text-align: left;
-            max-width: 600px;
-            margin: 0 auto 30px auto;
-            padding: 20px;
-            background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: left;           /* Keep text alignment */
+            max-width: 600px;           /* Keep max width */
+            margin: 0 auto 30px auto;   /* Keep margin */
+            padding: 20px;              /* Keep padding */
+            background-color: white;    /* Keep background */
+            border-radius: 5px;         /* Keep border-radius */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Keep box shadow */
         }
+
         .feature-list h3 {
-            margin-top: 0;
-            margin-bottom: 15px;
-            color: #333;
+            margin-top: 0;              /* Keep h3 top margin */
+            margin-bottom: 15px;        /* Keep h3 bottom margin */
+            color: #333;               /* Keep h3 color */
         }
+
         .feature-list ul {
-            margin-bottom: 0;
-            padding-left: 25px;
+            list-style: none;           /* Remove default bullets */
+            padding-left: 0;            /* Remove default padding */
+            margin-left: 0;             /* Reset potential browser margins */
+            margin-bottom: 0;           /* Keep bottom margin */
         }
+
         .feature-list li {
-            margin-bottom: 10px;
-            font-size: 16px;
-            color: #555;
+            position: relative;         /* Needed for positioning the checkmark */
+            padding-left: 30px;         /* Space for the checkmark */
+            margin-bottom: 12px;        /* Adjust spacing between items */
+            font-size: 16px;            /* Keep original font size */
+            color: #555;               /* Keep original text color */
+            line-height: 1.5;           /* Improve readability */
+        }
+
+        .feature-list li::before {
+            content: '✓';               /* Unicode checkmark character */
+            position: absolute;
+            left: 0;
+            top: 1px;                   /* Fine-tune vertical alignment */
+            color: #28a745;             /* Green color for the checkmark */
+            font-weight: bold;
+            font-size: 1.3em;           /* Make checkmark slightly larger */
+        }
+
+        /* Optional: Style the strong tag for emphasis */
+        .feature-list li strong {
+            color: #333;               /* Make the bold part slightly darker */
         }
 
         .chat-pointer {
@@ -177,16 +201,17 @@
         <section class="cta-section">
             <div class="cta-container">
                 <h2 class="cta-title">Ready to Add This Chatbot to Your Website?</h2>
-                <p class="cta-description">Claim this chatbot now to start engaging with your website visitors 24/7.</p>
-                
+               
                 <div class="feature-list">
-                    <h3>With Your Chatbot You Get:</h3>
+                    <h3>Claim Your Chatbot to Unlock:</h3>
                     <ul>
-                        <li>24/7 customer assistance powered by AI</li>
-                        <li>Customizable appearance to match your brand</li>
-                        <li>Lead generation through the built-in contact form</li>
-                        <li>Easy installation with a simple JavaScript snippet</li>
-                        <li>Regular updates and improvements</li>
+                        <li><strong>Instant 24/7 AI Support:</strong> Answer visitor questions accurately using your website's content, anytime.</li>
+                        <li><strong>Boosted Reputation:</strong> Impress visitors with immediate, intelligent assistance that reflects well on your brand.</li>
+                        <li><strong>Automated Lead Generation:</strong> Capture contact details and qualify potential customers effortlessly, around the clock.</li>
+                        <li><strong>Full Brand Customization:</strong> Tailor the chatbot's look, avatar, name, and welcome message to seamlessly match your site.</li>
+                        <li><strong>Scalable Engagement:</strong> Handle unlimited visitor interactions simultaneously without increasing staff costs.</li>
+                        <li><strong>Effortless Integration:</strong> Add to your site in minutes with a simple copy-paste code snippet.</li>
+                        <li><strong>Enhanced Knowledge:</strong> Upload documents (PDFs, DOCX etc.) to make your bot even smarter about your specific products/services.</li>
                     </ul>
                 </div>
                 
