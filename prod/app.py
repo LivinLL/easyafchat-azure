@@ -691,84 +691,11 @@ def extract_meta_tags(html_content):
     return meta_info
 
 def simple_scrape_page(url):
-    """Simplified scraper that extracts all visible text from a page"""
-    print(f"[simple_scrape_page] Attempting to scrape URL via proxy: {url}") # Added proxy mention
-
-    # --- Get Proxy Configuration ---
-    # Repeated here for encapsulation, could be refactored later if desired
-    PROXY_ENABLED = os.getenv('PROXY_ENABLED', 'false').lower() == 'true'
-    PROXY_HOST = os.getenv('PROXY_HOST')
-    PROXY_PORT = os.getenv('PROXY_PORT')
-    PROXY_USER = os.getenv('PROXY_USER')
-    PROXY_PASS = os.getenv('PROXY_PASS')
-
-    proxies = None
-    if PROXY_ENABLED and PROXY_HOST and PROXY_PORT and PROXY_USER and PROXY_PASS:
-        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
-        proxies = {
-            "http": proxy_url,
-            "https": proxy_url,
-        }
-        print(f"[simple_scrape_page] Using proxy configuration: {PROXY_HOST}:{PROXY_PORT}")
-    else:
-        print("[simple_scrape_page] Proxy not enabled or fully configured. Making direct request.")
-    # --- End Proxy Configuration ---
-
-    try:
-        # Use requests to get the full HTML with enhanced headers, proxy, and verify=False
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Referer": "https://www.google.com/",
-            "Cache-Control": "no-cache"
-        }
-        response = requests.get(
-            url,
-            timeout=15, # Increased timeout consistent with validation step
-            headers=headers,
-            proxies=proxies, # Pass the proxy settings
-            verify=False     # Skip SSL verification
-        )
-        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
-        html_content = response.text
-
-        # Extract all visible text
-        all_text = extract_all_text(html_content)
-
-        # Extract basic meta information
-        meta_info = extract_meta_tags(html_content)
-
-        print(f"[simple_scrape_page] Successfully scraped URL: {url}") # Added success log
-        return {
-            "all_text": all_text,
-            "meta_info": meta_info
-        }
-    except requests.exceptions.ProxyError as e:
-        print(f"[simple_scrape_page] PROXY ERROR scraping {url}: {e}")
-        return {"all_text": "", "meta_info": {"title": "", "description": ""}} # Return empty on proxy error
-    except requests.exceptions.RequestException as e:
-        print(f"[simple_scrape_page] Error scraping {url}: {e}")
-        return {"all_text": "", "meta_info": {"title": "", "description": ""}} # Return empty on other request errors
-    except Exception as e:
-        print(f"[simple_scrape_page] Unexpected error scraping {url}: {e}")
-        import traceback
-        print(traceback.format_exc())
-        return {"all_text": "", "meta_info": {"title": "", "description": ""}} # Return empty on unexpected errors
-
-def scrape_page(url):
-    """Original scrape_page function maintained for compatibility"""
-    try:
-        # Use the simplified scraper but return just the main content for backward compatibility
-        result = simple_scrape_page(url)
-        return result["all_text"]
-    except Exception as e:
-        print(f"Error scraping page: {e}")
-        return None
-
-def find_about_page(base_url):
-    """Find the About page URL, using proxy configuration if enabled."""
-    print(f"[find_about_page] Attempting to find About page for {base_url} via proxy")
+    """
+    Simplified scraper that extracts all visible text from a page
+    and also returns the raw HTML content.
+    """
+    print(f"[simple_scrape_page] Attempting to scrape URL via proxy: {url}")
 
     # --- Get Proxy Configuration ---
     PROXY_ENABLED = os.getenv('PROXY_ENABLED', 'false').lower() == 'true'
@@ -786,102 +713,172 @@ def find_about_page(base_url):
             "https": proxy_url,
         }
         verify_ssl = False # Skip SSL verification when using proxy
-        print(f"[find_about_page] Using proxy configuration: {PROXY_HOST}:{PROXY_PORT}")
+        print(f"[simple_scrape_page] Using proxy configuration: {PROXY_HOST}:{PROXY_PORT}")
     else:
-        print("[find_about_page] Proxy not enabled or fully configured. Making direct request.")
+        print("[simple_scrape_page] Proxy not enabled or fully configured. Making direct request.")
     # --- End Proxy Configuration ---
 
     try:
-        # Get the base page content to search for links
+        # Use requests to get the full HTML with enhanced headers, proxy, and verify setting
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://www.google.com/",
+            "Cache-Control": "no-cache"
         }
         response = requests.get(
-            base_url,
-            timeout=15, # Increased timeout
+            url,
+            timeout=15,
             headers=headers,
             proxies=proxies,
-            verify=verify_ssl # Use configured verify setting
+            verify=verify_ssl
         )
-        response.raise_for_status() # Check for HTTP errors
-        soup = BeautifulSoup(response.text, 'html.parser')
+        response.raise_for_status()
+        html_content = response.text # Store raw HTML
+
+        # Extract all visible text
+        all_text = extract_all_text(html_content)
+
+        # Extract basic meta information
+        meta_info = extract_meta_tags(html_content)
+
+        print(f"[simple_scrape_page] Successfully scraped URL: {url}")
+        return {
+            "all_text": all_text,
+            "meta_info": meta_info,
+            "raw_html": html_content  # <<< --- ADDED THIS ---
+        }
+    except requests.exceptions.ProxyError as e:
+        print(f"[simple_scrape_page] PROXY ERROR scraping {url}: {e}")
+        # Return empty dict including raw_html field
+        return {"all_text": "", "meta_info": {"title": "", "description": ""}, "raw_html": ""}
+    except requests.exceptions.RequestException as e:
+        print(f"[simple_scrape_page] Error scraping {url}: {e}")
+        return {"all_text": "", "meta_info": {"title": "", "description": ""}, "raw_html": ""}
+    except Exception as e:
+        print(f"[simple_scrape_page] Unexpected error scraping {url}: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return {"all_text": "", "meta_info": {"title": "", "description": ""}, "raw_html": ""}
+
+def scrape_page(url):
+    """Original scrape_page function maintained for compatibility"""
+    try:
+        # Use the simplified scraper but return just the main content for backward compatibility
+        result = simple_scrape_page(url)
+        return result["all_text"]
+    except Exception as e:
+        print(f"Error scraping page: {e}")
+        return None
+
+def find_about_page(base_url, html_content):
+    """
+    Find the About page URL by parsing provided HTML content.
+    Uses proxy configuration if enabled for checking potential URLs.
+    """
+    print(f"[find_about_page] Attempting to find About page for {base_url} using provided HTML")
+
+    if not html_content:
+        print("[find_about_page] No HTML content provided, cannot search for About page.")
+        return None
+
+    # --- Get Proxy Configuration (Needed only for HEAD checks) ---
+    PROXY_ENABLED = os.getenv('PROXY_ENABLED', 'false').lower() == 'true'
+    PROXY_HOST = os.getenv('PROXY_HOST')
+    PROXY_PORT = os.getenv('PROXY_PORT')
+    PROXY_USER = os.getenv('PROXY_USER')
+    PROXY_PASS = os.getenv('PROXY_PASS')
+
+    proxies = None
+    verify_ssl = True # Default to verifying SSL
+    if PROXY_ENABLED and PROXY_HOST and PROXY_PORT and PROXY_USER and PROXY_PASS:
+        proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+        proxies = {
+            "http": proxy_url,
+            "https": proxy_url,
+        }
+        verify_ssl = False # Skip SSL verification when using proxy
+        print(f"[find_about_page] Using proxy configuration for HEAD checks: {PROXY_HOST}:{PROXY_PORT}")
+    else:
+        print("[find_about_page] Proxy not enabled or fully configured for HEAD checks. Making direct HEAD requests.")
+    # --- End Proxy Configuration ---
+
+    try:
+        # Parse the provided HTML content directly
+        soup = BeautifulSoup(html_content, 'html.parser')
 
         # Common about page indicators
         about_keywords = ['about', 'about us', 'about-us', 'aboutus', 'our story', 'our-story', 'ourstory', 'who we are', 'company']
+        headers = { # Define headers for potential HEAD requests
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
 
-        # Check all links
+        # Check all links found in the provided HTML
         for link in soup.find_all('a', href=True):
             href = link.get('href', '').lower()
             text = link.get_text(strip=True).lower()
 
-            # Basic check to avoid javascript:, mailto:, etc.
             if not href or href.startswith(('javascript:', 'mailto:', '#')):
                 continue
 
             if any(keyword in href for keyword in about_keywords) or any(keyword in text for keyword in about_keywords):
-                found_url = urljoin(base_url.rstrip('/'), link['href'])
-                print(f"[find_about_page] Found potential About page via link text/href: {found_url}")
-                # Optional: Add a HEAD request here to confirm the found URL is valid before returning
+                potential_url = urljoin(base_url.rstrip('/'), link['href'])
+                print(f"[find_about_page] Found potential About page via link text/href: {potential_url}")
+
+                # Check if the potential URL is valid using a HEAD request
                 try:
                     head_response = requests.head(
-                        found_url,
-                        timeout=10, # Shorter timeout for HEAD check
+                        potential_url,
+                        timeout=10,
                         headers=headers,
                         proxies=proxies,
                         verify=verify_ssl,
-                        allow_redirects=True # Allow redirects for HEAD
+                        allow_redirects=True
                     )
                     if head_response.status_code < 400:
-                        print(f"[find_about_page] Confirmed valid About page: {found_url}")
-                        return found_url
+                        print(f"[find_about_page] Confirmed valid About page: {potential_url}")
+                        return potential_url # Return the first valid one found
                     else:
-                         print(f"[find_about_page] Potential About page {found_url} returned status {head_response.status_code}. Ignoring.")
+                         print(f"[find_about_page] Potential About page {potential_url} returned status {head_response.status_code}. Ignoring.")
                 except requests.exceptions.RequestException as head_err:
-                    print(f"[find_about_page] Error checking potential About page {found_url}: {head_err}. Ignoring.")
-                # Continue searching if HEAD check fails or returns error status
+                    print(f"[find_about_page] Error checking potential About page {potential_url}: {head_err}. Ignoring.")
+                # Continue searching if check fails
 
-        print("[find_about_page] No clear About link found in initial scan. Checking common paths.")
-        # If still not found, try common about page patterns
+        print("[find_about_page] No clear About link found in HTML scan. Checking common paths.")
+        # If not found in links, try common about page patterns using HEAD requests
         common_about_paths = ['/about', '/about-us', '/aboutus', '/about_us', '/our-story', '/company']
         for path in common_about_paths:
             about_url = urljoin(base_url.rstrip('/'), path)
             try:
-                # Using HEAD request to check existence
                 about_response = requests.head(
                     about_url,
-                    timeout=10, # Shorter timeout for check
+                    timeout=10,
                     headers=headers,
                     proxies=proxies,
                     verify=verify_ssl,
-                    allow_redirects=True # Important for HEAD requests that might redirect
+                    allow_redirects=True
                 )
-                if about_response.status_code < 400: # Check for success status (2xx or 3xx)
+                if about_response.status_code < 400:
                     print(f"[find_about_page] Found valid About page via common path: {about_url}")
                     return about_url
                 else:
                     print(f"[find_about_page] Checked common path {about_url}, status: {about_response.status_code}")
             except requests.exceptions.ProxyError as pe:
                  print(f"[find_about_page] PROXY ERROR checking common path {about_url}: {pe}")
-                 # If proxy fails here, likely won't succeed elsewhere, maybe stop? Or continue cautiously.
-                 # For now, just log and continue to next path.
             except requests.exceptions.RequestException as e:
                 print(f"[find_about_page] Error checking common path {about_url}: {e}")
-                continue # Try next path
+                continue
 
         print(f"[find_about_page] About page not found for {base_url}")
-        return None # Return None if no exception but not found
+        return None
 
-    except requests.exceptions.ProxyError as pe:
-        print(f"[find_about_page] PROXY ERROR accessing base URL {base_url}: {pe}")
-        return None # Cannot proceed if base URL fetch fails via proxy
-    except requests.exceptions.RequestException as e:
-        print(f"[find_about_page] Error accessing base URL {base_url}: {e}")
-        return None # Cannot proceed if base URL fetch fails
     except Exception as e:
-        print(f"[find_about_page] Unexpected error processing {base_url}: {e}")
+        # Catch potential errors during BeautifulSoup parsing or other unexpected issues
+        print(f"[find_about_page] Unexpected error processing HTML for {base_url}: {e}")
         import traceback
         print(traceback.format_exc())
-        return None # Return None on unexpected errors
+        return None
 
 def process_simple_content(home_data, about_data):
     """Process the scraped content with OpenAI and return both prompt and response"""
@@ -1275,192 +1272,243 @@ def process_url_async():
     print(f"[process_url_async] Form data: {request.form}")
     website_url = request.form.get('url')
     print(f"[process_url_async] Original URL: {website_url}")
-    
-    # Get reCAPTCHA token, honeypot value, and pre-validated flag
-    recaptcha_token = request.form.get('g-recaptcha-response')
-    honeypot_value = request.form.get('contact_email')
+
+    # Get required data from the form (expecting pre-validated flow)
     pre_validated = request.form.get('pre_validated') == 'true'
-    
-    # Skip validation if pre-validated flag is true
-    if pre_validated:
-        print(f"[process_url_async] URL is pre-validated, skipping validation checks")
-        # We still need chatbot_id and namespace
-        chatbot_id = request.form.get('chatbot_id')
-        namespace = request.form.get('namespace')
-        
-        if not chatbot_id or not namespace:
-            print(f"[process_url_async] Missing required fields for pre-validated request")
-            return jsonify({"error": "Missing chatbot_id or namespace for pre-validated request"}), 400
-            
-        print(f"[process_url_async] Using pre-validated data: chatbot_id={chatbot_id}, namespace={namespace}")
-    else:
-        # Use the validation function to comprehensively validate the URL
-        validation_result = validate_website_url(website_url, recaptcha_token, request.remote_addr, honeypot_value)
-        
-        # If validation failed, return appropriate error response
-        if not validation_result["is_valid"]:
-            print(f"[process_url_async] Validation failed: {validation_result['message']}")
-            return jsonify({"error": validation_result["message"]}), validation_result["status_code"]
-        
-        # Get validated data from validation result
-        chatbot_id = validation_result["chatbot_id"]
-        namespace = validation_result["namespace"]
-        website_url = validation_result.get("validated_url", website_url)  # Use validated URL if available
-        
-        print(f"[process_url_async] Validation successful. Using chatbot_id: {chatbot_id}, namespace: {namespace}")
-    
-    # Generate APIFlash screenshot URL immediately
+    chatbot_id = request.form.get('chatbot_id')
+    namespace = request.form.get('namespace')
+    honeypot_value = request.form.get('contact_email') # Check honeypot just in case
+
+    # Basic check for essential info even if pre-validated
+    if not pre_validated or not chatbot_id or not namespace or not website_url:
+        print(f"[process_url_async] Error: Missing required fields for pre-validated request.")
+        # Check if maybe it wasn't pre-validated and needs validation first
+        if not pre_validated and website_url:
+             recaptcha_token = request.form.get('g-recaptcha-response')
+             print("[process_url_async] Attempting fallback validation.")
+             # Fallback to run validation if required fields missing and not marked pre-validated
+             validation_result = validate_website_url(website_url, recaptcha_token, request.remote_addr, honeypot_value)
+             if not validation_result["is_valid"]:
+                  return jsonify({"error": validation_result["message"]}), validation_result["status_code"]
+             else: # Validation succeeded, get IDs
+                  chatbot_id = validation_result["chatbot_id"]
+                  namespace = validation_result["namespace"]
+                  website_url = validation_result.get("validated_url", website_url)
+                  print(f"[process_url_async] Fallback validation successful. Proceeding.")
+        else: # Pre-validated but still missing info
+            return jsonify({"error": "Missing chatbot_id, namespace, or url for pre-validated request"}), 400
+
+    print(f"[process_url_async] Using data: chatbot_id={chatbot_id}, namespace={namespace}, url={website_url}")
+
+    # Check Honeypot again just in case it was missed in frontend validation path
+    if honeypot_value:
+        print(f"[process_url_async] Honeypot field filled, likely bot activity. Aborting.")
+        # Return a generic success to mislead bot, but don't process
+        return jsonify({"status": "processing", "chatbot_id": chatbot_id})
+
+
+    # --- Generate APIFlash screenshot URL ---
     screenshot_url = ""
     try:
         base_url = "https://api.apiflash.com/v1/urltoimage"
-        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
+        api_flash_url = website_url
+        if not api_flash_url.startswith(('http://', 'https://')):
+             api_flash_url = 'https://' + api_flash_url
+        # URL Encode the website URL for the query parameter
+        encoded_website_url = requests.utils.quote(api_flash_url)
+        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={encoded_website_url}&format=jpeg&width=1600&height=1066"
         print(f"[process_url_async] Screenshot URL generated: {screenshot_url}")
-        
-        # Make an HTTP request to trigger APIFlash to generate and cache the screenshot
-        try:
-            print("[process_url_async] Triggering APIFlash screenshot generation")
-            response = requests.get(screenshot_url, timeout=2, stream=True)
-            for chunk in response.iter_content(chunk_size=1024):
-                if chunk:
-                    break
-            response.close()
-            print("[process_url_async] APIFlash screenshot generation triggered successfully")
-        except requests.exceptions.Timeout:
-            print("[process_url_async] APIFlash request timed out, but screenshot generation was triggered")
-        except Exception as api_e:
-            print(f"[process_url_async] Error making APIFlash request: {api_e}, but continuing")
-            
+
+        # Trigger APIFlash generation in background thread
+        import threading
+        api_flash_thread = threading.Thread(
+            target=lambda: requests.get(screenshot_url, timeout=10), # Allow reasonable time
+            daemon=True
+        )
+        api_flash_thread.start()
+        print("[process_url_async] APIFlash screenshot generation trigger sent.")
     except Exception as e:
-        print(f"[process_url_async] Error generating screenshot URL: {e}, but continuing")
-    
-    # Initialize processing status
+        print(f"[process_url_async] Error generating/triggering screenshot URL: {e}, but continuing")
+
+    # --- Initialize processing status ---
     processing_status[chatbot_id] = {
         "namespace": namespace,
         "completed": False,
         "start_time": time.time(),
         "website_url": website_url,
-        "screenshot_url": screenshot_url
+        "screenshot_url": screenshot_url,
+        "error": None # Initialize error field
     }
-    
     print(f"[process_url_async] Processing status initialized for {chatbot_id}")
     print(f"[process_url_async] Current processing_status keys: {list(processing_status.keys())}")
-    
-    # Start the processing in the background
-    try:
-        print(f"[process_url_async] Starting processing execution for {chatbot_id}")
-        
-        # Simplified scraping of the website and its About page
-        home_data = simple_scrape_page(website_url)
-        about_url = find_about_page(website_url)
-        about_data = simple_scrape_page(about_url) if about_url else None
-        
-        if not home_data.get("all_text"):
-            processing_status[chatbot_id]["error"] = "Failed to scrape website content"
-            return jsonify({"error": "Failed to scrape website content"}), 400
 
-        # Process the content with OpenAI - returns both content and prompt
-        result = process_simple_content(home_data, about_data)
-        if not result:
-            processing_status[chatbot_id]["error"] = "Failed to process content"
-            return jsonify({"error": "Failed to process content"}), 400
-            
-        # Unpack the result
-        processed_content, full_prompt = result
-        
-        # Store the about page text (if it was found)
-        about_text = about_data.get("all_text", "About page not found") if about_data else "About page not found"
-        
-        # Combine into a single scraped_text field with clear sections
-        scraped_text = f"""OpenAI Prompt
+    # --- Define Background Processing Task ---
+    def process_in_background(app_context, current_chatbot_id, current_website_url, current_namespace):
+        with app_context: # Ensure access to app context (config, etc.) in thread
+            print(f"[process_in_background] Starting processing execution for {current_chatbot_id}")
+            try:
+                # --- Fetch Home Page Content ONCE ---
+                print(f"[process_in_background] Scraping homepage: {current_website_url}")
+                home_scrape_result = simple_scrape_page(current_website_url)
+                homepage_html = home_scrape_result.get("raw_html", "") # Get raw HTML
+
+                # Prepare home_data dict for processing function (even if scrape failed slightly)
+                home_data = {
+                     "all_text": home_scrape_result.get("all_text", ""),
+                     "meta_info": home_scrape_result.get("meta_info", {"title": "", "description": ""})
+                }
+
+                # Check if essential scraping failed
+                if not home_data["all_text"] and not homepage_html:
+                    print(f"[process_in_background] CRITICAL Error: Failed to scrape essential homepage content for {current_website_url}")
+                    processing_status[current_chatbot_id]["error"] = "Failed to scrape website content"
+                    processing_status[current_chatbot_id]["completed"] = False # Ensure not marked complete
+                    return # Stop processing
+
+                print(f"[process_in_background] Homepage scraped. Content length: {len(home_data['all_text'])}, HTML length: {len(homepage_html)}")
+
+                # --- Find About Page using fetched HTML ---
+                print(f"[process_in_background] Finding About page using homepage HTML")
+                about_url = find_about_page(current_website_url, homepage_html) # Pass fetched HTML
+                print(f"[process_in_background] Found About page URL: {about_url}")
+
+                # --- Fetch About Page Content (if found) ---
+                about_data = None # Dict for processing function
+                about_text = "About page not found or failed to scrape." # Text for DB record
+                if about_url:
+                    print(f"[process_in_background] Scraping About page: {about_url}")
+                    about_scrape_result = simple_scrape_page(about_url)
+                    if about_scrape_result and about_scrape_result.get("all_text"):
+                        # Prepare about_data dict for processing function
+                        about_data = {
+                             "all_text": about_scrape_result.get("all_text"),
+                             "meta_info": about_scrape_result.get("meta_info", {"title": "", "description": ""})
+                        }
+                        # Store successfully scraped text for DB record
+                        about_text = about_data["all_text"]
+                        print(f"[process_in_background] About page scraped. Content length: {len(about_data['all_text'])}")
+                    else:
+                        print(f"[process_in_background] Warning: Failed to scrape About page content for {about_url}")
+                        # about_data remains None, about_text retains default message
+                else:
+                    print(f"[process_in_background] No About page URL found.")
+
+                # --- Process Content with OpenAI ---
+                print(f"[process_in_background] Processing content with OpenAI")
+                # Pass the prepared dictionaries to the processing function
+                result = process_simple_content(home_data, about_data) # about_data can be None
+                if not result:
+                    print(f"[process_in_background] Failed to process content with OpenAI")
+                    processing_status[current_chatbot_id]["error"] = "Failed to process content with OpenAI"
+                    processing_status[current_chatbot_id]["completed"] = False
+                    return
+
+                processed_content, full_prompt = result
+                print(f"[process_in_background] OpenAI processing complete. Content length: {len(processed_content)}")
+
+                # --- Combine into scraped_text field (used for DB storage) ---
+                # Uses the prepared about_text variable which holds scraped content or default message
+                scraped_text = f"""OpenAI Prompt
 {full_prompt}
 
 About Scrape
 {about_text}"""
-        
-        # OLD CHUNKING METHOD (COMMENTED OUT)
-        # chunks = chunk_text(processed_content)
-        # embeddings = get_embeddings(chunks)
-        # update_pinecone_index(namespace, chunks, embeddings)
-        
-        # NEW SEMANTIC CHUNKING METHOD
-        success = process_and_update_pinecone(processed_content, namespace)
-        if not success:
-            processing_status[chatbot_id]["error"] = "Failed to process and update Pinecone"
-            return jsonify({"error": "Failed to process and update Pinecone"}), 400
-        
-        now = datetime.now(UTC)
-        data = (
-            chatbot_id, website_url, PINECONE_HOST, PINECONE_INDEX,
-            namespace, now, now, scraped_text, processed_content
-        )
 
-        # Flag to track if this is a new company (for webhook)
-        is_new_company = False
-        
-        try:
-            # If this is a pre-validated request, we need to check explicitly
-            if pre_validated:
-                existing_record = get_existing_record(website_url)
-                if existing_record and existing_record[0] == chatbot_id:
-                    update_company_data(data, chatbot_id)
-                else:
-                    insert_company_data(data)
-                    is_new_company = True
-            else:
-                # Use validation result to determine if record exists
-                if validation_result["existing_record"]:
-                    update_company_data(data, chatbot_id)
-                else:
-                    insert_company_data(data)
-                    is_new_company = True
-            
-            # If this is a new company, trigger the webhook
-            if is_new_company:
-                # Import webhook trigger function from db_leads
-                from db_leads import trigger_webhook
-                
-                # Get our GEC_CHATBOT_ID from environment variables
-                gec_chatbot_id = os.getenv('GEC_CHATBOT_ID')
-                
-                if gec_chatbot_id:
-                    # Create webhook payload with company info
-                    webhook_payload = {
-                        "company": {
-                            "chatbot_id": chatbot_id,
-                            "url": website_url,
-                            "namespace": namespace,
-                            "created_at": now.isoformat()
-                        }
-                    }
-                    
-                    # Use a background thread to avoid blocking the response
-                    print(f"[process_url_async] Triggering new_company webhook for {website_url}")
-                    import threading
-                    threading.Thread(
-                        target=trigger_webhook,
-                        args=(gec_chatbot_id, "new_company", webhook_payload),
-                        daemon=True
-                    ).start()
-                    
-        except Exception as e:
-            processing_status[chatbot_id]["error"] = f"Failed to save company data: {str(e)}"
-            return jsonify({"error": "Failed to save company data"}), 400
+                # --- Process and Update Pinecone ---
+                print(f"[process_in_background] Processing and updating Pinecone for namespace: {current_namespace}")
+                success = process_and_update_pinecone(processed_content, current_namespace)
+                if not success:
+                    print(f"[process_in_background] Failed to process and update Pinecone")
+                    processing_status[current_chatbot_id]["error"] = "Failed to process and update Pinecone"
+                    processing_status[current_chatbot_id]["completed"] = False
+                    return
 
-        # Processing is complete - update status to ready
-        processing_status[chatbot_id]["completed"] = True
-        processing_time = time.time() - processing_status[chatbot_id]["start_time"]
-        print(f"[process_url_async] Processing completed for {chatbot_id} in {processing_time:.2f} seconds")
-    
-    except Exception as e:
-        print(f"[process_url_async] Error during processing: {e}")
-        import traceback
-        print(f"[process_url_async] Error traceback: {traceback.format_exc()}")
-        processing_status[chatbot_id]["error"] = f"Processing error: {str(e)}"
-    
-    # Return chatbot_id immediately so frontend can start polling
-    print(f"[process_url_async] Returning to client - chatbot_id: {chatbot_id}")
+                # --- Update Database ---
+                print(f"[process_in_background] Updating database for chatbot_id: {current_chatbot_id}")
+                now = datetime.now(UTC)
+                db_data = ( # Renamed to avoid confusion with request data
+                    current_chatbot_id, current_website_url, PINECONE_HOST, PINECONE_INDEX,
+                    current_namespace, now, now, scraped_text, processed_content
+                )
+
+                is_new_company = False
+                try:
+                    # Use a separate DB call to check existence reliably within the thread
+                    # Needs to be done *after* potentially long processing steps
+                    existing_record = get_existing_record(current_website_url)
+
+                    if existing_record and existing_record[0] == current_chatbot_id:
+                        print(f"[process_in_background] Updating existing record in DB")
+                        update_company_data(db_data, current_chatbot_id)
+                    else:
+                        # Handles both genuinely new records and cases where another process might have inserted
+                        # between initial validation and now.
+                        print(f"[process_in_background] Inserting record into DB (might be new or replacing placeholder if race occurred)")
+                        insert_company_data(db_data)
+                        if not existing_record: # Only trigger webhook if it was definitely not there before
+                            is_new_company = True
+                            print(f"[process_in_background] Determined to be a new company entry.")
+
+                    # Trigger webhook if it's a new company
+                    if is_new_company:
+                        from db_leads import trigger_webhook
+                        gec_chatbot_id = os.getenv('GEC_CHATBOT_ID')
+                        if gec_chatbot_id:
+                            webhook_payload = {
+                                "company": {
+                                    "chatbot_id": current_chatbot_id,
+                                    "url": current_website_url,
+                                    "namespace": current_namespace,
+                                    "created_at": now.isoformat()
+                                }
+                            }
+                            print(f"[process_in_background] Triggering new_company webhook for {current_website_url}")
+                            # Run webhook in its own thread if it might be slow or block
+                            webhook_thread = threading.Thread(
+                                target=trigger_webhook,
+                                args=(gec_chatbot_id, "new_company", webhook_payload),
+                                daemon=True
+                            )
+                            webhook_thread.start()
+                        else:
+                             print(f"[process_in_background] GEC_CHATBOT_ID not set, skipping webhook.")
+
+                except Exception as db_e:
+                    print(f"[process_in_background] DATABASE ERROR during save: {db_e}")
+                    processing_status[current_chatbot_id]["error"] = f"Failed to save company data: {str(db_e)}"
+                    processing_status[current_chatbot_id]["completed"] = False
+                    return # Stop processing on DB error
+
+                # --- Mark Processing as Complete ---
+                processing_status[current_chatbot_id]["completed"] = True
+                processing_time = time.time() - processing_status[current_chatbot_id]["start_time"]
+                print(f"[process_in_background] Processing completed successfully for {current_chatbot_id} in {processing_time:.2f} seconds")
+
+            except Exception as e:
+                print(f"[process_in_background] CRITICAL ERROR during processing for {current_chatbot_id}: {e}")
+                import traceback
+                print(f"[process_in_background] Error traceback: {traceback.format_exc()}")
+                # Update status with error message
+                if current_chatbot_id in processing_status:
+                    processing_status[current_chatbot_id]["error"] = f"Processing error: {str(e)}"
+                    processing_status[current_chatbot_id]["completed"] = False # Ensure not marked complete
+
+    # --- Start the background processing thread ---
+    import threading
+    from flask import current_app
+    app_context = current_app.app_context() # Get context from the current request
+    background_thread = threading.Thread(
+        target=process_in_background,
+        args=(app_context, chatbot_id, website_url, namespace), # Pass necessary data
+        daemon=True
+    )
+    background_thread.start()
+    print(f"[process_url_async] Background processing thread started for {chatbot_id}")
+
+    # --- Return initial response to client immediately ---
+    print(f"[process_url_async] Returning initial response to client - chatbot_id: {chatbot_id}")
     return jsonify({
-        "status": "processing",
+        "status": "processing", # Indicate processing started
         "chatbot_id": chatbot_id
     })
 
@@ -1575,39 +1623,48 @@ About Scrape
 def check_processing(chatbot_id):
     """Check if processing is complete for a chatbot"""
     print(f"[check_processing] Checking status for chatbot_id: {chatbot_id}")
-    print(f"[check_processing] Available processing_status keys: {list(processing_status.keys())}")
-    
+    # print(f"[check_processing] Available processing_status keys: {list(processing_status.keys())}") # Optional: uncomment for debugging
+
     if chatbot_id not in processing_status:
         print(f"[check_processing] Chatbot ID not found in processing_status")
-        return jsonify({"status": "error", "message": "Chatbot ID not found"}), 404
-    
+        return jsonify({"status": "error", "message": "Chatbot ID not found or processing expired"}), 404 # More informative message
+
     status_info = processing_status[chatbot_id]
-    print(f"[check_processing] Status info: {status_info}")
-    
-    # If already marked as completed, return success
+    # print(f"[check_processing] Status info: {status_info}") # Optional: uncomment for debugging
+
+    # Check for a non-None error value first
+    # <<< --- MODIFIED LOGIC --- >>>
+    processing_error = status_info.get("error") # Use .get() for safety
+    if processing_error is not None:
+        print(f"[check_processing] Error found for {chatbot_id}: {processing_error}")
+        # Return 200 OK but indicate error status in JSON, so frontend polling doesn't fail
+        return jsonify({
+            "status": "error",
+            "message": str(processing_error) # Ensure message is string
+        }), 200 # Return 200 OK to allow frontend to parse the error message
+    # <<< --- END MODIFIED LOGIC --- >>>
+
+    # If no error, check if completed
     if status_info.get("completed", False):
         print(f"[check_processing] Processing complete for {chatbot_id}")
+        # Clean up the status entry after completion? Optional.
+        # try:
+        #     del processing_status[chatbot_id]
+        # except KeyError:
+        #     pass # Already deleted, ignore
         return jsonify({
             "status": "complete",
             "chatbot_id": chatbot_id,
             "website_url": status_info.get("website_url", ""),
-            "screenshot_url": status_info.get("screenshot_url", "")  # Include screenshot URL
+            "screenshot_url": status_info.get("screenshot_url", "")
         })
-    
-    # If there was an error during processing
-    if "error" in status_info:
-        print(f"[check_processing] Error for {chatbot_id}: {status_info['error']}")
-        return jsonify({
-            "status": "error",
-            "message": status_info["error"]
-        }), 400
-    
-    # If we're still in the initial processing phase
-    elapsed_time = time.time() - status_info["start_time"]
+
+    # If no error and not complete, it's still processing
+    elapsed_time = time.time() - status_info.get("start_time", time.time()) # Safer get()
     print(f"[check_processing] Still processing {chatbot_id}, elapsed: {int(elapsed_time)}s")
     return jsonify({
         "status": "processing",
-        "phase": "content",
+        # 'phase' is less relevant now, maybe remove or improve later
         "elapsed_seconds": int(elapsed_time)
     })
 
