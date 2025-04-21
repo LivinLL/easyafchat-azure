@@ -36,6 +36,7 @@
         webjobs/
         static/
             site.webmanifest
+            robots.txt
             css/
                 style.css
                 dashboard_style.css
@@ -110,27 +111,35 @@
             trigger-n8n-webhook-new-lead.ps1
             tables-schema-postgres.csv
             chatbot_config.csv
-            chatbot-embed.js
             landing.html
             chat_handler.py
             companies.csv
             admin_dashboard_0718am.py
             db_metrics.py
-            chatbot-embed-support.js
-            settings_blueprint.py
-            dashboard.html
-            app.py
             database.py
             routes.py
             db_leads.py
+            settings_blueprint.py
+            dashboard_style.css
+            chatbot-embed-support.js
+            chatbot-embed.js
+            dashboard.html
+            app.py
         marketing/
             info.txt
             chatbase_signin.png
             chatbase_website_fetchlinks.mp4
             easyafchat-knowledge-doc.txt
-            Bot-Create-Demo-v1.mp4
             aminos-stuff.txt
             GoEasyChat-Home-Page.docx
+            Demo-Pipeline-for-Endy.mp4
+            Bot-Create-Demo-Raw-v1.mp4
+            Bot-Create-Demo-v1.mp4
+            chat_urls.csv
+            ~$ld-Email-Domain-Names.docx
+            Cold-Email-Domain-Names.docx
+            Cold-Outreach-Messaging.txt
+            Springfield-Local-Biz.csv
         auth/
             models.py
             __init__.py
@@ -178,10 +187,14 @@
             b9b6cc9d6623c1bef8a39365956885c9
             4b3d320fcf2914932ef42e4eaca1de57
             1d1dc28e3454bfadd9dcdd4b32dacb02
-            6090ea2f5a3ec4decad3e4f2156016d9
+            f463ff334b99b5b425f0f278122e1a4a
+            d3eb326484853459d5adcf0e02d3e814
             46a1cfd4036b45e949f44878941e3641
             740d51de9ec2bc36bfdbb7c84cb43f56
+            6090ea2f5a3ec4decad3e4f2156016d9
             2029240f6d1128be89ddc32729463129
+            b2f57a83d01cae81367b4bea2fdd6cee
+            293130a3efccf113f76ba82a127d876e
     .github/
         workflows/
             main_easyafchat-v3.yml

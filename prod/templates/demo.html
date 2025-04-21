@@ -159,6 +159,53 @@
                 width: 60px;
             }
         }
+
+        /* SCREENSHOT PLACEHOLDER STYLES */
+        .screenshot-placeholder-container {
+            position: relative; /* Needed for absolute positioning of spinner/text */
+            width: 100%;
+            aspect-ratio: 16 / 10.66; /* Matches APIFlash dimensions (1600/1066) */
+            background-color: #f0f0f0; /* Light gray background */
+            border: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden; /* Hide anything extending beyond */
+            min-height: 300px; /* Ensure minimum height even if aspect-ratio fails */
+        }
+
+        .placeholder-spinner {
+            border: 5px solid #f3f3f3; /* Light grey */
+            border-top: 5px solid #0d6efd; /* Blue */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1.5s linear infinite;
+            margin-bottom: 20px; /* Space between spinner and text */
+        }
+
+        .placeholder-text {
+            color: #555;
+            font-size: 1.1em;
+            text-align: center;
+            padding: 0 20px; /* Prevent text touching edges */
+            line-height: 1.4;
+        }
+
+        /* Keyframes for spinner animation (if not already defined elsewhere) */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Style for the loaded image to ensure it fits */
+        #screenshot-placeholder img {
+            display: block;
+            width: 100%;
+            height: auto; /* Maintain aspect ratio */
+        }
+        /* END SCREENSHOT PLACEHOLDER STYLES */
     </style>
 
 <!-- Google tag (gtag.js) -->
@@ -198,7 +245,11 @@
                     <h3>Website Preview for: <span id="previewUrl">{{ website_url }}</span></h3>
                 </div>
                 <div class="preview-content" id="preview-content">
-                    <img src="{{ screenshot_url }}" alt="Website Preview" id="websiteScreenshot">
+                    <div id="screenshot-placeholder" class="screenshot-placeholder-container">
+                        <div class="placeholder-spinner"></div>
+                        <p class="placeholder-text">Screenshot of Your Site is On Its Way!<br>Feel Free to Test Your Bot Now!</p>
+                        <!-- The actual image will be loaded here by JavaScript -->
+                    </div>
                     <div class="chat-pointer" id="chatPointer">
                         <div class="chat-pointer-container">
                             <span class="chat-pointer-text">Your bot is ready, try it out!</span>
@@ -262,17 +313,64 @@
         };
     </script>
     <script src="/static/js/chatbot-embed.js"></script>
-    
-    {% if session.get('user_id') and not is_claimed %}
+
+    <!-- START: This is the SINGLE combined script block -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const screenshotUrl = "{{ (screenshot_url or '') | safe }}"; // Get URL from template, provide default
+            const placeholder = document.getElementById('screenshot-placeholder');
+
+            if (!screenshotUrl) {
+                console.error("Screenshot URL is missing.");
+                if(placeholder) placeholder.innerHTML = '<p class="placeholder-text" style="color: #dc3545;">Error: Screenshot URL not provided.</p>';
+            } else if (!placeholder) {
+                console.error("Screenshot placeholder element not found.");
+            } else {
+                // Only proceed with image loading if placeholder and URL exist
+                const spinner = placeholder.querySelector('.placeholder-spinner');
+                const initialText = placeholder.querySelector('.placeholder-text');
+                const img = new Image();
+                let timeoutId = null;
+
+                // --- Success Handler ---
+                img.onload = function() {
+                    console.log("Screenshot loaded successfully.");
+                    clearTimeout(timeoutId); // Cancel timeout timer
+                    placeholder.innerHTML = ''; // Clear placeholder content (spinner and text)
+                    placeholder.appendChild(img); // Add the loaded image
+                    img.alt = "Website Preview";
+                };
+
+                // --- Error Handler ---
+                img.onerror = function() {
+                    console.error("Failed to load screenshot image from:", screenshotUrl);
+                    clearTimeout(timeoutId); // Cancel timeout timer
+                    placeholder.innerHTML = '<p class="placeholder-text" style="color: #dc3545;">Website preview could not be loaded.<br>You can still test the chatbot below.</p>';
+                };
+
+                // --- Timeout ---
+                timeoutId = setTimeout(() => {
+                    console.log("Screenshot loading timed out.");
+                    if (img.src) { // Only abort if src was set
+                       img.src = ''; // Stop trying to load the image
+                       img.onerror(); // Trigger the error handler manually
+                    }
+                }, 60000); // 30 seconds
+
+                // --- Initiate Loading ---
+                console.log("Attempting to load screenshot from:", screenshotUrl);
+                img.src = screenshotUrl;
+            }
+
+            // --- Claim Button Logic (Conditionally Rendered by Jinja) ---
+            {% if session.get('user_id') and not is_claimed %}
             const claimButton = document.getElementById('claimButton');
             if (claimButton) {
                 claimButton.addEventListener('click', async function() {
                     const chatbotId = this.getAttribute('data-chatbot-id');
                     claimButton.disabled = true;
                     claimButton.textContent = 'Claiming...';
-                    
+
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                         const response = await fetch(`/auth/claim-chatbot/${chatbotId}`, {
@@ -282,9 +380,9 @@
                                 'X-CSRFToken': csrfToken
                             }
                         });
-                        
+
                         const result = await response.json();
-                        
+
                         if (result.success) {
                             claimButton.textContent = 'Chatbot Claimed Successfully!';
                             claimButton.classList.add('already-claimed');
@@ -302,50 +400,54 @@
                     }
                 });
             }
-        });
-    </script>
-    {% endif %}
+            {% endif %} // End of conditional rendering for claim button logic
 
-<!-- Chat pointer for demo bubble -->
-<script>
-    // Control the chat pointer visibility
-    document.addEventListener('DOMContentLoaded', function() {
-        // Wait for the chatbot to load
-        setTimeout(function() {
-            const chatPointer = document.getElementById('chatPointer');
-            
-            // Find the chat button within the preview content
-            const previewContent = document.getElementById('preview-content');
-            const chatButton = previewContent.querySelector('.easy-chat-button');
-            
-            if (chatButton && chatPointer) {
-                // Hide pointer when chat button is clicked
-                chatButton.addEventListener('click', function() {
-                    chatPointer.style.display = 'none';
-                });
-            }
-            
-            // Hide pointer after 30 seconds anyway
+            // --- Chat Pointer Logic ---
             setTimeout(function() {
-                if (chatPointer) {
-                    chatPointer.style.display = 'none';
-                }
-            }, 30000);
-        }, 2000); // Allow time for chatbot to load
-    });
-</script>
+                const chatPointer = document.getElementById('chatPointer');
+                const previewContent = document.getElementById('preview-content');
+                // Use a robust selector for the chat button, adapt if necessary
+                const chatButton = previewContent.querySelector('.easy-chat-button, button[aria-label*="chat"]');
 
-<!--
-<script>
-    window.davesEasySupportChatConfig = {
-        chatbotId: "8d3df74ea51443d898fe",
-        baseUrl: "https://goeasychat.com",
-        // baseUrl: "http://127.0.0.1:8080/",
-        showInitialMessage: false
-    };
-</script>
-<script src="https://goeasychat.com/static/js/chatbot-embed-support.js" defer></script>
--->
+                if (chatButton && chatPointer) {
+                    chatButton.addEventListener('click', function() {
+                        // Ensure pointer is still visible before hiding
+                        if (chatPointer.style.display !== 'none') {
+                            chatPointer.style.display = 'none';
+                            console.log("Chat pointer hidden on button click.");
+                        }
+                    });
+                } else {
+                    console.warn("Chat button or pointer not found for interaction.");
+                }
+
+                // Hide pointer after 30 seconds anyway
+                setTimeout(function() {
+                    if (chatPointer && chatPointer.style.display !== 'none') {
+                         chatPointer.style.display = 'none';
+                         console.log("Chat pointer hidden after timeout.");
+                    }
+                }, 30000); // 30 seconds visibility timeout
+
+            }, 2500); // Slightly longer delay to ensure chat embed script runs
+
+        }); // End DOMContentLoaded
+    </script>
+    <!-- END: This is the SINGLE combined script block -->
+
+    <!-- Optional Support Chat (Keep commented out or remove if not used) -->
+    <!--
+    <script>
+        window.davesEasySupportChatConfig = {
+            chatbotId: "8d3df74ea51443d898fe",
+            baseUrl: "https://goeasychat.com",
+            // baseUrl: "http://127.0.0.1:8080/",
+            showInitialMessage: false
+        };
+    </script>
+    <script src="https://goeasychat.com/static/js/chatbot-embed-support.js" defer></script>
+    -->
+
     <script src="/static/js/csrf.js"></script>
 </body>
 </html>

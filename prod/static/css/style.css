@@ -640,7 +640,7 @@ footer {
 
 /* Website Preview Styles - Where the Screenshot Lives on demo.html */
 .website-preview {
-    width: fit-content;
+    width: 100%; /* CHANGED from fit-content */
     max-width: 800px; /* Add this line */
     margin: 1rem auto;
     background: white;
