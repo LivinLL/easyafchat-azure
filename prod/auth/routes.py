@@ -1269,63 +1269,111 @@ def reset_password(token):
 
 @auth_bp.route('/claim-chatbot/<chatbot_id>', methods=['POST'])
 def claim_chatbot(chatbot_id):
-    # Check for CSRF Token
-    if request.is_json and not current_app.config.get('TESTING'):
-        # For API/AJAX requests, check the X-CSRFToken header
-        csrf_token = request.headers.get('X-CSRFToken')
-        if not csrf_token or not validate_csrf(csrf_token):
-            return jsonify({'success': False, 'message': 'CSRF token missing or invalid'}), 400
-    
+    # <<< START ADDING LOGGING HERE >>>
+    print(f"--- CLAIM CHATBOT START ---")
+    print(f"Received request for chatbot_id: {chatbot_id}")
+    print(f"Session contents: {dict(session.items())}") # Print all session data
+    if 'user_id' in session:
+        print(f"User ID found in session: {session['user_id']}")
+    else:
+        print(f"!!! User ID NOT found in session !!!")
+    # <<< END ADDING LOGGING HERE >>>
+
+    # Check for CSRF Token - This check might be redundant if WTForms handles it globally,
+    # but keeping it here based on the provided code. Might need adjustment if using WTForms CSRF.
+    # We check the header as the request comes from JavaScript fetch
+    csrf_token_header = request.headers.get('X-CSRFToken')
+    if not csrf_token_header:
+        print("!!! CSRF Token MISSING in X-CSRFToken header !!!")
+        # Consider if validate_csrf should be called even if token is missing,
+        # or if just checking presence is enough before validation.
+        # Flask-WTF might automatically handle this if configured globally.
+        # If using Flask-WTF global protection, this manual check might interfere or be unnecessary.
+
+    # Attempt validation (this might raise an error if token is bad, or Flask-WTF handles it before)
+    try:
+        validate_csrf(csrf_token_header) # Validate the token from the header
+        print(f"CSRF token validation passed for token from header.")
+    except Exception as csrf_error: # Catch potential validation errors
+        print(f"!!! CSRF validation FAILED: {csrf_error} !!!")
+        # Return the standard CSRF error response
+        # Note: Flask-WTF might raise its own specific exception type.
+        return jsonify({'success': False, 'message': 'CSRF validation failed'}), 400 # Standard CSRF failure response
+
+    # Proceed only if CSRF is okay and user is logged in
     if 'user_id' not in session:
+        print("User not logged in, returning 401.")
         return jsonify({'success': False, 'message': 'You must be logged in to claim a chatbot'}), 401
-    
+
     user_id = session['user_id']
-    
+
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        
+
         # Check if chatbot exists and isn't claimed
+        print(f"Checking database for chatbot_id: {chatbot_id}")
         if os.environ.get('DB_TYPE') == 'postgresql':
             cursor.execute("SELECT * FROM companies WHERE chatbot_id = %s", (chatbot_id,))
         else:
             cursor.execute("SELECT * FROM companies WHERE chatbot_id = ?", (chatbot_id,))
-            
+
         chatbot = cursor.fetchone()
-        
+
         if not chatbot:
+            print(f"Chatbot not found in DB, returning 404.")
             return jsonify({'success': False, 'message': 'Chatbot not found'}), 404
-        
+
         columns = [desc[0] for desc in cursor.description]
         chatbot_dict = dict(zip(columns, chatbot))
-        
-        if chatbot_dict.get('user_id') and chatbot_dict.get('user_id') != user_id:
+        existing_owner_id = chatbot_dict.get('user_id')
+        print(f"Chatbot found. Existing owner_id: {existing_owner_id}")
+
+        if existing_owner_id and existing_owner_id != user_id:
+            print(f"Chatbot already claimed by another user ({existing_owner_id}), returning 403.")
             return jsonify({'success': False, 'message': 'This chatbot is already claimed by another user'}), 403
-        
-        if chatbot_dict.get('user_id') == user_id:
+
+        if existing_owner_id == user_id:
+            print("Chatbot already claimed by this user, returning success.")
             return jsonify({'success': True, 'message': 'This chatbot is already yours'})
-        
+
         # Update chatbot with user_id
+        print(f"Attempting to claim chatbot {chatbot_id} for user {user_id}")
+        update_time = datetime.utcnow()
         if os.environ.get('DB_TYPE') == 'postgresql':
             cursor.execute(
                 "UPDATE companies SET user_id = %s, updated_at = %s WHERE chatbot_id = %s",
-                (user_id, datetime.utcnow(), chatbot_id)
+                (user_id, update_time, chatbot_id)
             )
         else:
             cursor.execute(
                 "UPDATE companies SET user_id = ?, updated_at = ? WHERE chatbot_id = ?",
-                (user_id, datetime.utcnow(), chatbot_id)
+                (user_id, update_time, chatbot_id)
             )
         conn.commit()
-        
+        print(f"Database updated successfully. Rows affected: {cursor.rowcount}")
+
         # Trigger the new_bot_claimed webhook
-        trigger_bot_claimed_webhook(chatbot_id, user_id)
-        
+        print("Attempting to trigger bot claimed webhook...")
+        webhook_success = trigger_bot_claimed_webhook(chatbot_id, user_id)
+        print(f"Webhook trigger result: {webhook_success}")
+
+        print("Claim process successful, returning JSON success.")
         return jsonify({'success': True, 'message': 'Chatbot claimed successfully'})
-        
+
     except (sqlite3.Error, psycopg2.Error) as e:
         conn.rollback()
+        print(f"!!! DATABASE ERROR during claim: {e} !!!")
         return jsonify({'success': False, 'message': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        # Catch any other unexpected errors
+        print(f"!!! UNEXPECTED ERROR during claim: {e} !!!")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': f'An unexpected error occurred: {str(e)}'}), 500
     finally:
-        conn.close()
+        # Ensure connection is closed
+        if 'conn' in locals() and conn:
+            conn.close()
+            print("Database connection closed.")
 

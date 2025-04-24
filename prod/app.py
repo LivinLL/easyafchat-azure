@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, g, send_from_directory, make_response
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse
@@ -1685,55 +1685,80 @@ def demo(session_id):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        
+
         # Get company info
         if DB_TYPE.lower() == 'postgresql':
             cursor.execute(f"SELECT * FROM {DB_SCHEMA}.companies WHERE chatbot_id = %s", (session_id,))
         else:
             cursor.execute("SELECT * FROM companies WHERE chatbot_id = ?", (session_id,))
-            
+
         result = cursor.fetchone()
-        
+
         if not result:
             flash('Chatbot not found', 'error')
             return redirect(url_for('home'))
-        
+
         # Convert to dictionary for easier access
         columns = [desc[0] for desc in cursor.description]
         chatbot_dict = dict(zip(columns, result))
-        
+
         # Check if the chatbot is claimed and by who
         is_claimed = chatbot_dict.get('user_id') is not None
         owner_id = chatbot_dict.get('user_id')
-        
+
         # Get the website URL
         website_url = chatbot_dict.get('company_url')
-        
+
         # Check if we have a cached screenshot URL in the processing status
         screenshot_url = ""
         if session_id in processing_status and "screenshot_url" in processing_status[session_id]:
             screenshot_url = processing_status[session_id]["screenshot_url"]
         else:
             # Generate APIFlash screenshot URL if we don't have one cached
-            try:
-                base_url = "https://api.apiflash.com/v1/urltoimage"
-                screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={website_url}&format=jpeg&width=1600&height=1066"
-            except Exception as e:
-                print(f"Error generating screenshot URL: {e}")
-                screenshot_url = ""
-        
-        return render_template('demo.html', 
-                               chatbot_id=session_id, 
-                               website_url=website_url, 
-                               screenshot_url=screenshot_url,
-                               is_claimed=is_claimed,
-                               owner_id=owner_id)
+            # <<< MODIFIED >>> Check for website_url and APIFLASH_KEY before generating
+            if website_url and APIFLASH_KEY:
+                try:
+                    base_url = "https://api.apiflash.com/v1/urltoimage"
+                    # Ensure URL has protocol for APIFlash
+                    api_flash_url = website_url
+                    if not api_flash_url.startswith(('http://', 'https://')):
+                        api_flash_url = 'https://' + api_flash_url
+                    encoded_website_url = requests.utils.quote(api_flash_url) # URL Encode
+                    screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={encoded_website_url}&format=jpeg&width=1600&height=1066"
+                except Exception as e:
+                    print(f"Error generating screenshot URL: {e}")
+                    screenshot_url = ""
+            else:
+                 print(f"Cannot generate screenshot URL - website_url or APIFLASH_KEY missing")
+
+        # --- MODIFICATION TO ADD CACHE CONTROL ---
+        # Render the template first
+        rendered_template = render_template('demo.html',
+                                            chatbot_id=session_id,
+                                            website_url=website_url,
+                                            screenshot_url=screenshot_url,
+                                            is_claimed=is_claimed,
+                                            owner_id=owner_id)
+
+        # Create a response object from the rendered template
+        response = make_response(rendered_template)
+
+        # Add cache-control headers to prevent browser caching
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache' # For older HTTP/1.0 clients
+        response.headers['Expires'] = '0' # Proxies
+
+        return response
+        # --- END MODIFICATION ---
+
     except Exception as e:
         app.logger.error(f"Error in demo route: {e}")
         flash(f"An error occurred: {e}", "error")
         return redirect(url_for('home'))
     finally:
-        conn.close()
+        # <<< MODIFIED >>> Ensure conn exists before closing
+        if 'conn' in locals() and conn:
+             conn.close()
 
 # Modify the /embed-chat route to save message data
 @app.route('/embed-chat', methods=['POST'])
