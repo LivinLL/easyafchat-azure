@@ -1316,7 +1316,7 @@ def process_url_async():
              api_flash_url = 'https://' + api_flash_url
         # URL Encode the website URL for the query parameter
         encoded_website_url = requests.utils.quote(api_flash_url)
-        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={encoded_website_url}&format=jpeg&width=1600&height=1066"
+        screenshot_url = f"{base_url}?access_key={APIFLASH_KEY}&url={encoded_website_url}&format=jpeg&width=1600&height=1066&wait_until=page_loaded"
         print(f"[process_url_async] Screenshot URL generated: {screenshot_url}")
 
         # Trigger APIFlash generation in background thread
