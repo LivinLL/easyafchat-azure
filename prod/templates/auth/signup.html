@@ -85,6 +85,10 @@
             <div class="col-md-6 mx-auto mt-5">
                 <div class="card shadow-sm">
                     <div class="card-body">
+                        <!-- Add the logo here -->
+                        <div class="text-center mb-4">
+                            <img src="{{ url_for('static', filename='images/logo_120x40.png') }}" alt="EasyChat Logo" style="max-width: 120px;">
+                        </div>
                         <h2 class="text-center mb-4">Create an Account</h2>
                         
                         {% with messages = get_flashed_messages(with_categories=true) %}
